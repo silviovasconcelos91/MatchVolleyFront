@@ -2,7 +2,7 @@ import { ExpoConfig } from 'expo/config';
 
 const config: ExpoConfig = {
   name: 'VolleyMatch',
-  slug: 'VolleyMatch',
+  slug: 'volleyMatch',
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
