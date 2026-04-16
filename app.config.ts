@@ -1,8 +1,8 @@
 import { ExpoConfig } from 'expo/config';
 
 const config: ExpoConfig = {
-  name: 'VolleyCoach',
-  slug: 'VolleyCoach',
+  name: 'VolleyMatch',
+  slug: 'VolleyMatch',
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
@@ -16,6 +16,7 @@ const config: ExpoConfig = {
     supportsTablet: true,
   },
   android: {
+    package: 'com.vasconcelos.volleymatch',
     adaptiveIcon: {
       backgroundColor: '#E6F4FE',
       foregroundImage: './assets/android-icon-foreground.png',
