@@ -28,6 +28,7 @@ const config: ExpoConfig = {
   },
   extra: {
     apiUrl: process.env.API_URL ?? 'https://matchvolley-production.up.railway.app',
+    projectId: '9bf00671-0e20-45cb-bd36-67c7c70ba5d3'
   },
 };
 
