@@ -1,23 +1,8 @@
-import Constants from 'expo-constants';
 import { createEmptyStats } from './players';
 import type { PlayerStats, ActionKey } from './players';
 import type { MatchState, MatchHistoryEvent } from '../context/MatchContext';
 import type { Team } from './teams';
-
-const getApiUrl = (): string => {
-  const configured: string | undefined = Constants.expoConfig?.extra?.apiUrl;
-  if (configured) return configured;
-
-  const hostUri: string | undefined = Constants.expoConfig?.hostUri;
-  if (hostUri) {
-    const host = hostUri.split(':')[0];
-    return `http://${host}:8080`;
-  }
-
-  return 'http://localhost:8080';
-};
-
-const API_URL = getApiUrl();
+import { API_URL } from './api';
 
 // ─────────────────────────────────────────────
 //  DTOs — mirror exact du backend Kotlin
