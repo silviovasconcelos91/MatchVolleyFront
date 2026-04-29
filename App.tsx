@@ -54,12 +54,13 @@ import MatchSetupScreen    from './src/screens/MatchSetupScreen';
 import TeamSelectionScreen from './src/screens/TeamSelectionScreen';
 
 // Écrans des onglets
-import RosterScreen       from './src/screens/RosterScreen';
-import CourtScreen        from './src/screens/CourtScreen';
-import SubstitutionScreen from './src/screens/SubstitutionScreen';
-import GraphScreen        from './src/screens/GraphScreen';
-import StatsScreen        from './src/screens/StatsScreen';
-import SetSetupScreen     from './src/screens/SetSetupScreen';
+import RosterScreen         from './src/screens/RosterScreen';
+import CourtScreen          from './src/screens/CourtScreen';
+import SubstitutionScreen   from './src/screens/SubstitutionScreen';
+import GraphScreen          from './src/screens/GraphScreen';
+import StatsScreen          from './src/screens/StatsScreen';
+import SetSetupScreen       from './src/screens/SetSetupScreen';
+import PlayerManagementScreen from './src/screens/PlayerManagementScreen';
 
 // Thème
 import { COLORS, SPACING, FONT_SIZE } from './src/constants/theme';
@@ -118,6 +119,7 @@ const AppContent = () => {
   const [activeTab, setActiveTab] = useState<TabId>('court');
   const [homeVisible, setHomeVisible] = useState(true);
   const [rosterOverlayVisible, setRosterOverlayVisible] = useState(false);
+  const [playerMgmtVisible, setPlayerMgmtVisible] = useState(false);
 
   useEffect(() => {
     if (!selectedTeam || !rosterValidated) {
@@ -132,9 +134,24 @@ const AppContent = () => {
     }
   }, [setSetupPending, rosterValidated]);
 
+  // ── Gestion joueurs (accessible depuis l'accueil, hors match) ──
+  if (playerMgmtVisible) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCard} />
+        <PlayerManagementScreen onClose={() => setPlayerMgmtVisible(false)} />
+      </SafeAreaView>
+    );
+  }
+
   // ── Étape 0 : écran d'accueil ──
   if (homeVisible && !matchName) {
-    return <HomeScreen onNewMatch={() => setHomeVisible(false)} />;
+    return (
+      <HomeScreen
+        onNewMatch={() => setHomeVisible(false)}
+        onManagePlayers={() => setPlayerMgmtVisible(true)}
+      />
+    );
   }
 
   // ── Étape 1 : configuration du match (nom + domicile/extérieur) ──

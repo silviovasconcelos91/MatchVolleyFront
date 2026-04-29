@@ -7,10 +7,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 
 type Props = {
-  onNewMatch: () => void;
+  onNewMatch:      () => void;
+  onManagePlayers: () => void;
 };
 
-const HomeScreen = ({ onNewMatch }: Props) => (
+const HomeScreen = ({ onNewMatch, onManagePlayers }: Props) => (
   <SafeAreaView style={styles.safeArea}>
     <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCard} />
 
@@ -53,20 +54,18 @@ const HomeScreen = ({ onNewMatch }: Props) => (
         </View>
       </TouchableOpacity>
 
-      {/* Équipes / joueurs (inactif) */}
+      {/* Équipes / joueurs (actif) */}
       <TouchableOpacity
-        style={styles.cardDisabled}
-        activeOpacity={1}
-        disabled
+        style={styles.cardActive}
+        onPress={onManagePlayers}
+        activeOpacity={0.7}
       >
-        <Text style={styles.cardIconDisabled}>👥</Text>
+        <Text style={styles.cardIcon}>👥</Text>
         <View style={styles.cardText}>
-          <Text style={styles.cardTitleDisabled}>Équipes & joueurs</Text>
-          <Text style={styles.cardDescDisabled}>Créer et gérer vos effectifs</Text>
+          <Text style={styles.cardTitle}>Équipes & joueurs</Text>
+          <Text style={styles.cardDesc}>Créer et gérer vos effectifs</Text>
         </View>
-        <View style={styles.comingSoon}>
-          <Text style={styles.comingSoonText}>Bientôt</Text>
-        </View>
+        <Text style={styles.cardChevron}>›</Text>
       </TouchableOpacity>
 
     </View>
