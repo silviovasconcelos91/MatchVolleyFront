@@ -103,7 +103,9 @@ const PlayerRow = memo(({ player, state, canAdd, onPress }: PlayerRowProps) => {
   );
 });
 
-const RosterScreen = () => {
+type Props = { onClose?: () => void };
+
+const RosterScreen = ({ onClose }: Props) => {
   const { state: matchState, actions: matchActions } = useMatch();
   const { state: teamState, actions: teamActions }   = useTeam();
   const { rosterValidated } = matchState;
@@ -203,6 +205,13 @@ const RosterScreen = () => {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+
+      {/* ── Bouton retour (overlay pendant match) ── */}
+      {onClose && (
+        <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
+          <Text style={styles.closeBtnText}>← Retour au match</Text>
+        </TouchableOpacity>
+      )}
 
       {/* ── Légende ── */}
       <View style={styles.legend}>
@@ -360,6 +369,15 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.md,
+  },
+
+  closeBtn: {
+    paddingVertical: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  closeBtnText: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.blue,
   },
 
   // Légende

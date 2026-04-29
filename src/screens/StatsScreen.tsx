@@ -1,27 +1,110 @@
-// ─────────────────────────────────────────────
-//  ÉCRAN : STATISTIQUES
-//
-//  Liste tous les joueurs (terrain + banc)
-//  triés par points décroissants.
-//  Affiche pour chaque joueur :
-//    - Total points positifs
-//    - Total fautes
-//    - Détail : Atk, Bloc, Ace, Out
-//  Badge "P1–P6" pour les joueurs sur le terrain,
-//  badge "banc" pour les remplaçants.
-// ─────────────────────────────────────────────
-
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useMatch } from '../context/MatchContext';
+import type { MatchHistoryEvent } from '../context/MatchContext';
 import { getPlayerColor } from '../constants/theme';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 import { getTotalPoints, getTotalFaults } from '../data/players';
+import type { ActionKey, PlayerStats } from '../data/players';
 import PlayerAvatar from '../components/PlayerAvatar';
+
+function createEmptyStats(): PlayerStats {
+  return { pt: 0, atk: 0, block: 0, ace: 0, atk_out: 0, srv_out: 0, recv: 0 };
+}
+
+function computeSetStats(
+  matchHistory: MatchHistoryEvent[],
+  setNum: number,
+  playerIds: number[],
+): Record<number, PlayerStats> {
+  const result: Record<number, PlayerStats> = {};
+  for (const id of playerIds) result[id] = createEmptyStats();
+
+  for (const event of matchHistory) {
+    if (event.setNum !== setNum) continue;
+    if (event.source !== 'player') continue;
+    if (!event.playerId || !event.actionKey) continue;
+    const s = result[event.playerId];
+    if (s) s[event.actionKey as ActionKey]++;
+  }
+  return result;
+}
+
+// ── Carte joueur réutilisable ──
+type CardProps = {
+  name: string;
+  numero: number;
+  tacticalRole: string;
+  onCourt: boolean;
+  pos: number | null;
+  color: string;
+  stats: PlayerStats;
+};
+
+const PlayerCard = ({ name, numero, tacticalRole, onCourt, pos, color, stats }: CardProps) => {
+  const totalPts    = getTotalPoints(stats);
+  const totalFaults = getTotalFaults(stats);
+
+  return (
+    <View style={styles.playerCard}>
+      <View style={styles.mainRow}>
+        <PlayerAvatar name={name} color={color} size={34} />
+
+        <View style={styles.playerInfo}>
+          <View style={styles.nameRow}>
+            <Text style={styles.playerName}>{name}</Text>
+            {onCourt ? (
+              <View style={[styles.badge, styles.badgeCourt]}>
+                <Text style={styles.badgeCourtText}>P{pos}</Text>
+              </View>
+            ) : (
+              <View style={[styles.badge, styles.badgeBench]}>
+                <Text style={styles.badgeBenchText}>banc</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.playerRole}>{tacticalRole} · #{numero}</Text>
+        </View>
+
+        <View style={styles.totals}>
+          <Text style={styles.totalPts}>{totalPts}</Text>
+          {totalFaults > 0 && (
+            <Text style={styles.totalFaults}>−{totalFaults}</Text>
+          )}
+        </View>
+      </View>
+
+      <View style={styles.statsRow}>
+        <View style={[styles.statChip, styles.chipGreen]}>
+          <Text style={[styles.statChipText, { color: COLORS.greenLight }]}>Pt {stats.pt}</Text>
+        </View>
+        <View style={[styles.statChip, styles.chipBlue]}>
+          <Text style={[styles.statChipText, { color: COLORS.blue }]}>Atk {stats.atk}</Text>
+        </View>
+        <View style={[styles.statChip, styles.chipPurple]}>
+          <Text style={[styles.statChipText, { color: '#e040fb' }]}>Bloc {stats.block}</Text>
+        </View>
+        <View style={[styles.statChip, styles.chipGreen]}>
+          <Text style={[styles.statChipText, { color: COLORS.greenLight }]}>Ace {stats.ace}</Text>
+        </View>
+        <View style={[styles.statChip, styles.chipRed]}>
+          <Text style={[styles.statChipText, { color: COLORS.redLight }]}>
+            Out {stats.atk_out + stats.srv_out}
+          </Text>
+        </View>
+        {stats.recv > 0 && (
+          <View style={[styles.statChip, styles.chipRed]}>
+            <Text style={[styles.statChipText, { color: COLORS.redLight }]}>Recv {stats.recv}</Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+};
 
 const StatsScreen = () => {
   const { state } = useMatch();
-  const { matchPlayers, rosterValidated } = state;
+  const { matchPlayers, matchHistory, setNum, rosterValidated } = state;
 
   if (!rosterValidated) {
     return (
@@ -33,99 +116,51 @@ const StatsScreen = () => {
     );
   }
 
-  // Trier les joueurs par points totaux décroissants
-  const sortedPlayers = [...matchPlayers].sort(
+  const playerIds   = matchPlayers.map(p => p.id);
+  const setStatsMap = computeSetStats(matchHistory, setNum, playerIds);
+
+  const sortedByMatchPts = [...matchPlayers].sort(
     (a, b) => getTotalPoints(b.stats) - getTotalPoints(a.stats)
+  );
+
+  const sortedBySetPts = [...matchPlayers].sort(
+    (a, b) => getTotalPoints(b.stats) - getTotalPoints(setStatsMap[a.id] ?? createEmptyStats())
   );
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
 
-      <Text style={styles.sectionLabel}>STATS JOUEURS</Text>
+      {/* ── Stats Set en cours ── */}
+      <Text style={styles.sectionLabel}>SET {setNum}</Text>
+      {sortedBySetPts.map(player => (
+        <PlayerCard
+          key={`set-${player.id}`}
+          name={player.name}
+          numero={player.numero}
+          tacticalRole={player.tacticalRole}
+          onCourt={player.onCourt}
+          pos={player.pos}
+          color={getPlayerColor(player.id)}
+          stats={setStatsMap[player.id] ?? createEmptyStats()}
+        />
+      ))}
 
-      {sortedPlayers.map(player => {
-        const color      = getPlayerColor(player.id);
-        const totalPts   = getTotalPoints(player.stats);
-        const totalFaults = getTotalFaults(player.stats);
-        const { stats }  = player;
+      <View style={styles.sectionDivider} />
 
-        return (
-          <View key={player.id} style={styles.playerCard}>
-
-            {/* ── Ligne principale : avatar + nom + total ── */}
-            <View style={styles.mainRow}>
-              <PlayerAvatar name={player.name} color={color} size={34} />
-
-              <View style={styles.playerInfo}>
-                {/* Nom + badge de position */}
-                <View style={styles.nameRow}>
-                  <Text style={styles.playerName}>{player.name}</Text>
-                  {player.onCourt ? (
-                    // Joueur sur le terrain : afficher son poste
-                    <View style={[styles.badge, styles.badgeCourt]}>
-                      <Text style={styles.badgeCourtText}>P{player.pos}</Text>
-                    </View>
-                  ) : (
-                    // Joueur au banc
-                    <View style={[styles.badge, styles.badgeBench]}>
-                      <Text style={styles.badgeBenchText}>banc</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={styles.playerRole}>{player.role} · #{player.numero}</Text>
-              </View>
-
-              {/* Total points + fautes */}
-              <View style={styles.totals}>
-                <Text style={styles.totalPts}>{totalPts}</Text>
-                {totalFaults > 0 && (
-                  <Text style={styles.totalFaults}>−{totalFaults}</Text>
-                )}
-              </View>
-            </View>
-
-            {/* ── Ligne de détail des stats ── */}
-            <View style={styles.statsRow}>
-              {/* Attaques réussies */}
-              <View style={[styles.statChip, styles.statChipBlue]}>
-                <Text style={[styles.statChipText, { color: COLORS.blue }]}>
-                  Atk ✓ {stats.atk}
-                </Text>
-              </View>
-
-              {/* Contres */}
-              <View style={[styles.statChip, styles.statChipPurple]}>
-                <Text style={[styles.statChipText, { color: '#e040fb' }]}>
-                  Bloc {stats.block}
-                </Text>
-              </View>
-
-              {/* Service ace */}
-              <View style={[styles.statChip, styles.statChipGreen]}>
-                <Text style={[styles.statChipText, { color: COLORS.greenLight }]}>
-                  Ace {stats.ace}
-                </Text>
-              </View>
-
-              {/* Out (attaque + service) */}
-              <View style={[styles.statChip, styles.statChipRed]}>
-                <Text style={[styles.statChipText, { color: COLORS.redLight }]}>
-                  Out {stats.atk_out + stats.srv_out}
-                </Text>
-              </View>
-
-              {/* Réceptions ratées */}
-              {stats.recv > 0 && (
-                <View style={[styles.statChip, styles.statChipRed]}>
-                  <Text style={[styles.statChipText, { color: COLORS.redLight }]}>
-                    Recv {stats.recv}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-        );
-      })}
+      {/* ── Stats match total ── */}
+      <Text style={styles.sectionLabel}>MATCH TOTAL</Text>
+      {sortedByMatchPts.map(player => (
+        <PlayerCard
+          key={`match-${player.id}`}
+          name={player.name}
+          numero={player.numero}
+          tacticalRole={player.tacticalRole}
+          onCourt={player.onCourt}
+          pos={player.pos}
+          color={getPlayerColor(player.id)}
+          stats={player.stats}
+        />
+      ))}
 
       <View style={{ height: SPACING.xxl }} />
     </ScrollView>
@@ -138,7 +173,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.md,
   },
-
   notReady: {
     flex: 1,
     justifyContent: 'center',
@@ -158,15 +192,17 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginBottom: SPACING.sm,
   },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: SPACING.lg,
+  },
 
-  // Carte joueur
   playerCard: {
     paddingVertical: SPACING.sm + 1,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
-
-  // Ligne principale
   mainRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -194,7 +230,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // Badges position / banc
   badge: {
     borderWidth: 1,
     borderRadius: RADIUS.sm,
@@ -218,7 +253,6 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
   },
 
-  // Total points + fautes
   totals: {
     alignItems: 'flex-end',
     flexShrink: 0,
@@ -234,12 +268,11 @@ const styles = StyleSheet.create({
     color: COLORS.redLight,
   },
 
-  // Chips de stats détaillées
   statsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: SPACING.xs,
-    marginLeft: 34 + SPACING.md, // aligné après l'avatar
+    marginLeft: 34 + SPACING.md,
   },
   statChip: {
     borderWidth: 1,
@@ -250,19 +283,19 @@ const styles = StyleSheet.create({
   statChipText: {
     fontSize: FONT_SIZE.xs,
   },
-  statChipBlue: {
+  chipBlue: {
     backgroundColor: `${COLORS.blue}22`,
     borderColor: `${COLORS.blue}44`,
   },
-  statChipPurple: {
+  chipPurple: {
     backgroundColor: '#e040fb22',
     borderColor: '#e040fb44',
   },
-  statChipGreen: {
+  chipGreen: {
     backgroundColor: `${COLORS.green}22`,
     borderColor: `${COLORS.green}44`,
   },
-  statChipRed: {
+  chipRed: {
     backgroundColor: `${COLORS.red}22`,
     borderColor: `${COLORS.red}44`,
   },

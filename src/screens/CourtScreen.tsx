@@ -1,9 +1,7 @@
 // ─────────────────────────────────────────────
 //  ÉCRAN : TERRAIN
 //
-//  Affiche les 6 joueurs placés sur leurs postes
-//  (grille 3×2). Un tap sur un joueur ouvre
-//  le panneau d'actions (7 boutons).
+//  Flux : sélectionner une action → taper le joueur concerné.
 //
 //  Postes affichés :
 //    [P4] [P3] [P2]   ← proche du filet
@@ -12,10 +10,9 @@
 
 import React, { useState } from 'react';
 import {
-  View, Text, TouchableOpacity, ScrollView,
-  StyleSheet, Modal,
+  View, Text, TouchableOpacity, ScrollView, StyleSheet,
 } from 'react-native';
-import { useMatch, PLAYER_ACTIONS } from '../context/MatchContext';
+import { useMatch } from '../context/MatchContext';
 import type { MatchPlayer } from '../context/MatchContext';
 import { getPlayerColor } from '../constants/theme';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
@@ -26,49 +23,58 @@ import PlayerAvatar from '../components/PlayerAvatar';
 
 const BACK_ROW = new Set([1, 5, 6]);
 
+const POINT_ACTIONS: ActionKey[]  = ['pt', 'atk', 'block', 'ace'];
+const FAULT_ACTIONS: ActionKey[]  = ['atk_out', 'srv_out', 'recv'];
+
+const ACTION_LABELS: Record<ActionKey, string> = {
+  pt:      'Point',
+  atk:     'Attaque',
+  block:   'Contre',
+  ace:     'Ace',
+  atk_out: 'Attaque raté',
+  srv_out: 'Service raté',
+  recv:    'Réception ratée',
+};
+
 const CourtScreen = () => {
   const { state, actions } = useMatch();
-  const { matchPlayers, setBannerVisible, rosterValidated, liberoId, liberoReplacedId } = state;
+  const { matchPlayers, setBannerVisible, rosterValidated, liberoId } = state;
 
-  // Joueur actuellement sélectionné pour afficher le panneau d'actions
-  const [selectedPlayer, setSelectedPlayer] = useState<MatchPlayer | null>(null);
+  const [selectedAction, setSelectedAction] = useState<ActionKey | null>(null);
 
-  // Joueurs actuellement sur le terrain (onCourt = true)
+  const disabled = !rosterValidated || setBannerVisible;
   const courtPlayers = matchPlayers.filter(p => p.onCourt);
 
-  // ── Infos libero ──
+  // ── Libero ──
   const liberoPlayer     = liberoId !== null ? matchPlayers.find(p => p.id === liberoId) : null;
   const liberoOnCourt    = liberoPlayer?.onCourt ?? false;
-  // Bouton actif si : libero en jeu (peut sortir) OU un central est en zone arrière
-  const centralInBackRow = !liberoOnCourt && matchPlayers.find(
-    p => p.onCourt && p.tacticalRole === 'Central' && p.pos !== null && BACK_ROW.has(p.pos)
-  );
-  const canSwapLibero = liberoPlayer !== undefined && (liberoOnCourt || !!centralInBackRow);
+  const centralInBackRow = !liberoOnCourt
+    ? matchPlayers.find(p => p.onCourt && p.tacticalRole === 'Central' && p.pos !== null && BACK_ROW.has(p.pos))
+    : null;
+  // ID du joueur dont la cellule affiche le bouton swap
+  const liberoSwapTargetId = liberoOnCourt
+    ? liberoPlayer?.id
+    : centralInBackRow?.id;
 
-  // Fermer le panneau d'actions
-  const closePanel = () => setSelectedPlayer(null);
 
-  // Ouvrir le panneau pour un joueur donné
-  const openPanel = (player: MatchPlayer) => {
-    if (setBannerVisible || !rosterValidated) return; // bloqué pendant fin de set
-    setSelectedPlayer(player);
+  const selectAction = (key: ActionKey) => {
+    if (setBannerVisible || !rosterValidated) return;
+    setSelectedAction(prev => (prev === key ? null : key));
   };
 
-  // Déclencher une action joueur et mettre à jour l'état sélectionné
-  const handleAction = (actionKey: ActionKey) => {
-    if (!selectedPlayer) return;
-    actions.playerAction({ playerId: selectedPlayer.id, actionKey });
-    // Mettre à jour la référence locale après l'action
-    // (les stats sont dans le state global, pas besoin de fermer le panel)
+  const handlePlayerTap = (player: MatchPlayer) => {
+    if (setBannerVisible || !rosterValidated) return;
+    if (!selectedAction) return;
+    actions.playerAction({ playerId: player.id, actionKey: selectedAction });
+    setSelectedAction(null);
   };
 
   // ── Rendu d'une case du terrain ──
   const renderCourtCell = (pos: number) => {
     const player = courtPlayers.find(p => p.pos === pos);
-    const isSelected = selectedPlayer && player && selectedPlayer.id === player.id;
+    const isWaiting = selectedAction !== null;
 
     if (!player) {
-      // Case vide (ne devrait pas arriver si l'équipe est validée)
       return (
         <View key={pos} style={styles.cellEmpty}>
           <Text style={styles.cellEmptyText}>P{pos}</Text>
@@ -77,8 +83,9 @@ const CourtScreen = () => {
     }
 
     const color = getPlayerColor(player.id);
-    const totalPts   = getTotalPoints(player.stats);
+    const totalPts    = getTotalPoints(player.stats);
     const totalFaults = getTotalFaults(player.stats);
+    const showLiberoBtn = !!liberoPlayer && player.id === liberoSwapTargetId && !disabled;
 
     return (
       <TouchableOpacity
@@ -86,38 +93,40 @@ const CourtScreen = () => {
         style={[
           styles.cell,
           {
-            borderColor: isSelected ? color : COLORS.border,
-            borderWidth: isSelected ? 1.5 : 1,
-            backgroundColor: isSelected ? `${color}18` : COLORS.bgInput,
+            borderColor: isWaiting ? color : COLORS.border,
+            borderWidth: isWaiting ? 1.5 : 1,
+            backgroundColor: isWaiting ? `${color}22` : COLORS.bgInput,
           },
         ]}
-        onPress={() => openPanel(player)}
-        activeOpacity={0.7}
+        onPress={() => handlePlayerTap(player)}
+        activeOpacity={isWaiting ? 0.6 : 1}
       >
-        {/* Avatar avec initiales */}
         <PlayerAvatar name={player.name} color={color} size={28} />
-
-        {/* Prénom */}
         <Text style={styles.cellName} numberOfLines={1}>
           {player.name.split(' ')[0]}
         </Text>
-
-        {/* Points + fautes */}
         <Text style={styles.cellStats}>
           <Text style={{ color }}>{totalPts}p</Text>
           <Text style={styles.cellStatsDot}> · </Text>
           <Text style={styles.cellFaults}>{totalFaults}f</Text>
         </Text>
-
-        {/* Rôle tactique + numéro de poste */}
         <Text style={styles.cellPos}>
           {player.tacticalRole ? `${player.tacticalRole} · ` : ''}P{pos}
         </Text>
+
+        {showLiberoBtn && (
+          <TouchableOpacity
+            style={styles.liberoCellBtn}
+            onPress={actions.liberoSwap}
+            activeOpacity={0.6}
+          >
+            <Text style={styles.liberoCellBtnText}>🔄</Text>
+          </TouchableOpacity>
+        )}
       </TouchableOpacity>
     );
   };
 
-  // Message si l'équipe n'est pas encore validée
   if (!rosterValidated) {
     return (
       <View style={styles.notReadyContainer}>
@@ -128,150 +137,115 @@ const CourtScreen = () => {
     );
   }
 
+  const actionHint = selectedAction
+    ? `→ Tap le joueur concerné`
+    : 'Choisis une action ci-dessous';
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
 
-      {/* ── Titre ── */}
-      <Text style={styles.sectionLabel}>TERRAIN · tap pour actions</Text>
-
       {/* ── Terrain ── */}
       <View style={styles.courtWrapper}>
-
-        {/* Filet (en haut) */}
         <View style={styles.netRow}>
           <View style={styles.net} />
           <Text style={styles.netLabel}>FILET</Text>
         </View>
-
-        {/* Grille 3×2 */}
         <View style={styles.courtGrid}>
           {COURT_DISPLAY_ORDER.map(pos => renderCourtCell(pos))}
         </View>
-
-        {/* Ligne de fond de terrain */}
         <View style={styles.baseline} />
       </View>
 
-      {/* ── Bouton échange libero / centrale ── */}
-      {liberoPlayer && (
-        <TouchableOpacity
-          style={[styles.liberoBtn, !canSwapLibero && styles.liberoDisabled]}
-          onPress={() => canSwapLibero && actions.liberoSwap()}
-          activeOpacity={canSwapLibero ? 0.7 : 1}
-        >
-          <View style={styles.liberoLeft}>
-            <Text style={styles.liberoIcon}>🔄</Text>
-            <View>
-              <Text style={styles.liberoTitle}>
-                {liberoOnCourt ? 'Faire sortir le libero' : 'Faire rentrer le libero'}
-              </Text>
-              <Text style={styles.liberoSub}>
-                {liberoPlayer.name}
-                {!canSwapLibero ? '  ·  aucun central en zone arrière' : ''}
-                {liberoOnCourt && liberoReplacedId !== null
-                  ? `  ·  remplace ${matchPlayers.find(p => p.id === liberoReplacedId)?.name ?? ''}`
-                  : ''}
-              </Text>
-            </View>
-          </View>
-          <View style={[styles.liberoBadge, liberoOnCourt && styles.liberoBadgeActive]}>
-            <Text style={[styles.liberoBadgeText, liberoOnCourt && styles.liberoBadgeTextActive]}>
-              {liberoOnCourt ? 'EN JEU' : 'BANC'}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      )}
 
-      {/* ── Panneau d'actions (Modal) ── */}
-      <Modal
-        visible={!!selectedPlayer}
-        transparent
-        animationType="slide"
-        onRequestClose={closePanel}
-      >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={closePanel}
-        >
-          {/* Empêcher la fermeture en touchant le panneau lui-même */}
-          <TouchableOpacity
-            style={styles.actionPanel}
-            activeOpacity={1}
-            onPress={() => {}} // absorber les taps
-          >
-            {selectedPlayer && (
-              <>
-                {/* ── En-tête : avatar + nom + poste ── */}
-                <View style={styles.panelHeader}>
-                  <View style={styles.panelHeaderLeft}>
-                    <PlayerAvatar
-                      name={selectedPlayer.name}
-                      color={getPlayerColor(selectedPlayer.id)}
-                      size={30}
-                    />
-                    <View>
-                      <Text style={styles.panelName}>{selectedPlayer.name}</Text>
-                      <Text style={styles.panelRole}>
-                        {selectedPlayer.tacticalRole || selectedPlayer.role} · Poste {selectedPlayer.pos}
-                      </Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity onPress={closePanel}>
-                    <Text style={styles.panelClose}>×</Text>
-                  </TouchableOpacity>
-                </View>
+      {/* ── Panel d'actions ── */}
+      <View style={styles.actionPanel}>
 
-                {/* ── Boutons POINTS (+1 mon équipe) ── */}
-                <Text style={styles.panelGroupLabel}>POINTS — +1 mon équipe</Text>
-                <View style={styles.actionsGrid}>
-                  {(['pt', 'atk', 'block', 'ace'] as ActionKey[]).map(key => (
-                    <TouchableOpacity
-                      key={key}
-                      style={styles.btnPoint}
-                      onPress={() => handleAction(key)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.btnPointText}>
-                        {PLAYER_ACTIONS[key].label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+        {/* ── MON ÉQUIPE ── */}
+        <Text style={styles.groupLabel}>MON ÉQUIPE</Text>
 
-                {/* ── Boutons FAUTES (+1 adversaire) ── */}
-                <Text style={[styles.panelGroupLabel, { color: COLORS.redLight, marginTop: SPACING.md }]}>
-                  FAUTES — +1 adversaire
+        {/* Hint sélection joueur */}
+        <View style={styles.actionPanelHeader}>
+          <Text style={styles.actionPanelHint}>{actionHint}</Text>
+          {selectedAction && (
+            <TouchableOpacity onPress={() => setSelectedAction(null)}>
+              <Text style={styles.cancelSelectionBtn}>✕ Désélectionner</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* POINTS */}
+        <Text style={styles.groupLabelSub}>POINTS — +1 mon équipe</Text>
+        <View style={styles.actionsGrid}>
+          {POINT_ACTIONS.map(key => {
+            const active = selectedAction === key;
+            return (
+              <TouchableOpacity
+                key={key}
+                style={[styles.btnPoint, active && styles.btnPointActive]}
+                onPress={() => selectAction(key)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.btnPointText, active && styles.btnActiveText]}>
+                  {ACTION_LABELS[key]}
                 </Text>
-                <View style={styles.actionsGrid}>
-                  {(['atk_out', 'srv_out'] as ActionKey[]).map(key => (
-                    <TouchableOpacity
-                      key={key}
-                      style={styles.btnFault}
-                      onPress={() => handleAction(key)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.btnFaultText}>
-                        {PLAYER_ACTIONS[key].label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                {/* Réception ratée prend toute la largeur */}
-                <TouchableOpacity
-                  style={[styles.btnFault, { marginTop: SPACING.xs }]}
-                  onPress={() => handleAction('recv')}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.btnFaultText}>
-                    {PLAYER_ACTIONS['recv'].label}
-                  </Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </TouchableOpacity>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* FAUTES */}
+        <Text style={[styles.groupLabelSub, styles.groupLabelFault]}>FAUTES — +1 adversaire</Text>
+        <View style={styles.actionsGrid}>
+          {FAULT_ACTIONS.map(key => {
+            const active = selectedAction === key;
+            return (
+              <TouchableOpacity
+                key={key}
+                style={[styles.btnFault, active && styles.btnFaultActive]}
+                onPress={() => selectAction(key)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.btnFaultText, active && styles.btnActiveText]}>
+                  {ACTION_LABELS[key]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Rotation — bas de la section équipe */}
+        <TouchableOpacity
+          style={[styles.btnRotation, disabled && styles.btnDisabled]}
+          onPress={actions.rotate}
+          disabled={disabled}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.btnRotationText}>↻ Rotation</Text>
         </TouchableOpacity>
-      </Modal>
+
+        <View style={styles.divider} />
+
+        {/* ── ADVERSAIRE (compact) ── */}
+        <Text style={styles.groupLabelSmall}>ADVERSAIRE</Text>
+        <View style={styles.actionsGrid}>
+          <TouchableOpacity
+            style={[styles.btnOppFault, disabled && styles.btnDisabled]}
+            onPress={actions.oppFault}
+            disabled={disabled}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.btnOppFaultText}>+1</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.btnOppScore, disabled && styles.btnDisabled]}
+            onPress={actions.oppScore}
+            disabled={disabled}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.btnOppScoreText}>+1</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
       <View style={{ height: SPACING.xxl }} />
     </ScrollView>
@@ -285,7 +259,6 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.md,
   },
 
-  // Message équipe non validée
   notReadyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -299,23 +272,15 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  sectionLabel: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textMuted,
-    letterSpacing: 1,
-    marginBottom: SPACING.sm,
-  },
-
-  // Wrapper du terrain
   courtWrapper: {
     backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
     padding: SPACING.sm,
+    marginBottom: SPACING.md,
   },
 
-  // Filet
   netRow: {
     position: 'relative',
     marginBottom: SPACING.sm,
@@ -334,16 +299,14 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 
-  // Grille 3 colonnes
   courtGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 5,
   },
 
-  // Cellule joueur (1/3 de largeur moins gap)
   cell: {
-    width: '31.5%',          // ~3 colonnes avec gaps
+    width: '31.5%',
     minHeight: 72,
     borderRadius: RADIUS.lg,
     alignItems: 'center',
@@ -351,6 +314,16 @@ const styles = StyleSheet.create({
     gap: 2,
     paddingVertical: 6,
     paddingHorizontal: 3,
+    position: 'relative',
+  },
+
+  liberoCellBtn: {
+    position: 'absolute',
+    top: 3,
+    right: 4,
+  },
+  liberoCellBtnText: {
+    fontSize: 11,
   },
   cellEmpty: {
     width: '31.5%',
@@ -386,7 +359,6 @@ const styles = StyleSheet.create({
     color: COLORS.textDark,
   },
 
-  // Ligne de fond de terrain
   baseline: {
     height: 2,
     backgroundColor: COLORS.border,
@@ -394,123 +366,94 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
 
-  // Bouton libero
-  liberoBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+
+  // Panel d'actions
+  actionPanel: {
     backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.blue + '44',
-    padding: SPACING.md,
-    marginTop: SPACING.md,
-  },
-  liberoDisabled: {
-    opacity: 0.4,
     borderColor: COLORS.border,
-  },
-  liberoLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    flex: 1,
-  },
-  liberoIcon: {
-    fontSize: 20,
-  },
-  liberoTitle: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: '500',
-    color: COLORS.textPrimary,
-  },
-  liberoSub: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textMuted,
-    marginTop: 1,
-  },
-  liberoBadge: {
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 3,
-  },
-  liberoBadgeActive: {
-    backgroundColor: COLORS.blue + '22',
-    borderColor: COLORS.blue + '55',
-  },
-  liberoBadgeText: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textMuted,
-    fontWeight: '500',
-  },
-  liberoBadgeTextActive: {
-    color: COLORS.blue,
+    padding: SPACING.lg,
   },
 
-  // Modal / panneau d'actions
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  actionPanel: {
-    backgroundColor: COLORS.bgCard,
-    borderTopLeftRadius: RADIUS.xl,
-    borderTopRightRadius: RADIUS.xl,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: SPACING.xl,
-    paddingBottom: SPACING.xxl + SPACING.lg, // espace pour l'indicateur home iOS
-  },
-
-  // En-tête du panneau
-  panelHeader: {
+  actionPanelHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: SPACING.md,
-    paddingBottom: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
   },
-  panelHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  panelName: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: '500',
-    color: COLORS.textPrimary,
-  },
-  panelRole: {
+  actionPanelHint: {
     fontSize: FONT_SIZE.sm,
     color: COLORS.textMuted,
   },
-  panelClose: {
-    fontSize: 22,
-    color: COLORS.textMuted,
-    lineHeight: 26,
+  cancelSelectionBtn: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.redLight,
+    fontWeight: '500',
   },
 
-  // Label de groupe (POINTS / FAUTES)
-  panelGroupLabel: {
+  divider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: SPACING.md,
+  },
+
+  btnOppFault: {
+    flex: 1,
+    minWidth: '47%',
+    backgroundColor: `${COLORS.green}18`,
+    borderWidth: 1,
+    borderColor: `${COLORS.green}33`,
+    borderRadius: RADIUS.md,
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  btnRotation: {
+    backgroundColor: COLORS.bgInput,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.sm,
+    alignItems: 'center',
+    marginTop: SPACING.md,
+  },
+  btnRotationText: {
+    fontSize: FONT_SIZE.md,
+    color: COLORS.textMuted,
+  },
+  btnDisabled: {
+    opacity: 0.4,
+  },
+
+  groupLabel: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textSecondary,
+    letterSpacing: 1,
+    marginBottom: SPACING.sm,
+  },
+  groupLabelSmall: {
+    fontSize: 10,
+    color: COLORS.textDark,
+    letterSpacing: 1,
+    marginBottom: SPACING.xs,
+  },
+  groupLabelSub: {
     fontSize: FONT_SIZE.xs,
     color: COLORS.greenLight,
     letterSpacing: 1,
     marginBottom: SPACING.sm,
   },
+  groupLabelFault: {
+    color: COLORS.redLight,
+    marginTop: SPACING.md,
+  },
 
-  // Grille 2 colonnes pour les boutons d'action
   actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: SPACING.xs,
   },
 
-  // Bouton point (vert)
   btnPoint: {
     flex: 1,
     minWidth: '47%',
@@ -521,13 +464,15 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     alignItems: 'center',
   },
+  btnPointActive: {
+    backgroundColor: `${COLORS.green}55`,
+    borderColor: COLORS.green,
+  },
   btnPointText: {
     fontSize: FONT_SIZE.md,
     fontWeight: '500',
     color: COLORS.greenLight,
   },
-
-  // Bouton faute (rouge)
   btnFault: {
     flex: 1,
     minWidth: '47%',
@@ -538,9 +483,35 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     alignItems: 'center',
   },
+  btnFaultActive: {
+    backgroundColor: `${COLORS.red}55`,
+    borderColor: COLORS.red,
+  },
   btnFaultText: {
     fontSize: FONT_SIZE.md,
     fontWeight: '500',
+    color: COLORS.redLight,
+  },
+  btnActiveText: {
+    fontWeight: '700',
+  },
+  btnOppFaultText: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.greenLight,
+  },
+  btnOppScore: {
+    flex: 1,
+    minWidth: '47%',
+    backgroundColor: `${COLORS.red}18`,
+    borderWidth: 1,
+    borderColor: `${COLORS.red}33`,
+    borderRadius: RADIUS.md,
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  btnOppScoreText: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '600',
     color: COLORS.redLight,
   },
 });

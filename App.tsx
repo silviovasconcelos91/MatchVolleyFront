@@ -65,7 +65,7 @@ import SetSetupScreen     from './src/screens/SetSetupScreen';
 import { COLORS, SPACING, FONT_SIZE } from './src/constants/theme';
 
 // ── Types ──
-type TabId = 'roster' | 'court' | 'sub' | 'graph' | 'stats';
+type TabId = 'court' | 'sub' | 'graph' | 'stats';
 
 type Tab = {
   id: TabId;
@@ -73,59 +73,35 @@ type Tab = {
   activeColor: string;
 };
 
-// Onglets qui nécessitent que le roster soit validé
-const LOCKED_TABS: TabId[] = ['court', 'sub', 'graph', 'stats'];
-
 type TabBarProps = {
   activeTab: TabId;
   onTabChange: (id: TabId) => void;
-  rosterValidated: boolean;
 };
 
 // ── Définition des onglets ──
-// Chaque onglet a un id, un label affiché et une couleur active
 const TABS: Tab[] = [
-  { id: 'roster', label: 'Roster',  activeColor: '#ffd166' },
   { id: 'court',  label: 'Terrain', activeColor: COLORS.blue },
   { id: 'sub',    label: 'Rempl.',  activeColor: COLORS.blue },
   { id: 'graph',  label: 'Graphe',  activeColor: COLORS.blue },
   { id: 'stats',  label: 'Stats',   activeColor: COLORS.blue },
 ];
 
-// ── Composant TabBar (navigation par onglets) ──
-// Rendu séparé pour la clarté
-const TabBar = ({ activeTab, onTabChange, rosterValidated }: TabBarProps) => (
+// ── Composant TabBar ──
+const TabBar = ({ activeTab, onTabChange }: TabBarProps) => (
   <View style={styles.tabBar}>
     {TABS.map(tab => {
-      const isActive  = tab.id === activeTab;
-      const isLocked  = !rosterValidated && LOCKED_TABS.includes(tab.id);
+      const isActive = tab.id === activeTab;
       return (
         <TouchableOpacity
           key={tab.id}
-          style={[styles.tabItem, isLocked && styles.tabItemLocked]}
-          onPress={() => !isLocked && onTabChange(tab.id)}
-          activeOpacity={isLocked ? 1 : 0.7}
+          style={styles.tabItem}
+          onPress={() => onTabChange(tab.id)}
+          activeOpacity={0.7}
         >
-          <Text
-            style={[
-              styles.tabLabel,
-              isActive  && { color: tab.activeColor, fontWeight: '500' },
-              isLocked  && styles.tabLabelLocked,
-            ]}
-          >
+          <Text style={[styles.tabLabel, isActive && { color: tab.activeColor, fontWeight: '500' }]}>
             {tab.label}
           </Text>
-          {/* Cadenas sous les onglets verrouillés */}
-          {isLocked ? (
-            <Text style={styles.tabLock}>🔒</Text>
-          ) : (
-            <View
-              style={[
-                styles.tabIndicator,
-                isActive && { backgroundColor: tab.activeColor },
-              ]}
-            />
-          )}
+          <View style={[styles.tabIndicator, isActive && { backgroundColor: tab.activeColor }]} />
         </TouchableOpacity>
       );
     })}
@@ -139,16 +115,13 @@ const AppContent = () => {
   const { selectedTeam } = teamState;
   const { rosterValidated, setSetupPending, matchName } = matchState;
 
-  // Onglet actif par défaut : Roster (pour composer l'équipe en premier)
-  const [activeTab, setActiveTab] = useState<TabId>('roster');
-
-  // Écran d'accueil : visible tant que l'utilisateur n'a pas cliqué "Nouveau match"
+  const [activeTab, setActiveTab] = useState<TabId>('court');
   const [homeVisible, setHomeVisible] = useState(true);
+  const [rosterOverlayVisible, setRosterOverlayVisible] = useState(false);
 
-  // Revenir sur Roster quand l'équipe est désélectionnée ou le roster réinitialisé
   useEffect(() => {
     if (!selectedTeam || !rosterValidated) {
-      setActiveTab('roster');
+      setRosterOverlayVisible(false);
     }
   }, [selectedTeam, rosterValidated]);
 
@@ -186,35 +159,47 @@ const AppContent = () => {
     );
   }
 
-  // Rendu de l'écran correspondant à l'onglet actif
   const renderScreen = () => {
     switch (activeTab) {
-      case 'roster': return <RosterScreen />;
       case 'court':  return <CourtScreen />;
       case 'sub':    return <SubstitutionScreen />;
       case 'graph':  return <GraphScreen />;
       case 'stats':  return <StatsScreen />;
-      default:       return <RosterScreen />;
     }
   };
+
+  // ── Avant validation du roster : RosterScreen standalone ──
+  if (!rosterValidated) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCard} />
+        <ScoreHeader />
+        <View style={styles.screenContainer}>
+          <RosterScreen />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCard} />
 
-      {/* ── En-tête score (toujours visible) ── */}
-      <ScoreHeader />
-
-      {/* ── Bannière fin de set (conditionnelle) ── */}
+      <ScoreHeader onRosterPress={() => setRosterOverlayVisible(true)} />
       <SetBanner />
 
-      {/* ── Barre d'onglets ── */}
-      <TabBar activeTab={activeTab} onTabChange={setActiveTab} rosterValidated={rosterValidated} />
-
-      {/* ── Contenu de l'écran actif ── */}
-      <View style={styles.screenContainer}>
-        {renderScreen()}
-      </View>
+      {rosterOverlayVisible ? (
+        <View style={styles.screenContainer}>
+          <RosterScreen onClose={() => setRosterOverlayVisible(false)} />
+        </View>
+      ) : (
+        <>
+          <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+          <View style={styles.screenContainer}>
+            {renderScreen()}
+          </View>
+        </>
+      )}
 
     </SafeAreaView>
   );
@@ -265,17 +250,6 @@ const styles = StyleSheet.create({
     borderRadius: 1,
     marginTop: 4,
     backgroundColor: 'transparent',
-  },
-  // Onglet verrouillé (roster non validé)
-  tabItemLocked: {
-    opacity: 0.35,
-  },
-  tabLabelLocked: {
-    color: COLORS.textDark,
-  },
-  tabLock: {
-    fontSize: 8,
-    marginTop: 3,
   },
 
   // Conteneur de l'écran (flex pour remplir l'espace restant)
