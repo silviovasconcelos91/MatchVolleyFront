@@ -29,16 +29,17 @@ type FieldRole = typeof FIELD_ROLES[number];
 
 const SetSetupScreen = () => {
   const { state, actions } = useMatch();
-  const { originalStarterIds, originalLiberoId, matchPlayers, setNum } = state;
+  const { originalStarterIds, originalLiberoId, matchPlayers, setNum, lastSetStartPositionMap } = state;
 
   // ── positionMap : pos (1-6) → playerId ──
-  // Initialisé avec les positions par défaut (INITIAL_POSITIONS × originalStarterIds)
+  // Set 2+ : pré-rempli depuis le début du set précédent (avant rotations)
+  // Set 1  : INITIAL_POSITIONS × originalStarterIds
   const [positionMap, setPositionMap] = useState<Record<number, number>>(() => {
+    if (Object.keys(lastSetStartPositionMap).length === 6) return lastSetStartPositionMap;
+
     const map: Record<number, number> = {};
     originalStarterIds.forEach((id, index) => {
-      if (index < INITIAL_POSITIONS.length) {
-        map[INITIAL_POSITIONS[index]] = id;
-      }
+      if (index < INITIAL_POSITIONS.length) map[INITIAL_POSITIONS[index]] = id;
     });
     return map;
   });
