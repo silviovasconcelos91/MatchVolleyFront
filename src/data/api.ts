@@ -1,14 +1,14 @@
 import Constants from 'expo-constants';
 
-export const API_URL = (() => {
+function resolveApiUrl(): string {
   const configured: string | undefined = Constants.expoConfig?.extra?.apiUrl;
   if (configured) return configured;
 
+  // Expo Go local dev: derive host from Metro bundler URI
   const hostUri: string | undefined = Constants.expoConfig?.hostUri;
-  if (hostUri) {
-    const host = hostUri.split(':')[0];
-    return `http://${host}:8080`;
-  }
+  if (hostUri) return `http://${hostUri.split(':')[0]}:8080`;
 
-  return 'http://192.168.1.169:8080';
-})();
+  return 'https://matchvolley-production.up.railway.app';
+}
+
+export const API_URL = resolveApiUrl();

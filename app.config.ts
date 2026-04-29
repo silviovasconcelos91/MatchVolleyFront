@@ -28,10 +28,10 @@ const config: ExpoConfig = {
     favicon: './assets/favicon.png',
   },
   extra: {
-    apiUrl: process.env.API_URL ?? 'https://matchvolley-production.up.railway.app',
-    eas :{
-      projectId: 'aeef03b5-3b4e-4ae7-8555-9e265a43f608'
-    }
+    apiUrl: process.env.API_URL,
+    eas: {
+      projectId: 'aeef03b5-3b4e-4ae7-8555-9e265a43f608',
+    },
   },
 };
 
