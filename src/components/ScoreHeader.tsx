@@ -18,8 +18,8 @@ type Props = { onRosterPress?: () => void };
 
 const ScoreHeader = ({ onRosterPress }: Props) => {
   const { state, actions } = useMatch(); // actions used for undo
-  const { myScore, oppScore, mySets, oppSets, setNum, rosterValidated, setBannerVisible } = state;
-  const undoDisabled = !rosterValidated || setBannerVisible;
+  const { myScore, oppScore, mySets, oppSets, setNum, rosterValidated, history } = state;
+  const undoDisabled = !rosterValidated || history.length === 0;
 
   const [endModalVisible, setEndModalVisible]     = useState(false);
   const [resetModalVisible, setResetModalVisible] = useState(false);

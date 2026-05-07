@@ -516,14 +516,22 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         });
       }
 
+      const undoingSetWinner = state.setBannerVisible;
+      const newMySets  = undoingSetWinner && last.mine  ? state.mySets  - 1 : state.mySets;
+      const newOppSets = undoingSetWinner && !last.mine ? state.oppSets - 1 : state.oppSets;
+
       return {
         ...state,
-        myScore:      newMyScore,
-        oppScore:     newOppScore,
-        history:      newHistory,
-        matchHistory: state.matchHistory.slice(0, -1), // annuler aussi dans l'historique complet
-        trajectory:   newTrajectory,
-        matchPlayers: updatedPlayers,
+        myScore:          newMyScore,
+        oppScore:         newOppScore,
+        history:          newHistory,
+        matchHistory:     state.matchHistory.slice(0, -1),
+        trajectory:       newTrajectory,
+        matchPlayers:     updatedPlayers,
+        setBannerVisible: undoingSetWinner ? false : state.setBannerVisible,
+        setWinner:        undoingSetWinner ? null  : state.setWinner,
+        mySets:           newMySets,
+        oppSets:          newOppSets,
       };
     }
 

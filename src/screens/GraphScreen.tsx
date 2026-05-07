@@ -39,7 +39,7 @@ const GraphScreen = () => {
 
   // Trajectoire : set courant → état live, set passé → reconstruit
   const points: Point[] = isCurrent
-    ? [{ x: 0, y: 0 }, ...trajectory]
+    ? trajectory
     : buildTrajectory(matchHistory, viewedSet);
 
   // Score affiché sous le graphe
