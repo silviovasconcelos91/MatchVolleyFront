@@ -60,7 +60,12 @@ import SubstitutionScreen   from './src/screens/SubstitutionScreen';
 import GraphScreen          from './src/screens/GraphScreen';
 import StatsScreen          from './src/screens/StatsScreen';
 import SetSetupScreen       from './src/screens/SetSetupScreen';
-import PlayerManagementScreen from './src/screens/PlayerManagementScreen';
+import PlayerManagementScreen    from './src/screens/PlayerManagementScreen';
+import StatsTeamSelectionScreen  from './src/screens/StatsTeamSelectionScreen';
+import StatsHubScreen            from './src/screens/StatsHubScreen';
+import TeamMatchListScreen       from './src/screens/TeamMatchListScreen';
+import StatsPlayersScreen        from './src/screens/StatsPlayersScreen';
+import MatchDetailScreen         from './src/screens/MatchDetailScreen';
 
 // Thème
 import { COLORS, SPACING, FONT_SIZE } from './src/constants/theme';
@@ -121,6 +126,11 @@ const AppContent = () => {
   const [rosterOverlayVisible, setRosterOverlayVisible] = useState(false);
   const [playerMgmtVisible, setPlayerMgmtVisible] = useState(false);
 
+  type StatsStep = 'teamSelection' | 'hub' | 'matchList' | 'playerList' | 'matchDetail';
+  const [statsStep, setStatsStep] = useState<StatsStep | null>(null);
+  const [statsTeam, setStatsTeam] = useState<{ id: number; name: string } | null>(null);
+  const [statsMatch, setStatsMatch] = useState<{ id: string; date: string } | null>(null);
+
   useEffect(() => {
     if (!selectedTeam || !rosterValidated) {
       setRosterOverlayVisible(false);
@@ -144,12 +154,63 @@ const AppContent = () => {
     );
   }
 
+  // ── Statistiques (accessible depuis l'accueil, hors match) ──
+  if (statsStep !== null) {
+    if (statsStep === 'teamSelection') {
+      return (
+        <StatsTeamSelectionScreen
+          onBack={() => setStatsStep(null)}
+          onSelectTeam={(id, name) => { setStatsTeam({ id, name }); setStatsStep('hub'); }}
+        />
+      );
+    }
+    if (statsStep === 'hub' && statsTeam !== null) {
+      return (
+        <StatsHubScreen
+          teamName={statsTeam.name}
+          onBack={() => setStatsStep('teamSelection')}
+          onMatchStats={() => setStatsStep('matchList')}
+          onPlayerStats={() => setStatsStep('playerList')}
+        />
+      );
+    }
+    if (statsStep === 'matchList' && statsTeam !== null) {
+      return (
+        <TeamMatchListScreen
+          teamId={statsTeam.id}
+          teamName={statsTeam.name}
+          onBack={() => setStatsStep('hub')}
+          onSelectMatch={(id, date) => { setStatsMatch({ id, date }); setStatsStep('matchDetail'); }}
+        />
+      );
+    }
+    if (statsStep === 'matchDetail' && statsMatch !== null) {
+      return (
+        <MatchDetailScreen
+          matchId={statsMatch.id}
+          matchDate={statsMatch.date}
+          onBack={() => setStatsStep('matchList')}
+        />
+      );
+    }
+    if (statsStep === 'playerList' && statsTeam !== null) {
+      return (
+        <StatsPlayersScreen
+          teamId={statsTeam.id}
+          teamName={statsTeam.name}
+          onBack={() => setStatsStep('hub')}
+        />
+      );
+    }
+  }
+
   // ── Étape 0 : écran d'accueil ──
   if (homeVisible && !matchName) {
     return (
       <HomeScreen
         onNewMatch={() => setHomeVisible(false)}
         onManagePlayers={() => setPlayerMgmtVisible(true)}
+        onStats={() => setStatsStep('teamSelection')}
       />
     );
   }

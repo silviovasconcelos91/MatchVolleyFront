@@ -1,5 +1,5 @@
 import type { Player } from './players';
-import { API_URL } from './api';
+import { API_URL, apiFetch } from './api';
 
 // ── Type équipe ──
 export type Team = {
@@ -18,7 +18,7 @@ type ApiResponse<T> = {
 
 export const fetchTeams = async (): Promise<Team[]> => {
   const url = `${API_URL}/api/v1/teams`;
-  const res = await fetch(url);
+  const res = await apiFetch(url);
   if (!res.ok) {
     const text = await res.text();
     console.error('[fetchTeams] error body', text);

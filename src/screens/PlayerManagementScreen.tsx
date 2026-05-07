@@ -7,7 +7,7 @@ import {
 import { useTeam } from '../context/TeamContext';
 import type { Player } from '../data/players';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
-import { API_URL } from '../data/api';
+import { API_URL, apiFetch } from '../data/api';
 import PlayerAvatar from '../components/PlayerAvatar';
 import { getPlayerColor } from '../constants/theme';
 
@@ -54,8 +54,15 @@ const PlayerManagementScreen = ({ onClose }: Props) => {
   const [allPlayersList, setAllPlayersList] = useState<Player[]>([]);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/v1/players`)
-      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    apiFetch(`${API_URL}/api/v1/players`)
+      .then(async r => {
+        if (!r.ok) {
+          const body = await r.text();
+          console.error('[PlayerManagementScreen] GET /players HTTP', r.status, body);
+          return Promise.reject(r.status);
+        }
+        return r.json();
+      })
       .then((data: { data?: Player[] } | Player[]) => {
         const players = Array.isArray(data) ? data : (data.data ?? []);
         setAllPlayersList(players);
@@ -126,7 +133,7 @@ const PlayerManagementScreen = ({ onClose }: Props) => {
     try {
       const isEdit = editingPlayerId !== null;
       const url    = isEdit ? `${API_URL}/api/v1/players/${editingPlayerId}` : `${API_URL}/api/v1/players`;
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method:  isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -137,7 +144,11 @@ const PlayerManagementScreen = ({ onClose }: Props) => {
           taille:  playerForm.taille ? playerForm.taille.trim() : null,
         }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const errBody = await res.text();
+        console.error(`[PlayerManagementScreen] ${isEdit ? 'PUT' : 'POST'} /players HTTP`, res.status, errBody);
+        throw new Error(`HTTP ${res.status}`);
+      }
       const body = await res.json() as { data?: Player } | Player;
       const saved: Player = ('data' in body && body.data) ? body.data : body as Player;
       if (isEdit) {
@@ -158,8 +169,12 @@ const PlayerManagementScreen = ({ onClose }: Props) => {
         const deletedId = p.id;
         setLoading(true);
         try {
-          const res = await fetch(`${API_URL}/api/v1/players/${deletedId}`, { method: 'DELETE' });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const res = await apiFetch(`${API_URL}/api/v1/players/${deletedId}`, { method: 'DELETE' });
+          if (!res.ok) {
+            const errBody = await res.text();
+            console.error('[PlayerManagementScreen] DELETE /players HTTP', res.status, errBody);
+            throw new Error(`HTTP ${res.status}`);
+          }
           setAllPlayersList(prev => prev.filter(x => x.id !== deletedId));
           teamActions.reload(); // met à jour teams.players
         } catch { setError('Impossible de supprimer.'); }
@@ -202,20 +217,28 @@ const PlayerManagementScreen = ({ onClose }: Props) => {
     setLoading(true); setError(null);
     try {
       if (toAdd.length > 0) {
-        const res = await fetch(`${API_URL}/api/v1/teams/${selectedTeamId}:assignPlayers`, {
+        const res = await apiFetch(`${API_URL}/api/v1/teams/${selectedTeamId}:assignPlayers`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ playerIds: toAdd }),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          const errBody = await res.text();
+          console.error('[PlayerManagementScreen] POST :assignPlayers HTTP', res.status, errBody);
+          throw new Error(`HTTP ${res.status}`);
+        }
       }
       if (toRemove.length > 0) {
-        const res = await fetch(`${API_URL}/api/v1/teams/${selectedTeamId}:removePlayers`, {
+        const res = await apiFetch(`${API_URL}/api/v1/teams/${selectedTeamId}:removePlayers`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ playerIds: toRemove }),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          const errBody = await res.text();
+          console.error('[PlayerManagementScreen] POST :removePlayers HTTP', res.status, errBody);
+          throw new Error(`HTTP ${res.status}`);
+        }
       }
       teamActions.reload();
       closeTeamRoster();
@@ -227,12 +250,16 @@ const PlayerManagementScreen = ({ onClose }: Props) => {
     if (!teamForm.name.trim() || !teamForm.city.trim()) return;
     setLoading(true); setError(null);
     try {
-      const res = await fetch(`${API_URL}/api/v1/teams`, {
+      const res = await apiFetch(`${API_URL}/api/v1/teams`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: teamForm.name.trim(), city: teamForm.city.trim(), logoColor: teamForm.logoColor }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const errBody = await res.text();
+        console.error('[PlayerManagementScreen] POST /teams HTTP', res.status, errBody);
+        throw new Error(`HTTP ${res.status}`);
+      }
       teamActions.reload();
       setTeamFormOpen(false);
       setTeamForm(emptyTeamForm());
@@ -246,8 +273,12 @@ const PlayerManagementScreen = ({ onClose }: Props) => {
       { text: 'Supprimer', style: 'destructive', onPress: async () => {
         setLoading(true);
         try {
-          const res = await fetch(`${API_URL}/api/v1/teams/${teamId}`, { method: 'DELETE' });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const res = await apiFetch(`${API_URL}/api/v1/teams/${teamId}`, { method: 'DELETE' });
+          if (!res.ok) {
+            const errBody = await res.text();
+            console.error('[PlayerManagementScreen] DELETE /teams HTTP', res.status, errBody);
+            throw new Error(`HTTP ${res.status}`);
+          }
           teamActions.reload();
         } catch { setError('Impossible de supprimer.'); }
         finally  { setLoading(false); }

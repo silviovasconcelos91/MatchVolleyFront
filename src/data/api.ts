@@ -12,3 +12,12 @@ function resolveApiUrl(): string {
 }
 
 export const API_URL = resolveApiUrl();
+
+export const apiFetch = (url: string, options?: RequestInit): Promise<Response> => {
+  const method = options?.method ?? 'GET';
+  console.log(`[API] ${method} ${url}`);
+  return fetch(url, options).then(res => {
+    console.log(`[API] ${method} ${url} → ${res.status}`);
+    return res;
+  });
+};

@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { useTeam } from '../context/TeamContext';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
-import { API_URL } from '../data/api';
+import { API_URL, apiFetch } from '../data/api';
 
 type Props = {
   onClose: () => void;
@@ -29,26 +29,30 @@ const PlayerCreationScreen = ({ onClose, defaultTeamId }: Props) => {
   const [error,   setError]   = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const canSubmit = name.trim().length > 0 && numero.trim().length > 0 && teamId !== null;
+  const canSubmit = name.trim().length > 0 && numero.trim().length > 0;
 
   const handleSubmit = async () => {
-    if (!canSubmit || teamId === null) return;
+    if (!canSubmit) return;
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch(`${API_URL}/api/v1/players`, {
+      const res = await apiFetch(`${API_URL}/api/v1/players`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          teamId,
+          teamIds: teamId !== null ? [teamId] : [],
           name:   name.trim(),
           numero: Number(numero),
           age:    age ? Number(age) : null,
           taille: taille.trim() || null,
         }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const body = await res.text();
+        console.error('[PlayerCreationScreen] POST /players HTTP', res.status, body);
+        throw new Error(`HTTP ${res.status}`);
+      }
       setSuccess(true);
       teamActions.reload();
     } catch {
@@ -191,7 +195,7 @@ const PlayerCreationScreen = ({ onClose, defaultTeamId }: Props) => {
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.submitBtnText}>
-                  {canSubmit ? 'Créer le joueur' : 'Remplir nom + numéro + équipe'}
+                  {canSubmit ? 'Créer le joueur' : 'Remplir nom + numéro'}
                 </Text>
               )}
             </TouchableOpacity>

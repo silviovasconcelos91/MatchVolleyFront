@@ -9,9 +9,10 @@ import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 type Props = {
   onNewMatch:      () => void;
   onManagePlayers: () => void;
+  onStats:         () => void;
 };
 
-const HomeScreen = ({ onNewMatch, onManagePlayers }: Props) => (
+const HomeScreen = ({ onNewMatch, onManagePlayers, onStats }: Props) => (
   <SafeAreaView style={styles.safeArea}>
     <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCard} />
 
@@ -38,20 +39,18 @@ const HomeScreen = ({ onNewMatch, onManagePlayers }: Props) => (
         <Text style={styles.cardChevron}>›</Text>
       </TouchableOpacity>
 
-      {/* Stats (inactif) */}
+      {/* Stats (actif) */}
       <TouchableOpacity
-        style={styles.cardDisabled}
-        activeOpacity={1}
-        disabled
+        style={styles.cardActive}
+        onPress={onStats}
+        activeOpacity={0.7}
       >
-        <Text style={styles.cardIconDisabled}>📊</Text>
+        <Text style={styles.cardIcon}>📊</Text>
         <View style={styles.cardText}>
-          <Text style={styles.cardTitleDisabled}>Statistiques</Text>
-          <Text style={styles.cardDescDisabled}>Historique et analyses des matchs</Text>
+          <Text style={styles.cardTitle}>Statistiques</Text>
+          <Text style={styles.cardDesc}>Historique et analyses des matchs</Text>
         </View>
-        <View style={styles.comingSoon}>
-          <Text style={styles.comingSoonText}>Bientôt</Text>
-        </View>
+        <Text style={styles.cardChevron}>›</Text>
       </TouchableOpacity>
 
       {/* Équipes / joueurs (actif) */}
