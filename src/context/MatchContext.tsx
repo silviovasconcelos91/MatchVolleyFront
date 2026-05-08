@@ -96,6 +96,7 @@ export type MatchHistoryEvent = {
   source: 'player' | 'opp' | 'opp_fault';
   playerId?: number;      // uniquement si source === 'player'
   actionKey?: ActionKey;  // uniquement si source === 'player'
+  playerRole?: string;    // rôle tactique du joueur au moment de l'action
   mine: boolean;          // true = mon équipe a marqué ce point
   scoreAfter: { my: number; opp: number }; // score du set après ce point
 };
@@ -405,12 +406,14 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       const newTrajectory = [...state.trajectory, { x: newMyScore, y: newOppScore }];
 
       // Enregistrer dans l'historique complet du match (pour reconstruction)
+      const player = state.matchPlayers.find(p => p.id === playerId);
       const matchEvent: MatchHistoryEvent = {
         index:      state.matchHistory.length,
         setNum:     state.setNum,
         source:     'player',
         playerId,
         actionKey,
+        playerRole: player?.tacticalRole,
         mine:       playerAction.mine,
         scoreAfter: { my: newMyScore, opp: newOppScore },
       };

@@ -22,6 +22,7 @@ type TimelineEntry = {
   myScore: number;
   oppScore: number;
   playerId: number | null;
+  playerRole: string | null;
   action: string;
 };
 
@@ -155,10 +156,11 @@ export const buildMatchResult = (matchState: MatchState, team: Team): MatchStatR
     const timeline: TimelineEntry[] = matchHistory
       .filter(e => e.setNum === setResult.setNum)
       .map(e => ({
-        myScore:  e.scoreAfter.my,
-        oppScore: e.scoreAfter.opp,
-        playerId: e.playerId ?? null,
-        action:   e.actionKey ?? e.source,
+        myScore:    e.scoreAfter.my,
+        oppScore:   e.scoreAfter.opp,
+        playerId:   e.playerId ?? null,
+        playerRole: e.playerRole ?? null,
+        action:     e.actionKey ?? e.source,
       }));
 
     const perPlayerSetStats = matchPlayers.map(p =>

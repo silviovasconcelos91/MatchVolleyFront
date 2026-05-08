@@ -42,6 +42,20 @@ const ROLE_LABELS: Record<string, string> = {
   Libero:  'Libéro',
 };
 
+const TIMELINE_ACTION_LABELS: Record<string, string> = {
+  pt:        'Point',
+  atk:       'Attaque',
+  block:     'Block',
+  ace:       'Ace',
+  atk_out:   'Err. attaque',
+  srv_out:   'Err. service',
+  recv:      'Err. réception',
+  opp_score: 'Point adverse',
+  opp_fault: 'Faute adverse',
+};
+
+const MINE_ACTIONS = new Set(['pt', 'atk', 'block', 'ace', 'opp_fault']);
+
 type StatKey = keyof MatchDetailStats;
 type StatGroup = { label: string; color: string; stats: { key: StatKey; label: string }[] };
 
@@ -161,7 +175,13 @@ const ResumeTab = ({ data }: { data: MatchDetail }) => {
 };
 
 // ── Onglet 2 : Par set ─────────────────────────────────────────
-const SetsTab = ({ data }: { data: MatchDetail }) => {
+type SetsTabProps = {
+  data: MatchDetail;
+  playerName: (id: number) => string;
+  playerInfo: (id: number) => { role: string; number: number } | null;
+};
+
+const SetsTab = ({ data, playerName, playerInfo }: SetsTabProps) => {
   const [expandedSet, setExpandedSet] = useState<number | null>(null);
 
   return (
@@ -201,11 +221,42 @@ const SetsTab = ({ data }: { data: MatchDetail }) => {
             )}
 
             {expanded && hasTimeline && (
-              <SetGraph
-                timeline={set.timeline}
-                finalMyScore={set.myScore}
-                finalOppScore={set.oppScore}
-              />
+              <>
+                <SetGraph
+                  timeline={set.timeline}
+                  finalMyScore={set.myScore}
+                  finalOppScore={set.oppScore}
+                />
+                <View style={styles.actionList}>
+                  {set.timeline.map((entry, i) => {
+                    const mine = MINE_ACTIONS.has(entry.action);
+                    const info = entry.playerId !== null ? playerInfo(entry.playerId) : null;
+                    const name = entry.playerId !== null ? playerName(entry.playerId) : null;
+                    return (
+                      <View key={i} style={[styles.actionRow, mine ? styles.actionRowMine : styles.actionRowOpp]}>
+                        <View style={[styles.scoreTag, mine ? styles.scoreTagMine : styles.scoreTagOpp]}>
+                          <Text style={[styles.scoreTagText, mine ? styles.scoreTagTextMine : styles.scoreTagTextOpp]}>
+                            {entry.myScore}–{entry.oppScore}
+                          </Text>
+                        </View>
+                        <View style={styles.actionInfo}>
+                          <Text style={styles.actionLabel}>
+                            {TIMELINE_ACTION_LABELS[entry.action] ?? entry.action}
+                          </Text>
+                          {name && (
+                            <Text style={styles.actionPlayer} numberOfLines={1}>{name}</Text>
+                          )}
+                        </View>
+                        {info && (
+                          <View style={styles.roleTag}>
+                            <Text style={styles.roleTagText}>{info.role}</Text>
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
+              </>
             )}
           </View>
         );
@@ -291,6 +342,12 @@ const MatchDetailScreen = ({ matchId, matchDate, onBack }: Props) => {
     return (id: number) => map.get(id) ?? `Joueur ${id}`;
   }, [data, teamState.teams]);
 
+  const playerInfo = useMemo(() => {
+    if (!data) return (_id: number) => null;
+    const map = new Map(data.players.map(p => [p.playerId, { role: p.role, number: p.number }]));
+    return (id: number) => map.get(id) ?? null;
+  }, [data]);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCard} />
@@ -336,7 +393,7 @@ const MatchDetailScreen = ({ matchId, matchDate, onBack }: Props) => {
 
           <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
             {activeTab === 'resume'       && <ResumeTab      data={data} />}
-            {activeTab === 'sets'         && <SetsTab        data={data} />}
+            {activeTab === 'sets'         && <SetsTab        data={data} playerName={playerName} playerInfo={playerInfo} />}
             {activeTab === 'players'      && <PlayersTab     data={data} playerName={playerName} />}
             {activeTab === 'players-sets' && <PlayersSetTab  data={data} playerName={playerName} />}
             <View style={{ height: SPACING.xxl * 2 }} />
@@ -516,6 +573,80 @@ const styles = StyleSheet.create({
   playerInfo: { flex: 1 },
   playerName: { fontSize: FONT_SIZE.md, fontWeight: '600', color: COLORS.textPrimary },
   playerRole: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted, marginTop: 1 },
+
+  // Timeline action list
+  actionList: {
+    marginTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    paddingTop: SPACING.xs,
+    gap: 2,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: 5,
+    paddingHorizontal: SPACING.xs,
+    borderRadius: RADIUS.sm,
+  },
+  actionRowMine: {
+    backgroundColor: `${COLORS.green}0A`,
+  },
+  actionRowOpp: {
+    backgroundColor: `${COLORS.red}0A`,
+  },
+  scoreTag: {
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACING.xs + 1,
+    paddingVertical: 2,
+    borderWidth: 1,
+    minWidth: 44,
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  scoreTagMine: {
+    backgroundColor: `${COLORS.green}22`,
+    borderColor: `${COLORS.green}44`,
+  },
+  scoreTagOpp: {
+    backgroundColor: `${COLORS.red}22`,
+    borderColor: `${COLORS.red}44`,
+  },
+  scoreTagText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '700',
+  },
+  scoreTagTextMine: { color: COLORS.greenLight },
+  scoreTagTextOpp:  { color: COLORS.redLight   },
+  actionInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  actionLabel: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  actionPlayer: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textMuted,
+    marginTop: 1,
+  },
+  roleTag: {
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACING.xs + 1,
+    paddingVertical: 2,
+    borderWidth: 1,
+    backgroundColor: `${COLORS.blue}18`,
+    borderColor: `${COLORS.blue}40`,
+    flexShrink: 0,
+  },
+  roleTagText: {
+    fontSize: 10,
+    color: COLORS.blue,
+    fontWeight: '600',
+  },
 
   // Per-set stat block (tab 4)
   setStatBlock: {
