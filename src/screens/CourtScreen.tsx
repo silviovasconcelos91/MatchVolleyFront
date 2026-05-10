@@ -31,9 +31,9 @@ const ACTION_LABELS: Record<ActionKey, string> = {
   atk:     'Attaque',
   block:   'Contre',
   ace:     'Ace',
-  atk_out: 'Attaque raté',
-  srv_out: 'Service raté',
-  recv:    'Réception ratée',
+  atk_out: 'Attaque',
+  srv_out: 'Service',
+  recv:    'Réception',
 };
 
 const CourtScreen = () => {
@@ -46,15 +46,7 @@ const CourtScreen = () => {
   const courtPlayers = matchPlayers.filter(p => p.onCourt);
 
   // ── Libero ──
-  const liberoPlayer     = liberoId !== null ? matchPlayers.find(p => p.id === liberoId) : null;
-  const liberoOnCourt    = liberoPlayer?.onCourt ?? false;
-  const centralInBackRow = !liberoOnCourt
-    ? matchPlayers.find(p => p.onCourt && p.tacticalRole === 'Central' && p.pos !== null && BACK_ROW.has(p.pos))
-    : null;
-  // ID du joueur dont la cellule affiche le bouton swap
-  const liberoSwapTargetId = liberoOnCourt
-    ? liberoPlayer?.id
-    : centralInBackRow?.id;
+  const liberoPlayer = liberoId !== null ? matchPlayers.find(p => p.id === liberoId) : null;
 
 
   const selectAction = (key: ActionKey) => {
@@ -85,7 +77,6 @@ const CourtScreen = () => {
     const color = getPlayerColor(player.id);
     const totalPts    = getTotalPoints(player.stats);
     const totalFaults = getTotalFaults(player.stats);
-    const showLiberoBtn = !!liberoPlayer && player.id === liberoSwapTargetId && !disabled;
 
     return (
       <TouchableOpacity
@@ -113,16 +104,6 @@ const CourtScreen = () => {
         <Text style={styles.cellPos}>
           {player.tacticalRole ? `${player.tacticalRole} · ` : ''}P{pos}
         </Text>
-
-        {showLiberoBtn && (
-          <TouchableOpacity
-            style={styles.liberoCellBtn}
-            onPress={actions.liberoSwap}
-            activeOpacity={0.6}
-          >
-            <Text style={styles.liberoCellBtnText}>🔄</Text>
-          </TouchableOpacity>
-        )}
       </TouchableOpacity>
     );
   };
@@ -213,19 +194,33 @@ const CourtScreen = () => {
           })}
         </View>
 
-        {/* Rotation — bas de la section équipe */}
-        <TouchableOpacity
-          style={[styles.btnRotation, disabled && styles.btnDisabled]}
-          onPress={actions.rotate}
-          disabled={disabled}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.btnRotationText}>↻ Rotation</Text>
-        </TouchableOpacity>
+        {/* Rotation + Libero */}
+        <View style={styles.rotationRow}>
+          <TouchableOpacity
+            style={[styles.btnRotation, disabled && styles.btnDisabled]}
+            onPress={actions.rotate}
+            disabled={disabled}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.btnRotationIcon}>↻</Text>
+            <Text style={styles.btnRotationText}>Rotation</Text>
+          </TouchableOpacity>
+          {liberoPlayer && (
+            <TouchableOpacity
+              style={[styles.btnLibero, disabled && styles.btnDisabled]}
+              onPress={actions.liberoSwap}
+              disabled={disabled}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.btnLiberoIcon}>↕</Text>
+              <Text style={styles.btnLiberoText}>Libero</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         <View style={styles.divider} />
 
-        {/* ── ADVERSAIRE (compact) ── */}
+        {/* ── ADVERSAIRE ── */}
         <Text style={styles.groupLabelSmall}>ADVERSAIRE</Text>
         <View style={styles.actionsGrid}>
           <TouchableOpacity
@@ -235,6 +230,7 @@ const CourtScreen = () => {
             activeOpacity={0.7}
           >
             <Text style={styles.btnOppFaultText}>+1</Text>
+            <Text style={styles.btnOppFaultLabel}>Faute adv.</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.btnOppScore, disabled && styles.btnDisabled]}
@@ -243,11 +239,12 @@ const CourtScreen = () => {
             activeOpacity={0.7}
           >
             <Text style={styles.btnOppScoreText}>+1</Text>
+            <Text style={styles.btnOppScoreLabel}>Point adv.</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      <View style={{ height: SPACING.xxl }} />
+      <View style={{ height: SPACING.xs }} />
     </ScrollView>
   );
 };
@@ -256,7 +253,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.md,
+    paddingTop: SPACING.xs,
   },
 
   notReadyContainer: {
@@ -278,12 +275,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     padding: SPACING.sm,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.xs,
   },
 
   netRow: {
     position: 'relative',
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.xs,
   },
   net: {
     height: 3,
@@ -307,27 +304,43 @@ const styles = StyleSheet.create({
 
   cell: {
     width: '31.5%',
-    minHeight: 72,
+    minHeight: 58,
     borderRadius: RADIUS.lg,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
-    paddingVertical: 6,
+    paddingVertical: 4,
     paddingHorizontal: 3,
     position: 'relative',
   },
 
-  liberoCellBtn: {
-    position: 'absolute',
-    top: 3,
-    right: 4,
+  rotationRow: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
+    marginTop: SPACING.xs,
   },
-  liberoCellBtnText: {
-    fontSize: 11,
+  btnLibero: {
+    flex: 1,
+    height: 72,
+    backgroundColor: `${COLORS.yellow}18`,
+    borderWidth: 1,
+    borderColor: `${COLORS.yellow}44`,
+    borderRadius: RADIUS.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnLiberoIcon: {
+    fontSize: 20,
+    color: COLORS.yellow,
+  },
+  btnLiberoText: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.yellow,
+    marginTop: 2,
   },
   cellEmpty: {
     width: '31.5%',
-    minHeight: 72,
+    minHeight: 58,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderStyle: 'dashed',
@@ -373,14 +386,14 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
-    padding: SPACING.lg,
+    padding: SPACING.sm,
   },
 
   actionPanelHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.xs,
   },
   actionPanelHint: {
     fontSize: FONT_SIZE.sm,
@@ -395,31 +408,38 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: COLORS.border,
-    marginVertical: SPACING.md,
+    marginVertical: SPACING.xs,
   },
 
   btnOppFault: {
     flex: 1,
     minWidth: '47%',
+    height: 72,
     backgroundColor: `${COLORS.green}18`,
     borderWidth: 1,
     borderColor: `${COLORS.green}33`,
     borderRadius: RADIUS.md,
-    paddingVertical: 6,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   btnRotation: {
+    flex: 1,
+    height: 72,
     backgroundColor: COLORS.bgInput,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
     borderRadius: RADIUS.md,
-    paddingVertical: SPACING.sm,
     alignItems: 'center',
-    marginTop: SPACING.md,
+    justifyContent: 'center',
+  },
+  btnRotationIcon: {
+    fontSize: 22,
+    color: COLORS.textMuted,
   },
   btnRotationText: {
-    fontSize: FONT_SIZE.md,
+    fontSize: FONT_SIZE.xs,
     color: COLORS.textMuted,
+    marginTop: 2,
   },
   btnDisabled: {
     opacity: 0.4,
@@ -429,23 +449,23 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xs,
     color: COLORS.textSecondary,
     letterSpacing: 1,
-    marginBottom: SPACING.sm,
+    marginBottom: 2,
   },
   groupLabelSmall: {
     fontSize: 10,
     color: COLORS.textDark,
     letterSpacing: 1,
-    marginBottom: SPACING.xs,
+    marginBottom: 2,
   },
   groupLabelSub: {
     fontSize: FONT_SIZE.xs,
     color: COLORS.greenLight,
     letterSpacing: 1,
-    marginBottom: SPACING.sm,
+    marginBottom: 2,
   },
   groupLabelFault: {
     color: COLORS.redLight,
-    marginTop: SPACING.md,
+    marginTop: SPACING.sm,
   },
 
   actionsGrid: {
@@ -457,62 +477,82 @@ const styles = StyleSheet.create({
   btnPoint: {
     flex: 1,
     minWidth: '47%',
+    height: 72,
     backgroundColor: `${COLORS.green}22`,
     borderWidth: 1,
     borderColor: `${COLORS.green}44`,
     borderRadius: RADIUS.md,
-    paddingVertical: SPACING.sm,
     alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING.xs,
   },
   btnPointActive: {
     backgroundColor: `${COLORS.green}55`,
     borderColor: COLORS.green,
   },
   btnPointText: {
-    fontSize: FONT_SIZE.md,
+    fontSize: FONT_SIZE.lg,
     fontWeight: '500',
     color: COLORS.greenLight,
+    textAlign: 'center',
+    alignSelf: 'stretch',
   },
   btnFault: {
     flex: 1,
-    minWidth: '47%',
+    minWidth: '30%',
+    height: 72,
     backgroundColor: `${COLORS.red}22`,
     borderWidth: 1,
     borderColor: `${COLORS.red}44`,
     borderRadius: RADIUS.md,
-    paddingVertical: SPACING.sm,
     alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING.xs,
   },
   btnFaultActive: {
     backgroundColor: `${COLORS.red}55`,
     borderColor: COLORS.red,
   },
   btnFaultText: {
-    fontSize: FONT_SIZE.md,
+    fontSize: FONT_SIZE.lg,
     fontWeight: '500',
     color: COLORS.redLight,
+    textAlign: 'center',
+    alignSelf: 'stretch',
   },
   btnActiveText: {
     fontWeight: '700',
   },
   btnOppFaultText: {
-    fontSize: FONT_SIZE.sm,
+    fontSize: FONT_SIZE.xxl,
+    fontWeight: '600',
     color: COLORS.greenLight,
+  },
+  btnOppFaultLabel: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.greenLight,
+    marginTop: 2,
   },
   btnOppScore: {
     flex: 1,
     minWidth: '47%',
+    height: 72,
     backgroundColor: `${COLORS.red}18`,
     borderWidth: 1,
     borderColor: `${COLORS.red}33`,
     borderRadius: RADIUS.md,
-    paddingVertical: 6,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   btnOppScoreText: {
-    fontSize: FONT_SIZE.sm,
+    fontSize: FONT_SIZE.xxl,
     fontWeight: '600',
     color: COLORS.redLight,
+  },
+  btnOppScoreLabel: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.redLight,
+    marginTop: 2,
   },
 });
 

@@ -30,7 +30,102 @@ function computeSetStats(
   return result;
 }
 
-// ── Carte joueur réutilisable ──
+function sumStats(statsList: PlayerStats[]): PlayerStats {
+  const total = createEmptyStats();
+  for (const s of statsList) {
+    total.pt      += s.pt;
+    total.atk     += s.atk;
+    total.block   += s.block;
+    total.ace     += s.ace;
+    total.atk_out += s.atk_out;
+    total.srv_out += s.srv_out;
+    total.recv    += s.recv;
+  }
+  return total;
+}
+
+// ── Chip résumé équipe ──
+type SummaryChipProps = { label: string; value: number; color: string };
+
+const SummaryChip = ({ label, value, color }: SummaryChipProps) => (
+  <View style={[styles.summaryChip, { borderColor: `${color}44`, backgroundColor: `${color}22` }]}>
+    <Text style={[styles.summaryChipText, { color }]}>{label} {value}</Text>
+  </View>
+);
+
+// ── Résumé équipe ──
+type TeamSummaryProps = {
+  myScore: number;
+  oppScore: number;
+  stats: PlayerStats;
+};
+
+const TeamSummary = ({ myScore, oppScore, stats }: TeamSummaryProps) => {
+  const playerPoints = stats.pt + stats.atk + stats.block + stats.ace;
+  const teamFaults   = stats.atk_out + stats.srv_out + stats.recv;
+  const oppActual    = Math.max(0, oppScore - teamFaults);
+  const oppFaults    = Math.max(0, myScore - playerPoints);
+
+  return (
+    <View style={styles.teamSummary}>
+
+      {/* Total des points */}
+      <View style={styles.summaryBlock}>
+        <Text style={styles.summaryBlockLabel}>TOTAL DES POINTS</Text>
+        <Text style={styles.summaryScoreText}>{myScore} – {oppScore}</Text>
+      </View>
+
+      <View style={styles.summarySeparator} />
+
+      {/* Points marqués */}
+      <View style={styles.summaryBlock}>
+        <View style={styles.summaryHeaderRow}>
+          <Text style={styles.summaryBlockLabel}>POINTS MARQUÉS</Text>
+          <Text style={[styles.summaryBlockTotal, { color: COLORS.greenLight }]}>{playerPoints}</Text>
+        </View>
+        <View style={styles.summaryChips}>
+          <SummaryChip label="Pt"   value={stats.pt}    color={COLORS.greenLight} />
+          <SummaryChip label="Atk"  value={stats.atk}   color={COLORS.blue} />
+          <SummaryChip label="Bloc" value={stats.block} color="#e040fb" />
+          <SummaryChip label="Ace"  value={stats.ace}   color={COLORS.greenLight} />
+        </View>
+      </View>
+
+      <View style={styles.summarySeparator} />
+
+      {/* Fautes */}
+      <View style={styles.summaryBlock}>
+        <View style={styles.summaryHeaderRow}>
+          <Text style={styles.summaryBlockLabel}>FAUTES</Text>
+          <Text style={[styles.summaryBlockTotal, { color: COLORS.redLight }]}>{teamFaults}</Text>
+        </View>
+        <View style={styles.summaryChips}>
+          <SummaryChip label="Atk"  value={stats.atk_out} color={COLORS.redLight} />
+          <SummaryChip label="Srv"  value={stats.srv_out} color={COLORS.redLight} />
+          <SummaryChip label="Recv" value={stats.recv}    color={COLORS.redLight} />
+        </View>
+      </View>
+
+      <View style={styles.summarySeparator} />
+
+      {/* Adversaire */}
+      <View style={styles.summaryBlock}>
+        <Text style={styles.summaryBlockLabel}>ADVERSAIRE</Text>
+        <View style={styles.summaryOppRow}>
+          <Text style={styles.summaryOppLabel}>Points marqués</Text>
+          <Text style={styles.summaryOppValue}>{oppActual}</Text>
+        </View>
+        <View style={styles.summaryOppRow}>
+          <Text style={styles.summaryOppLabel}>Fautes</Text>
+          <Text style={styles.summaryOppValue}>{oppFaults}</Text>
+        </View>
+      </View>
+
+    </View>
+  );
+};
+
+// ── Carte joueur ──
 type CardProps = {
   name: string;
   numero: number;
@@ -104,7 +199,7 @@ const PlayerCard = ({ name, numero, tacticalRole, onCourt, pos, color, stats }: 
 
 const StatsScreen = () => {
   const { state } = useMatch();
-  const { matchPlayers, matchHistory, setNum, rosterValidated } = state;
+  const { matchPlayers, matchHistory, setNum, setResults, myScore, oppScore, rosterValidated } = state;
 
   if (!rosterValidated) {
     return (
@@ -116,15 +211,22 @@ const StatsScreen = () => {
     );
   }
 
-  const playerIds   = matchPlayers.map(p => p.id);
-  const setStatsMap = computeSetStats(matchHistory, setNum, playerIds);
+  const playerIds    = matchPlayers.map(p => p.id);
+  const setStatsMap  = computeSetStats(matchHistory, setNum, playerIds);
+  const setAggrStats = sumStats(Object.values(setStatsMap));
 
-  const sortedByMatchPts = [...matchPlayers].sort(
-    (a, b) => getTotalPoints(b.stats) - getTotalPoints(a.stats)
-  );
+  const totalMyScore  = setResults.reduce((sum, s) => sum + s.myScore,  0) + myScore;
+  const totalOppScore = setResults.reduce((sum, s) => sum + s.oppScore, 0) + oppScore;
+  const matchAggrStats = sumStats(matchPlayers.map(p => p.stats));
 
   const sortedBySetPts = [...matchPlayers].sort(
-    (a, b) => getTotalPoints(b.stats) - getTotalPoints(setStatsMap[a.id] ?? createEmptyStats())
+    (a, b) =>
+      getTotalPoints(setStatsMap[b.id] ?? createEmptyStats()) -
+      getTotalPoints(setStatsMap[a.id] ?? createEmptyStats()),
+  );
+
+  const sortedByMatchPts = [...matchPlayers].sort(
+    (a, b) => getTotalPoints(b.stats) - getTotalPoints(a.stats),
   );
 
   return (
@@ -132,6 +234,7 @@ const StatsScreen = () => {
 
       {/* ── Stats Set en cours ── */}
       <Text style={styles.sectionLabel}>SET {setNum}</Text>
+      <TeamSummary myScore={myScore} oppScore={oppScore} stats={setAggrStats} />
       {sortedBySetPts.map(player => (
         <PlayerCard
           key={`set-${player.id}`}
@@ -149,6 +252,7 @@ const StatsScreen = () => {
 
       {/* ── Stats match total ── */}
       <Text style={styles.sectionLabel}>MATCH TOTAL</Text>
+      <TeamSummary myScore={totalMyScore} oppScore={totalOppScore} stats={matchAggrStats} />
       {sortedByMatchPts.map(player => (
         <PlayerCard
           key={`match-${player.id}`}
@@ -198,6 +302,75 @@ const styles = StyleSheet.create({
     marginVertical: SPACING.lg,
   },
 
+  // ── Team summary ──
+  teamSummary: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  summaryBlock: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs + 2,
+  },
+  summarySeparator: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginHorizontal: SPACING.md,
+  },
+  summaryBlockLabel: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textMuted,
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  summaryScoreText: {
+    fontSize: FONT_SIZE.xxl,
+    fontWeight: '500',
+    color: COLORS.textPrimary,
+  },
+  summaryHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  summaryBlockTotal: {
+    fontSize: FONT_SIZE.xl,
+    fontWeight: '500',
+  },
+  summaryChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.xs,
+  },
+  summaryChip: {
+    borderWidth: 1,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+  },
+  summaryChipText: {
+    fontSize: FONT_SIZE.xs,
+  },
+  summaryOppRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  summaryOppLabel: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textMuted,
+  },
+  summaryOppValue: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '500',
+    color: COLORS.textPrimary,
+  },
+
+  // ── Player card ──
   playerCard: {
     paddingVertical: SPACING.sm + 1,
     borderBottomWidth: 1,

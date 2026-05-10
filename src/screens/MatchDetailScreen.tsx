@@ -20,13 +20,12 @@ type Props = {
   onBack: () => void;
 };
 
-type TabId = 'resume' | 'sets' | 'players' | 'players-sets';
+type TabId = 'resume' | 'sets' | 'players';
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: 'resume',       label: 'Résumé'     },
-  { id: 'sets',         label: 'Par set'    },
-  { id: 'players',      label: 'Joueurs'    },
-  { id: 'players-sets', label: 'Joueurs/set'},
+  { id: 'resume',  label: 'Résumé'  },
+  { id: 'sets',    label: 'Par set' },
+  { id: 'players', label: 'Joueurs' },
 ];
 
 const formatDate = (iso: string): string => {
@@ -56,31 +55,6 @@ const TIMELINE_ACTION_LABELS: Record<string, string> = {
 
 const MINE_ACTIONS = new Set(['pt', 'atk', 'block', 'ace', 'opp_fault']);
 
-type StatKey = keyof MatchDetailStats;
-type StatGroup = { label: string; color: string; stats: { key: StatKey; label: string }[] };
-
-const STAT_GROUPS: StatGroup[] = [
-  {
-    label: 'POINTS MARQUÉS',
-    color: COLORS.green,
-    stats: [
-      { key: 'points',       label: 'Total'   },
-      { key: 'attackPoints', label: 'Attaque' },
-      { key: 'blockPoints',  label: 'Block'   },
-      { key: 'acePoints',    label: 'Ace'     },
-    ],
-  },
-  {
-    label: 'POINTS PERDUS',
-    color: COLORS.red,
-    stats: [
-      { key: 'attackErrors',  label: 'Err. attaque' },
-      { key: 'serviceErrors', label: 'Err. service' },
-      { key: 'receptions',    label: 'Récep. ratées'},
-    ],
-  },
-];
-
 const playerSetToStats = (s: MatchDetailPlayerSetStat): MatchDetailStats => ({
   points:        s.points,
   attackPoints:  s.attackPoints,
@@ -91,60 +65,97 @@ const playerSetToStats = (s: MatchDetailPlayerSetStat): MatchDetailStats => ({
   receptions:    s.receptions,
 });
 
-// ── Grille stats par catégorie ─────────────────────────────────
-type StatsGridProps = { stats: MatchDetailStats; myTotal?: number; oppTotal?: number };
+// ── Cellule stat ──────────────────────────────────────────────────
+type StatCellProps = { label: string; value: number; color: string };
 
-const StatsGrid = ({ stats, myTotal, oppTotal }: StatsGridProps) => {
-  const showAdv = myTotal !== undefined && oppTotal !== undefined;
-  const advGagné = showAdv
-    ? oppTotal - (stats.attackErrors + stats.serviceErrors + stats.receptions)
-    : 0;
-  const advPerdu = showAdv
-    ? myTotal - (stats.attackPoints + stats.blockPoints + stats.acePoints)
-    : 0;
+const StatCell = ({ label, value, color }: StatCellProps) => (
+  <View style={[styles.statCell, { backgroundColor: `${color}18`, borderColor: `${color}40` }]}>
+    <Text style={[styles.statCellValue, { color }]}>{value}</Text>
+    <Text style={styles.statCellLabel}>{label}</Text>
+  </View>
+);
+
+// ── Bloc stats équipe (4 sections) ────────────────────────────────
+type MatchStatsBlockProps = {
+  stats: MatchDetailStats;
+  myScore?: number;
+  oppScore?: number;
+  hideTotalScore?: boolean;
+};
+
+const MatchStatsBlock = ({ stats, myScore, oppScore, hideTotalScore }: MatchStatsBlockProps) => {
+  const playerPoints = stats.points + stats.attackPoints + stats.blockPoints + stats.acePoints;
+  const teamFaults   = stats.attackErrors + stats.serviceErrors + stats.receptions;
+  const hasScores    = myScore !== undefined && oppScore !== undefined;
+  const oppActual    = hasScores ? Math.max(0, oppScore - teamFaults) : 0;
+  const oppFaults    = hasScores ? Math.max(0, myScore - playerPoints) : 0;
 
   return (
-    <View style={styles.statsGrid}>
-      {STAT_GROUPS.map(group => (
-        <View key={group.label} style={styles.statsGroup}>
-          <View style={[styles.statsGroupHeader, { borderLeftColor: group.color }]}>
-            <Text style={[styles.statsGroupLabel, { color: group.color }]}>{group.label}</Text>
-          </View>
-          <View style={styles.statsRow}>
-            {group.stats.map(c => (
-              <View key={c.key} style={styles.statsCell}>
-                <Text style={styles.statsCellValue}>{stats[c.key]}</Text>
-                <Text style={styles.statsCellLabel}>{c.label}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      ))}
+    <View style={styles.statsBlock}>
 
-      {showAdv && (
-        <View style={styles.statsGroup}>
-          <View style={[styles.statsGroupHeader, { borderLeftColor: COLORS.yellow }]}>
-            <Text style={[styles.statsGroupLabel, { color: COLORS.yellow }]}>ADVERSAIRE</Text>
+      {/* Total des points */}
+      {hasScores && !hideTotalScore && (
+        <>
+          <View style={styles.statsSection}>
+            <Text style={styles.statsSectionLabel}>TOTAL DES POINTS</Text>
+            <Text style={styles.statsTotalScore}>{myScore} – {oppScore}</Text>
           </View>
-          <View style={styles.statsRow}>
-            <View style={styles.statsCell}>
-              <Text style={styles.statsCellValue}>{advGagné}</Text>
-              <Text style={styles.statsCellLabel}>Points gagnés</Text>
-            </View>
-            <View style={styles.statsCell}>
-              <Text style={styles.statsCellValue}>{advPerdu}</Text>
-              <Text style={styles.statsCellLabel}>Points perdus</Text>
-            </View>
-          </View>
-        </View>
+          <View style={styles.statsDivider} />
+        </>
       )}
+
+      {/* Points marqués */}
+      <View style={styles.statsSection}>
+        <View style={styles.statsHeaderRow}>
+          <Text style={styles.statsSectionLabel}>POINTS MARQUÉS</Text>
+          <Text style={[styles.statsSectionTotal, { color: COLORS.greenLight }]}>{playerPoints}</Text>
+        </View>
+        <View style={styles.statCellRow}>
+          <StatCell label="Pt"   value={stats.points}       color={COLORS.greenLight} />
+          <StatCell label="Atk"  value={stats.attackPoints} color={COLORS.blue} />
+          <StatCell label="Bloc" value={stats.blockPoints}  color="#e040fb" />
+          <StatCell label="Ace"  value={stats.acePoints}    color={COLORS.greenLight} />
+        </View>
+      </View>
+
+      <View style={styles.statsDivider} />
+
+      {/* Fautes */}
+      <View style={styles.statsSection}>
+        <View style={styles.statsHeaderRow}>
+          <Text style={styles.statsSectionLabel}>FAUTES</Text>
+          <Text style={[styles.statsSectionTotal, { color: COLORS.redLight }]}>{teamFaults}</Text>
+        </View>
+        <View style={styles.statCellRow}>
+          <StatCell label="Atk"  value={stats.attackErrors}  color={COLORS.redLight} />
+          <StatCell label="Srv"  value={stats.serviceErrors} color={COLORS.redLight} />
+          <StatCell label="Recv" value={stats.receptions}    color={COLORS.redLight} />
+        </View>
+      </View>
+
+      {/* Adversaire */}
+      {hasScores && (
+        <>
+          <View style={styles.statsDivider} />
+          <View style={styles.statsSection}>
+            <Text style={styles.statsSectionLabel}>ADVERSAIRE</Text>
+            <View style={styles.statCellRow}>
+              <StatCell label="Points marqués" value={oppActual} color={COLORS.yellow} />
+              <StatCell label="Fautes"         value={oppFaults} color={COLORS.textMuted} />
+            </View>
+          </View>
+        </>
+      )}
+
     </View>
   );
 };
 
 // ── Onglet 1 : Résumé global ───────────────────────────────────
 const ResumeTab = ({ data }: { data: MatchDetail }) => {
-  const won = data.result === 'won';
+  const won = data.result.toLowerCase() === 'won';
+  const myTotal  = data.sets.reduce((sum, s) => sum + s.myScore,  0);
+  const oppTotal = data.sets.reduce((sum, s) => sum + s.oppScore, 0);
   return (
     <View style={styles.tabContent}>
       <View style={styles.scoreCard}>
@@ -153,21 +164,31 @@ const ResumeTab = ({ data }: { data: MatchDetail }) => {
             {won ? 'Victoire' : 'Défaite'}
           </Text>
         </View>
+
         <View style={styles.scoreRow}>
           <Text style={styles.scoreNum}>{data.mySets}</Text>
           <Text style={styles.scoreSep}>–</Text>
           <Text style={styles.scoreNum}>{data.oppSets}</Text>
         </View>
         <Text style={styles.scoreSublabel}>sets</Text>
-        <Text style={styles.scoreDate}>{formatDate(data.date)}</Text>
+
+        <View style={styles.scoreDivider} />
+
+        <View style={styles.scoreRow}>
+          <Text style={styles.scorePtsNum}>{myTotal}</Text>
+          <Text style={styles.scorePtsSep}>–</Text>
+          <Text style={styles.scorePtsNum}>{oppTotal}</Text>
+        </View>
+        <Text style={styles.scoreSublabel}>points</Text>
       </View>
 
       <Text style={styles.sectionTitle}>STATS ÉQUIPE</Text>
       <View style={styles.card}>
-        <StatsGrid
+        <MatchStatsBlock
           stats={data.teamMatchStats}
-          myTotal={data.sets.reduce((sum, s) => sum + s.myScore, 0)}
-          oppTotal={data.sets.reduce((sum, s) => sum + s.oppScore, 0)}
+          myScore={myTotal}
+          oppScore={oppTotal}
+          hideTotalScore
         />
       </View>
     </View>
@@ -187,8 +208,8 @@ const SetsTab = ({ data, playerName, playerInfo }: SetsTabProps) => {
   return (
     <View style={styles.tabContent}>
       {data.sets.map(set => {
-        const myWon     = set.myScore > set.oppScore;
-        const expanded  = expandedSet === set.set;
+        const myWon      = set.myScore > set.oppScore;
+        const expanded   = expandedSet === set.set;
         const hasTimeline = set.timeline.length > 0;
 
         return (
@@ -207,7 +228,11 @@ const SetsTab = ({ data, playerName, playerInfo }: SetsTabProps) => {
             </View>
 
             <Text style={styles.subSectionTitle}>Stats équipe</Text>
-            <StatsGrid stats={set.teamStats} myTotal={set.myScore} oppTotal={set.oppScore} />
+            <MatchStatsBlock
+              stats={set.teamStats}
+              myScore={set.myScore}
+              oppScore={set.oppScore}
+            />
 
             {hasTimeline && (
               <TouchableOpacity
@@ -265,55 +290,54 @@ const SetsTab = ({ data, playerName, playerInfo }: SetsTabProps) => {
   );
 };
 
-// ── Onglet 3 : Joueurs global ──────────────────────────────────
+// ── Onglet 3 : Joueurs (expandable → stats par set) ───────────────
 type PlayersTabProps = {
   data: MatchDetail;
   playerName: (id: number) => string;
 };
-const PlayersTab = ({ data, playerName }: PlayersTabProps) => (
-  <View style={styles.tabContent}>
-    {data.players.map(p => (
-      <View key={p.playerId} style={styles.card}>
-        <View style={styles.playerHeader}>
-          <View style={styles.playerNum}>
-            <Text style={styles.playerNumText}>#{p.number}</Text>
-          </View>
-          <View style={styles.playerInfo}>
-            <Text style={styles.playerName}>{playerName(p.playerId)}</Text>
-            {p.role ? <Text style={styles.playerRole}>{ROLE_LABELS[p.role] ?? p.role}</Text> : null}
-          </View>
-        </View>
-        <StatsGrid stats={p.matchStats} />
-      </View>
-    ))}
-  </View>
-);
 
-// ── Onglet 4 : Joueurs / set ───────────────────────────────────
-type PlayersSetTabProps = {
-  data: MatchDetail;
-  playerName: (id: number) => string;
+const PlayersTab = ({ data, playerName }: PlayersTabProps) => {
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  return (
+    <View style={styles.tabContent}>
+      {data.players.map(p => {
+        const expanded = expandedId === p.playerId;
+        return (
+          <View key={p.playerId} style={styles.card}>
+            <TouchableOpacity
+              style={styles.playerHeader}
+              onPress={() => setExpandedId(expanded ? null : p.playerId)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.playerNum}>
+                <Text style={styles.playerNumText}>#{p.number}</Text>
+              </View>
+              <Text style={styles.playerName}>{playerName(p.playerId)}</Text>
+              <Text style={styles.expandChevron}>{expanded ? '▲' : '▼'}</Text>
+            </TouchableOpacity>
+
+            <MatchStatsBlock stats={p.matchStats} />
+
+            {expanded && p.setStats.map(ss => (
+              <View key={ss.set} style={styles.setStatBlock}>
+                <View style={styles.setStatHeader}>
+                  <Text style={styles.setStatLabel}>Set {ss.set}</Text>
+                  {ss.position ? (
+                    <View style={styles.roleTag}>
+                      <Text style={styles.roleTagText}>{ROLE_LABELS[ss.position] ?? ss.position}</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <MatchStatsBlock stats={playerSetToStats(ss)} />
+              </View>
+            ))}
+          </View>
+        );
+      })}
+    </View>
+  );
 };
-const PlayersSetTab = ({ data, playerName }: PlayersSetTabProps) => (
-  <View style={styles.tabContent}>
-    {data.players.map(p => (
-      <View key={p.playerId} style={styles.card}>
-        <View style={styles.playerHeader}>
-          <View style={styles.playerNum}>
-            <Text style={styles.playerNumText}>#{p.number}</Text>
-          </View>
-          <Text style={styles.playerName}>{playerName(p.playerId)}</Text>
-        </View>
-        {p.setStats.map(ss => (
-          <View key={ss.set} style={styles.setStatBlock}>
-            <Text style={styles.setStatLabel}>Set {ss.set}</Text>
-            <StatsGrid stats={playerSetToStats(ss)} />
-          </View>
-        ))}
-      </View>
-    ))}
-  </View>
-);
 
 // ── Écran principal ────────────────────────────────────────────
 const MatchDetailScreen = ({ matchId, matchDate, onBack }: Props) => {
@@ -392,10 +416,9 @@ const MatchDetailScreen = ({ matchId, matchDate, onBack }: Props) => {
           </View>
 
           <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-            {activeTab === 'resume'       && <ResumeTab      data={data} />}
-            {activeTab === 'sets'         && <SetsTab        data={data} playerName={playerName} playerInfo={playerInfo} />}
-            {activeTab === 'players'      && <PlayersTab     data={data} playerName={playerName} />}
-            {activeTab === 'players-sets' && <PlayersSetTab  data={data} playerName={playerName} />}
+            {activeTab === 'resume'  && <ResumeTab  data={data} />}
+            {activeTab === 'sets'    && <SetsTab    data={data} playerName={playerName} playerInfo={playerInfo} />}
+            {activeTab === 'players' && <PlayersTab data={data} playerName={playerName} />}
             <View style={{ height: SPACING.xxl * 2 }} />
           </ScrollView>
         </>
@@ -466,66 +489,91 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
-    padding: SPACING.lg,
+    padding: SPACING.xl,
     alignItems: 'center',
     gap: SPACING.xs,
   },
   resultBadge: {
     borderRadius: RADIUS.md,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 4,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.xs,
     borderWidth: 1,
-    marginBottom: SPACING.xs,
+    marginBottom: SPACING.sm,
   },
   resultWon:  { backgroundColor: `${COLORS.green}22`, borderColor: `${COLORS.green}55` },
   resultLost: { backgroundColor: `${COLORS.red}22`,   borderColor: `${COLORS.red}55`   },
-  resultLabel: { fontSize: FONT_SIZE.md, fontWeight: '700' },
+  resultLabel: { fontSize: FONT_SIZE.lg, fontWeight: '700' },
   resultLabelWon:  { color: COLORS.green },
   resultLabelLost: { color: COLORS.red },
-  scoreRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
-  scoreNum: { fontSize: 48, fontWeight: '700', color: COLORS.textPrimary, lineHeight: 56 },
-  scoreSep: { fontSize: 32, color: COLORS.textMuted, lineHeight: 40 },
+  scoreRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.lg },
+  scoreNum: { fontSize: 52, fontWeight: '700', color: COLORS.textPrimary, lineHeight: 60 },
+  scoreSep: { fontSize: 36, color: COLORS.textMuted, lineHeight: 44 },
   scoreSublabel: { fontSize: FONT_SIZE.sm, color: COLORS.textMuted },
-  scoreDate: { fontSize: FONT_SIZE.md, color: COLORS.textDark, marginTop: SPACING.xs },
+  scoreDivider: {
+    width: '60%',
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: SPACING.sm,
+  },
+  scorePtsNum: { fontSize: 28, fontWeight: '600', color: COLORS.textSecondary, lineHeight: 36 },
+  scorePtsSep: { fontSize: FONT_SIZE.xl, color: COLORS.textMuted },
 
-  // Stats grid
-  statsGrid: { gap: SPACING.sm },
-  statsGroup: { gap: 6 },
-  statsGroupHeader: {
-    borderLeftWidth: 3,
-    paddingLeft: SPACING.sm,
+  // ── Stats block ──
+  statsBlock: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
   },
-  statsGroupLabel: {
+  statsSection: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs + 2,
+  },
+  statsDivider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginHorizontal: SPACING.md,
+  },
+  statsSectionLabel: {
     fontSize: FONT_SIZE.xs,
-    fontWeight: '700',
+    color: COLORS.textMuted,
     letterSpacing: 1,
+    marginBottom: 4,
   },
-  statsRow: { flexDirection: 'row', gap: SPACING.xs },
-  statsCell: {
+  statsTotalScore: {
+    fontSize: FONT_SIZE.xl,
+    fontWeight: '500',
+    color: COLORS.textPrimary,
+  },
+  statsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  statsSectionTotal: {
+    fontSize: FONT_SIZE.lg,
+    fontWeight: '500',
+  },
+  statCellRow: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
+  },
+  statCell: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: COLORS.bgInput,
     borderRadius: RADIUS.sm,
+    borderWidth: 1,
     paddingVertical: SPACING.sm,
     gap: 2,
   },
-  statsCellValue: {
-    fontSize: FONT_SIZE.lg,
+  statCellValue: {
+    fontSize: FONT_SIZE.xxl,
     fontWeight: '700',
-    color: COLORS.textPrimary,
   },
-  statsCellLabel: {
-    fontSize: 10,
+  statCellLabel: {
+    fontSize: FONT_SIZE.xs,
     color: COLORS.textMuted,
-  },
-  statsCellMuted: {
-    flex: 2,
-    opacity: 0.5,
-  },
-  statsCellValueMuted: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: '400',
-    color: COLORS.textMuted,
+    textAlign: 'center',
   },
 
   // Set header
@@ -570,9 +618,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   playerNumText: { fontSize: FONT_SIZE.sm, fontWeight: '700', color: COLORS.blue },
-  playerInfo: { flex: 1 },
-  playerName: { fontSize: FONT_SIZE.md, fontWeight: '600', color: COLORS.textPrimary },
-  playerRole: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted, marginTop: 1 },
+  playerName: { flex: 1, fontSize: FONT_SIZE.md, fontWeight: '600', color: COLORS.textPrimary },
+  expandChevron: { fontSize: 10, color: COLORS.textMuted },
 
   // Timeline action list
   actionList: {
@@ -590,12 +637,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xs,
     borderRadius: RADIUS.sm,
   },
-  actionRowMine: {
-    backgroundColor: `${COLORS.green}0A`,
-  },
-  actionRowOpp: {
-    backgroundColor: `${COLORS.red}0A`,
-  },
+  actionRowMine: { backgroundColor: `${COLORS.green}0A` },
+  actionRowOpp:  { backgroundColor: `${COLORS.red}0A`   },
   scoreTag: {
     borderRadius: RADIUS.sm,
     paddingHorizontal: SPACING.xs + 1,
@@ -605,24 +648,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexShrink: 0,
   },
-  scoreTagMine: {
-    backgroundColor: `${COLORS.green}22`,
-    borderColor: `${COLORS.green}44`,
-  },
-  scoreTagOpp: {
-    backgroundColor: `${COLORS.red}22`,
-    borderColor: `${COLORS.red}44`,
-  },
-  scoreTagText: {
-    fontSize: FONT_SIZE.xs,
-    fontWeight: '700',
-  },
+  scoreTagMine: { backgroundColor: `${COLORS.green}22`, borderColor: `${COLORS.green}44` },
+  scoreTagOpp:  { backgroundColor: `${COLORS.red}22`,   borderColor: `${COLORS.red}44`   },
+  scoreTagText: { fontSize: FONT_SIZE.xs, fontWeight: '700' },
   scoreTagTextMine: { color: COLORS.greenLight },
   scoreTagTextOpp:  { color: COLORS.redLight   },
-  actionInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
+  actionInfo: { flex: 1, minWidth: 0 },
   actionLabel: {
     fontSize: FONT_SIZE.sm,
     color: COLORS.textSecondary,
@@ -642,18 +673,20 @@ const styles = StyleSheet.create({
     borderColor: `${COLORS.blue}40`,
     flexShrink: 0,
   },
-  roleTagText: {
-    fontSize: 10,
-    color: COLORS.blue,
-    fontWeight: '600',
-  },
+  roleTagText: { fontSize: 10, color: COLORS.blue, fontWeight: '600' },
 
-  // Per-set stat block (tab 4)
+  // Per-set stat block (expansion joueur)
   setStatBlock: {
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
     paddingTop: SPACING.sm,
-    gap: 4,
+    gap: SPACING.xs,
+  },
+  setStatHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: 2,
   },
   setStatLabel: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted, letterSpacing: 0.5, fontWeight: '600' },
 });

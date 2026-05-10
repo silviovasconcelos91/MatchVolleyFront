@@ -13,30 +13,37 @@ type Props = {
   teamId: number;
   teamName: string;
   onBack: () => void;
+  onSelectPlayer: (id: number, name: string, numero: number) => void;
 };
 
 type PlayerRowProps = {
   player: Player;
+  onPress: (id: number, name: string, numero: number) => void;
 };
 
-const PlayerRow = memo(({ player }: PlayerRowProps) => (
-  <View style={styles.playerRow}>
+const PlayerRow = memo(({ player, onPress }: PlayerRowProps) => (
+  <TouchableOpacity
+    style={styles.playerRow}
+    onPress={() => onPress(player.id, player.name, player.numero)}
+    activeOpacity={0.7}
+  >
     <PlayerAvatar name={player.name} color={getPlayerColor(player.id)} size={40} />
     <View style={styles.playerInfo}>
       <Text style={styles.playerName}>{player.name}</Text>
       <Text style={styles.playerMeta}>#{player.numero}{player.taille ? ` · ${player.taille}` : ''}</Text>
     </View>
-  </View>
+    <Text style={styles.chevron}>›</Text>
+  </TouchableOpacity>
 ));
 
-const StatsPlayersScreen = ({ teamId, teamName, onBack }: Props) => {
+const StatsPlayersScreen = ({ teamId, teamName, onBack, onSelectPlayer }: Props) => {
   const { state: teamState } = useTeam();
   const team = teamState.teams.find(t => t.id === teamId);
   const players = team?.players ?? [];
 
   const renderPlayer = useCallback(({ item }: ListRenderItemInfo<Player>) => (
-    <PlayerRow player={item} />
-  ), []);
+    <PlayerRow player={item} onPress={onSelectPlayer} />
+  ), [onSelectPlayer]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -117,6 +124,11 @@ const styles = StyleSheet.create({
   },
   playerInfo: {
     flex: 1,
+  },
+  chevron: {
+    fontSize: FONT_SIZE.xl,
+    color: COLORS.textMuted,
+    lineHeight: FONT_SIZE.xl,
   },
   playerName: {
     fontSize: FONT_SIZE.lg,

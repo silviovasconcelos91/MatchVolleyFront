@@ -26,7 +26,9 @@ const formatDate = (iso: string): string => {
 };
 
 const MatchRow = memo(({ match, onPress }: MatchRowProps) => {
-  const won = match.result === 'won';
+  const won = match.result.toLowerCase() === 'won';
+  const hasLocation = match.home !== null && match.home !== undefined;
+
   return (
     <TouchableOpacity
       style={styles.matchRow}
@@ -38,9 +40,29 @@ const MatchRow = memo(({ match, onPress }: MatchRowProps) => {
           {won ? 'V' : 'D'}
         </Text>
       </View>
+
       <View style={styles.matchInfo}>
-        <Text style={styles.matchDate}>{formatDate(match.date)}</Text>
+        <Text style={styles.matchName} numberOfLines={1}>
+          {match.title ?? '—'}
+        </Text>
+        <View style={styles.matchMeta}>
+          <Text style={styles.matchDate}>{formatDate(match.date)}</Text>
+          {hasLocation && (
+            <View style={[
+              styles.locationBadge,
+              match.home ? styles.locationHome : styles.locationAway,
+            ]}>
+              <Text style={[
+                styles.locationText,
+                match.home ? styles.locationTextHome : styles.locationTextAway,
+              ]}>
+                {match.home ? 'Dom.' : 'Ext.'}
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
+
       <Text style={styles.matchScore}>
         {match.mySets} – {match.oppSets}
       </Text>
@@ -215,8 +237,44 @@ const styles = StyleSheet.create({
   },
   resultTextWon:  { color: COLORS.green },
   resultTextLost: { color: COLORS.red },
-  matchInfo: { flex: 1 },
-  matchDate: { fontSize: FONT_SIZE.md, color: COLORS.textPrimary },
+  matchInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  matchName: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: '500',
+    color: COLORS.textPrimary,
+  },
+  matchMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    marginTop: 2,
+  },
+  matchDate: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textMuted,
+  },
+  locationBadge: {
+    borderWidth: 1,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACING.xs + 1,
+    paddingVertical: 1,
+  },
+  locationHome: {
+    backgroundColor: `${COLORS.blue}22`,
+    borderColor: `${COLORS.blue}44`,
+  },
+  locationAway: {
+    backgroundColor: `${COLORS.textMuted}18`,
+    borderColor: `${COLORS.textMuted}44`,
+  },
+  locationText: {
+    fontSize: FONT_SIZE.xs,
+  },
+  locationTextHome: { color: COLORS.blue },
+  locationTextAway: { color: COLORS.textMuted },
   matchScore: {
     fontSize: FONT_SIZE.lg,
     fontWeight: '600',

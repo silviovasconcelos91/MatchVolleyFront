@@ -22,7 +22,6 @@ type TimelineEntry = {
   myScore: number;
   oppScore: number;
   playerId: number | null;
-  playerRole: string | null;
   action: string;
 };
 
@@ -38,6 +37,7 @@ export type PlayerRole = 'R4' | 'Central' | 'Passeur' | 'Pointu' | 'Libero';
 
 type PlayerSetStatDto = {
   set: number;
+  position: string | null;
   points: number;
   attackPoints: number;
   blockPoints: number;
@@ -65,6 +65,8 @@ type MatchDto = {
   result: 'won' | 'lost';
   mySets: number;
   oppSets: number;
+  title: string | null;
+  home: boolean | null;
 };
 
 type MetaDto = {
@@ -156,11 +158,10 @@ export const buildMatchResult = (matchState: MatchState, team: Team): MatchStatR
     const timeline: TimelineEntry[] = matchHistory
       .filter(e => e.setNum === setResult.setNum)
       .map(e => ({
-        myScore:    e.scoreAfter.my,
-        oppScore:   e.scoreAfter.opp,
-        playerId:   e.playerId ?? null,
-        playerRole: e.playerRole ?? null,
-        action:     e.actionKey ?? e.source,
+        myScore:  e.scoreAfter.my,
+        oppScore: e.scoreAfter.opp,
+        playerId: e.playerId ?? null,
+        action:   e.actionKey ?? e.source,
       }));
 
     const perPlayerSetStats = matchPlayers.map(p =>
@@ -177,7 +178,7 @@ export const buildMatchResult = (matchState: MatchState, team: Team): MatchStatR
       set:      setResult.setNum,
       myScore:  setResult.myScore,
       oppScore: setResult.oppScore,
-      teamStats: { ...baseTeamStats, points: baseTeamStats.points + oppFaultsInSet },
+      teamStats: baseTeamStats,
       timeline,
     };
   });
@@ -188,10 +189,17 @@ export const buildMatchResult = (matchState: MatchState, team: Team): MatchStatR
     number:     player.numero,
     role:       player.tacticalRole as PlayerRole,
     matchStats: toStatsDto(player.stats),
-    setStats:   setNums.map(sn => ({
-      set: sn,
-      ...toStatsDto(computePlayerSetStats(matchHistory, sn, player.id)),
-    })),
+    setStats:   setNums.map(sn => {
+      const posEvent = matchHistory.find(
+        e => e.setNum === sn && e.playerId === player.id && e.playerRole,
+      );
+      const position = posEvent?.playerRole ?? matchState.setRoles[sn]?.[player.id] ?? null;
+      return {
+        set:      sn,
+        position,
+        ...toStatsDto(computePlayerSetStats(matchHistory, sn, player.id)),
+      };
+    }),
   }));
 
   return {
@@ -205,14 +213,12 @@ export const buildMatchResult = (matchState: MatchState, team: Team): MatchStatR
       result:        mySets >= oppSets ? 'won' : 'lost',
       mySets,
       oppSets,
+      title:         matchState.matchName,
+      home:          matchState.isHome,
     },
     sets,
     players,
-    teamMatchStats: (() => {
-      const base = aggregateStats(matchPlayers.map(p => p.stats));
-      const totalOppFaults = matchHistory.filter(e => e.source === 'opp_fault').length;
-      return { ...base, points: base.points + totalOppFaults };
-    })(),
+    teamMatchStats: aggregateStats(matchPlayers.map(p => p.stats)),
     meta: {
       clientGeneratedAt: new Date().toISOString(),
       appVersion:        '1.0.0',
@@ -256,6 +262,7 @@ export type MatchDetailSetStat = {
 
 export type MatchDetailPlayerSetStat = {
   set: number;
+  position?: string | null;
   points: number;
   attackPoints: number;
   blockPoints: number;
@@ -280,6 +287,8 @@ export type MatchDetail = {
   result: string;
   mySets: number;
   oppSets: number;
+  title?: string | null;
+  home?: boolean | null;
   teamMatchStats: MatchDetailStats;
   sets: MatchDetailSetStat[];
   players: MatchDetailPlayerStat[];
@@ -300,9 +309,11 @@ export type MatchSummary = {
   id: string;
   teamId: number;
   date: string;
-  result: 'won' | 'lost';
+  result: string;
   mySets: number;
   oppSets: number;
+  title?: string | null;
+  home?: boolean | null;
 };
 
 export const getTeamMatches = async (teamId: number): Promise<MatchSummary[]> => {
@@ -313,6 +324,40 @@ export const getTeamMatches = async (teamId: number): Promise<MatchSummary[]> =>
     throw new Error(`HTTP ${res.status}`);
   }
   const json = await res.json() as { data: MatchSummary[] };
+  return json.data;
+};
+
+// ─────────────────────────────────────────────
+//  GET /api/v1/players/{id}/season-stats
+// ─────────────────────────────────────────────
+
+export type PositionStats = {
+  matchCount: number;
+  setCount: number;
+  stats: MatchDetailStats;
+};
+
+export type PlayerSeasonStats = {
+  playerId: number;
+  matchCount: number;
+  setCount: number;
+  totalStats: MatchDetailStats;
+  statsByPosition: Record<string, PositionStats>;
+};
+
+export const getPlayerSeasonStats = async (
+  playerId: number,
+  teamId: number,
+): Promise<PlayerSeasonStats> => {
+  const res = await apiFetch(
+    `${API_URL}/api/v1/players/${playerId}/season-stats?teamId=${teamId}`,
+  );
+  if (!res.ok) {
+    const body = await res.text();
+    console.error('[matchApi] GET /players/season-stats HTTP', res.status, body);
+    throw new Error(`HTTP ${res.status}`);
+  }
+  const json = await res.json() as { data: PlayerSeasonStats };
   return json.data;
 };
 

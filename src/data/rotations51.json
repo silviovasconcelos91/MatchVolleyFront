@@ -1,0 +1,74 @@
+[
+  {
+    "label": "P1",
+    "setterPos": 1,
+    "coords": {
+      "S":   { "x": 0.90, "y": 0.75, "pinRole": "setter"   },
+      "MB2": { "x": 0.50, "y": 0.78, "pinRole": "receiver" },
+      "OPP": { "x": 0.15, "y": 0.07, "pinRole": "net"      },
+      "OH1": { "x": 0.85, "y": 0.70, "pinRole": "receiver" },
+      "MB1": { "x": 0.50, "y": 0.07, "pinRole": "net"      },
+      "OH2": { "x": 0.15, "y": 0.70, "pinRole": "receiver" }
+    }
+  },
+  {
+    "label": "P6",
+    "setterPos": 6,
+    "coords": {
+      "S":   { "x": 0.55, "y": 0.09, "pinRole": "setter"   },
+      "MB2": { "x": 0.50, "y": 0.78, "pinRole": "receiver"      },
+      "OPP": { "x": 0.50, "y": 0.07, "pinRole": "net"      },
+      "OH1": { "x": 0.15, "y": 0.70, "pinRole": "receiver" },
+      "MB1": { "x": 0.60, "y": 0.10, "pinRole": "net" },
+      "OH2": { "x": 0.85, "y": 0.70, "pinRole": "receiver" }
+    }
+  },
+  {
+    "label": "P5",
+    "setterPos": 5,
+    "coords": {
+      "S":   { "x": 0.15, "y": 0.07, "pinRole": "setter"   },
+      "OPP": { "x": 0.85, "y": 0.07, "pinRole": "net"      },
+      "MB1": { "x": 0.10, "y": 0.03, "pinRole": "net"      },
+      "MB2": { "x": 0.85, "y": 0.70, "pinRole": "receiver" },
+      "OH1": { "x": 0.15, "y": 0.70, "pinRole": "receiver" },
+      "OH2": { "x": 0.50, "y": 0.78, "pinRole": "receiver" }
+    }
+  },
+  {
+    "label": "P4",
+    "setterPos": 4,
+    "coords": {
+      "S":   { "x": 0.05, "y": 0.03, "pinRole": "setter"   },
+      "MB1": { "x": 0.10, "y": 0.03, "pinRole": "net" },
+      "MB2": { "x": 0.85,  "y": 0.75, "pinRole":  "net"     },
+      "OH2": { "x": 0.50, "y": 0.75, "pinRole": "receiver" },
+      "OPP": { "x": 0.90, "y": 0.90, "pinRole": "net"      },
+      "OH1": { "x": 0.15, "y": 0.70, "pinRole": "receiver" }
+    }
+  },
+  {
+    "label": "P3",
+    "setterPos": 3,
+    "coords": {
+      "S":   { "x": 0.50, "y": 0.07, "pinRole": "setter"   },
+      "MB2": { "x": 0.50, "y": 0.75, "pinRole": "receiver"      },
+      "MB1": { "x": 0.15, "y": 0.07, "pinRole": "net"      },
+      "OH2": { "x": 0.85, "y": 0.75, "pinRole": "receiver" },
+      "OPP": { "x": 0.60, "y": 0.80, "pinRole": "net"      },
+      "OH1": { "x": 0.15, "y": 0.70, "pinRole": "receiver" }
+    }
+  },
+  {
+    "label": "P2",
+    "setterPos": 2,
+    "coords": {
+      "S":   { "x": 0.85, "y": 0.07, "pinRole": "setter"   },
+      "MB1": { "x": 0.10, "y": 0.07, "pinRole": "net"      },
+      "MB2": { "x": 0.85, "y": 0.70, "pinRole": "receiver" },
+      "OH1": { "x": 0.15, "y": 0.70, "pinRole": "receiver" },
+      "OH2": { "x": 0.55, "y": 0.75, "pinRole": "receiver" },
+      "OPP": { "x": 0.45, "y": 0.90, "pinRole": "net"      }
+    }
+  }
+]

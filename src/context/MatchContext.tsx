@@ -132,6 +132,7 @@ export type MatchState = {
   matchHistory: MatchHistoryEvent[]; // historique complet inter-sets (jamais vidé)
   setResults: SetResult[];           // résultats des sets terminés
   lastSetStartPositionMap: Record<number, number>; // positionMap du dernier SetSetupScreen confirmé
+  setRoles: Record<number, Record<number, string>>; // setNum → playerId → tacticalRole
 };
 
 // Payload pour la sélection des joueurs (sans rôles ni positions — gérés dans SetSetupScreen)
@@ -232,6 +233,7 @@ const initialState: MatchState = {
   // --- Résultats des sets terminés ---
   setResults: [],
   lastSetStartPositionMap: {},
+  setRoles: {},
 };
 
 // ── Vérifier si un set est terminé ──
@@ -367,6 +369,10 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         originalLiberoId:         resolvedOriginalLiberoId,
         matchPlayers:             updatedPlayers,
         lastSetStartPositionMap:  positionMap,
+        setRoles: {
+          ...state.setRoles,
+          [state.setNum]: tacticalRoles,
+        },
       };
     }
 

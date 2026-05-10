@@ -200,7 +200,23 @@ const SetSetupScreen = () => {
     : COLORS.blue;
 
   const courtCount = Object.keys(positionMap).length;
-  const canStart   = courtCount === 6;
+
+  // Validation des postes tactiques sur les 6 joueurs terrain
+  const roleValidation = useMemo(() => {
+    const counts: Record<string, number> = { R4: 0, Central: 0, Passeur: 0, Pointu: 0 };
+    courtPlayerIds.forEach(id => {
+      const r = tacticalRoles[id];
+      if (r && r in counts) counts[r]++;
+    });
+    const missing: string[] = [];
+    if (counts.R4      < 2) missing.push(`${2 - counts.R4} R4`);
+    if (counts.Central < 2) missing.push(`${2 - counts.Central} Central`);
+    if (counts.Passeur < 1) missing.push('1 Passeur');
+    if (counts.Pointu  < 1) missing.push('1 Pointu');
+    return { counts, missing, valid: missing.length === 0 };
+  }, [courtPlayerIds, tacticalRoles]);
+
+  const canStart = courtCount === 6 && roleValidation.valid;
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -360,7 +376,12 @@ const SetSetupScreen = () => {
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>
           POSTES TACTIQUES{'  ·  '}
-          <Text style={{ color: COLORS.textDark }}>tap pour changer</Text>
+          {roleValidation.valid
+            ? <Text style={{ color: COLORS.green }}>✓ complet</Text>
+            : <Text style={{ color: COLORS.redLight }}>
+                manque : {roleValidation.missing.join(' · ')}
+              </Text>
+          }
         </Text>
 
         {/* Joueurs actuellement sur le terrain */}
@@ -525,7 +546,11 @@ const SetSetupScreen = () => {
         activeOpacity={canStart ? 0.8 : 1}
       >
         <Text style={styles.confirmBtnText}>
-          {canStart ? `Démarrer le Set ${setNum} →` : `${courtCount}/6 joueurs placés`}
+          {canStart
+            ? `Démarrer le Set ${setNum} →`
+            : courtCount < 6
+            ? `${courtCount}/6 joueurs placés`
+            : `Postes incomplets`}
         </Text>
       </TouchableOpacity>
 

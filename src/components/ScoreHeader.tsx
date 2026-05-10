@@ -103,8 +103,8 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: COLORS.bgCard,
     paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.lg,
-    paddingBottom: SPACING.md,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.xs,
   },
 
   // Ligne numéro de set + badge sets
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.xs,
   },
   setLabel: {
     fontSize: FONT_SIZE.sm,
@@ -166,8 +166,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: SPACING.xxl + SPACING.sm, // ~28px entre les blocs
-    marginBottom: SPACING.md,
+    gap: SPACING.xxl + SPACING.sm,
+    marginBottom: SPACING.xs,
   },
   teamBlock: {
     alignItems: 'center',
@@ -176,19 +176,19 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xs,
     color: COLORS.textMuted,
     letterSpacing: 1,
-    marginBottom: 2,
+    marginBottom: 1,
   },
   scoreHome: {
-    fontSize: FONT_SIZE.score,
+    fontSize: 36,
     fontWeight: '500',
     color: COLORS.scoreHome,
-    lineHeight: FONT_SIZE.score * 1.1,
+    lineHeight: 36 * 1.1,
   },
   scoreAway: {
-    fontSize: FONT_SIZE.score,
+    fontSize: 36,
     fontWeight: '500',
     color: COLORS.scoreAway,
-    lineHeight: FONT_SIZE.score * 1.1,
+    lineHeight: 36 * 1.1,
   },
   dash: {
     fontSize: 20,
@@ -197,9 +197,9 @@ const styles = StyleSheet.create({
 
   undoRow: {
     alignSelf: 'flex-end',
-    paddingVertical: 2,
+    paddingVertical: 1,
     paddingHorizontal: SPACING.xs,
-    marginBottom: SPACING.xs,
+    marginBottom: 0,
   },
   undoText: {
     fontSize: FONT_SIZE.xs,

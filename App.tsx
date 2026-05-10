@@ -59,6 +59,7 @@ import CourtScreen          from './src/screens/CourtScreen';
 import SubstitutionScreen   from './src/screens/SubstitutionScreen';
 import GraphScreen          from './src/screens/GraphScreen';
 import StatsScreen          from './src/screens/StatsScreen';
+import PositionScreen       from './src/screens/PositionScreen';
 import SetSetupScreen       from './src/screens/SetSetupScreen';
 import PlayerManagementScreen    from './src/screens/PlayerManagementScreen';
 import StatsTeamSelectionScreen  from './src/screens/StatsTeamSelectionScreen';
@@ -66,12 +67,13 @@ import StatsHubScreen            from './src/screens/StatsHubScreen';
 import TeamMatchListScreen       from './src/screens/TeamMatchListScreen';
 import StatsPlayersScreen        from './src/screens/StatsPlayersScreen';
 import MatchDetailScreen         from './src/screens/MatchDetailScreen';
+import PlayerSeasonStatsScreen  from './src/screens/PlayerSeasonStatsScreen';
 
 // Thème
 import { COLORS, SPACING, FONT_SIZE } from './src/constants/theme';
 
 // ── Types ──
-type TabId = 'court' | 'sub' | 'graph' | 'stats';
+type TabId = 'court' | 'position' | 'sub' | 'graph' | 'stats';
 
 type Tab = {
   id: TabId;
@@ -86,10 +88,11 @@ type TabBarProps = {
 
 // ── Définition des onglets ──
 const TABS: Tab[] = [
-  { id: 'court',  label: 'Terrain', activeColor: COLORS.blue },
-  { id: 'sub',    label: 'Rempl.',  activeColor: COLORS.blue },
-  { id: 'graph',  label: 'Graphe',  activeColor: COLORS.blue },
-  { id: 'stats',  label: 'Stats',   activeColor: COLORS.blue },
+  { id: 'court',    label: 'Terrain',  activeColor: COLORS.blue   },
+  { id: 'position', label: '5-1',      activeColor: COLORS.yellow },
+  { id: 'sub',      label: 'Rempl.',   activeColor: COLORS.blue   },
+  { id: 'graph',    label: 'Graphe',   activeColor: COLORS.blue   },
+  { id: 'stats',    label: 'Stats',    activeColor: COLORS.blue   },
 ];
 
 // ── Composant TabBar ──
@@ -126,10 +129,11 @@ const AppContent = () => {
   const [rosterOverlayVisible, setRosterOverlayVisible] = useState(false);
   const [playerMgmtVisible, setPlayerMgmtVisible] = useState(false);
 
-  type StatsStep = 'teamSelection' | 'hub' | 'matchList' | 'playerList' | 'matchDetail';
+  type StatsStep = 'teamSelection' | 'hub' | 'matchList' | 'playerList' | 'matchDetail' | 'playerDetail';
   const [statsStep, setStatsStep] = useState<StatsStep | null>(null);
   const [statsTeam, setStatsTeam] = useState<{ id: number; name: string } | null>(null);
   const [statsMatch, setStatsMatch] = useState<{ id: string; date: string } | null>(null);
+  const [statsPlayer, setStatsPlayer] = useState<{ id: number; name: string; numero: number } | null>(null);
 
   useEffect(() => {
     if (!selectedTeam || !rosterValidated) {
@@ -199,6 +203,21 @@ const AppContent = () => {
           teamId={statsTeam.id}
           teamName={statsTeam.name}
           onBack={() => setStatsStep('hub')}
+          onSelectPlayer={(id, name, numero) => {
+            setStatsPlayer({ id, name, numero });
+            setStatsStep('playerDetail');
+          }}
+        />
+      );
+    }
+    if (statsStep === 'playerDetail' && statsTeam !== null && statsPlayer !== null) {
+      return (
+        <PlayerSeasonStatsScreen
+          playerId={statsPlayer.id}
+          playerName={statsPlayer.name}
+          playerNumero={statsPlayer.numero}
+          teamId={statsTeam.id}
+          onBack={() => setStatsStep('playerList')}
         />
       );
     }
@@ -239,10 +258,11 @@ const AppContent = () => {
 
   const renderScreen = () => {
     switch (activeTab) {
-      case 'court':  return <CourtScreen />;
-      case 'sub':    return <SubstitutionScreen />;
-      case 'graph':  return <GraphScreen />;
-      case 'stats':  return <StatsScreen />;
+      case 'court':    return <CourtScreen />;
+      case 'position': return <PositionScreen />;
+      case 'sub':      return <SubstitutionScreen />;
+      case 'graph':    return <GraphScreen />;
+      case 'stats':    return <StatsScreen />;
     }
   };
 
