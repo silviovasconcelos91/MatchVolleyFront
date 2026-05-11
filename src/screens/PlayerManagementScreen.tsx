@@ -5,7 +5,8 @@ import {
   KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { useTeam } from '../context/TeamContext';
-import type { Player } from '../data/players';
+import type { Player, PlayerRole } from '../data/players';
+import { PLAYER_ROLES } from '../data/players';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 import { API_URL, apiFetch } from '../data/api';
 import PlayerAvatar from '../components/PlayerAvatar';
@@ -15,13 +16,13 @@ import { getPlayerColor } from '../constants/theme';
 type Tab = 'players' | 'teams';
 type TeamRef = { id: number; name: string; color: string };
 type PlayerWithTeam = Player & { teamId: number; teamName: string; teamColor: string; allTeams: TeamRef[] };
-type PlayerForm = { name: string; numero: string; age: string; taille: string; teamIds: number[] };
+type PlayerForm = { name: string; numero: string; age: string; taille: string; teamIds: number[]; roles: PlayerRole[] };
 type TeamForm   = { name: string; city: string; logoColor: string };
 
 const PRESET_COLORS = ['#4fc3f7','#81c784','#ffb74d','#f06292','#ce93d8','#4db6ac','#ff8a65','#fff176'];
 
 const emptyPlayerForm = (): PlayerForm =>
-  ({ name: '', numero: '', age: '', taille: '', teamIds: [] });
+  ({ name: '', numero: '', age: '', taille: '', teamIds: [], roles: [] });
 const emptyTeamForm = (): TeamForm => ({ name: '', city: '', logoColor: PRESET_COLORS[0] });
 
 type Props = { onClose: () => void };
@@ -120,7 +121,7 @@ const PlayerManagementScreen = ({ onClose }: Props) => {
   const openEditPlayer = (p: PlayerWithTeam) => {
     setEditingPlayerId(p.id);
     const playerTeamIds = teams.filter(t => t.players.some(tp => tp.id === p.id)).map(t => t.id);
-    setPlayerForm({ name: p.name, numero: String(p.numero), age: p.age ? String(p.age) : '', taille: p.taille ?? '', teamIds: playerTeamIds });
+    setPlayerForm({ name: p.name, numero: String(p.numero), age: p.age ? String(p.age) : '', taille: p.taille ?? '', teamIds: playerTeamIds, roles: p.roles ?? [] });
     setError(null);
     setPlayerFormOpen(true);
   };
@@ -142,6 +143,7 @@ const PlayerManagementScreen = ({ onClose }: Props) => {
           numero:  Number(playerForm.numero),
           age:     playerForm.age    ? Number(playerForm.age)   : null,
           taille:  playerForm.taille ? playerForm.taille.trim() : null,
+          roles:   playerForm.roles,
         }),
       });
       if (!res.ok) {
@@ -457,6 +459,30 @@ const PlayerManagementScreen = ({ onClose }: Props) => {
                   onChangeText={v => setPlayerForm(f => ({ ...f, taille: v }))}
                   placeholder="1m75" placeholderTextColor={COLORS.textDark} autoCapitalize="none" />
 
+                <Text style={styles.fieldLabel}>Rôles</Text>
+                <View style={styles.roleChips}>
+                  {PLAYER_ROLES.map(role => {
+                    const active = playerForm.roles.includes(role);
+                    return (
+                      <TouchableOpacity
+                        key={role}
+                        style={[styles.roleChip, active && styles.roleChipActive]}
+                        onPress={() => setPlayerForm(f => ({
+                          ...f,
+                          roles: active
+                            ? f.roles.filter(r => r !== role)
+                            : [...f.roles, role],
+                        }))}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.roleChipText, active && styles.roleChipTextActive]}>
+                          {role}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
                 <View style={styles.formActions}>
                   <TouchableOpacity style={styles.cancelBtn} onPress={closePlayerForm}>
                     <Text style={styles.cancelBtnText}>Annuler</Text>
@@ -484,6 +510,11 @@ const PlayerManagementScreen = ({ onClose }: Props) => {
                       {p.allTeams.map(t => (
                         <View key={t.id} style={[styles.teamBadge, { borderColor: t.color + '55', backgroundColor: t.color + '18' }]}>
                           <Text style={[styles.teamBadgeText, { color: t.color }]}>{t.name}</Text>
+                        </View>
+                      ))}
+                      {(p.roles ?? []).map(role => (
+                        <View key={role} style={styles.roleBadge}>
+                          <Text style={styles.roleBadgeText}>{role}</Text>
                         </View>
                       ))}
                     </View>
@@ -671,6 +702,32 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.md, color: COLORS.textPrimary,
   },
   fieldRow: { flexDirection: 'row', gap: SPACING.md },
+  roleChips: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs, marginTop: SPACING.xs },
+  roleChip: {
+    paddingHorizontal: SPACING.sm + 2,
+    paddingVertical: 4,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.bgInput,
+  },
+  roleChipActive: {
+    borderColor: COLORS.yellow + '88',
+    backgroundColor: COLORS.yellow + '22',
+  },
+  roleChipText: { fontSize: FONT_SIZE.sm, color: COLORS.textMuted },
+  roleChipTextActive: { color: COLORS.yellow, fontWeight: '600' },
+
+  roleBadge: {
+    borderWidth: 1,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderColor: COLORS.yellow + '55',
+    backgroundColor: COLORS.yellow + '18',
+  },
+  roleBadgeText: { fontSize: FONT_SIZE.xs, color: COLORS.yellow, fontWeight: '500' },
+
   teamChips: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs },
   teamChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,

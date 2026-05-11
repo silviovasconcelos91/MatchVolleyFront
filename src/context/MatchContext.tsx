@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer } from 'react';
 import { createEmptyStats, Player, ActionKey, PlayerStats, BACK_ROW_POSITIONS } from '../data/players';
+import type { PlayerRole } from '../data/players';
 
 export const ACTION_TYPES = {
   // Configuration du match
@@ -50,6 +51,7 @@ export type MatchPlayer = {
   onCourt: boolean;
   pos: number | null;
   stats: PlayerStats;
+  roles: PlayerRole[];   // rôles du profil joueur (depuis l'API)
 };
 
 export type TrajectoryPoint = {
@@ -109,6 +111,8 @@ export type MatchState = {
   history: HistoryEntry[];
   trajectory: TrajectoryPoint[];
   subHistory: SubEntry[];
+  // outId → inId : joueur sorti → joueur qui l'a remplacé (reset à chaque set)
+  substitutionPairs: Record<number, number>;
   matchHistory: MatchHistoryEvent[]; // historique complet inter-sets (jamais vidé)
   setResults: SetResult[];           // résultats des sets terminés
   lastSetStartPositionMap: Record<number, number>; // positionMap du dernier SetSetupScreen confirmé
@@ -185,6 +189,7 @@ const initialState: MatchState = {
   history:             [],
   trajectory:          [{ x: 0, y: 0 }],
   subHistory:          [],
+  substitutionPairs:   {},
   matchHistory:        [],
   setResults:          [],
   lastSetStartPositionMap: {},
@@ -226,9 +231,10 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
           name:         player.name,
           tacticalRole: '',
           numero:       player.numero,
-          onCourt:      false,  // sera mis à jour par ASSIGN_SET_ROLES
-          pos:          null,   // sera mis à jour par ASSIGN_SET_ROLES
+          onCourt:      false,
+          pos:          null,
           stats:        createEmptyStats(),
+          roles:        player.roles ?? [],
         };
       }).filter((p): p is MatchPlayer => p !== null);
 
@@ -244,6 +250,7 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
           onCourt:      false,
           pos:          null,
           stats:        createEmptyStats(),
+          roles:        player.roles ?? [],
         }];
       })() : [];
 
@@ -258,6 +265,7 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
           onCourt:      false,
           pos:          null,
           stats:        createEmptyStats(),
+          roles:        player.roles ?? [],
         };
       }).filter((p): p is MatchPlayer => p !== null);
 
@@ -525,8 +533,9 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
 
       return {
         ...state,
-        matchPlayers: updatedPlayers,
-        subHistory:   [...state.subHistory, subEntry],
+        matchPlayers:      updatedPlayers,
+        subHistory:        [...state.subHistory, subEntry],
+        substitutionPairs: { ...state.substitutionPairs, [outId]: inId },
       };
     }
 
@@ -546,17 +555,19 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
 
       return {
         ...state,
-        myScore:          0,
-        oppScore:         0,
-        setNum:           state.setNum + 1,
-        setBannerVisible: false,
-        setWinner:        null,
-        history:          [],
-        trajectory:       [{ x: 0, y: 0 }],
-        setResults:       [...state.setResults, completedSet],
-        setSetupPending:  true,
-        liberoReplacedId: null,
-        matchPlayers:     resetPlayers,
+        myScore:           0,
+        oppScore:          0,
+        setNum:            state.setNum + 1,
+        setBannerVisible:  false,
+        setWinner:         null,
+        history:           [],
+        trajectory:        [{ x: 0, y: 0 }],
+        subHistory:        [],
+        substitutionPairs: {},
+        setResults:        [...state.setResults, completedSet],
+        setSetupPending:   true,
+        liberoReplacedId:  null,
+        matchPlayers:      resetPlayers,
       };
     }
 

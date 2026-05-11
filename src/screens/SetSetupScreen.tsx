@@ -63,12 +63,16 @@ const SetSetupScreen = () => {
   const resolvedLiberoId = designatedNewLiberoId ?? originalLiberoId;
 
   // ── tacticalRoles : playerId → rôle ──
-  // Pré-rempli avec les rôles du set précédent (vide au Set 1)
+  // Priorité : (1) rôle du set précédent  (2) premier rôle terrain du profil joueur
   const [tacticalRoles, setTacticalRoles] = useState<Record<number, string>>(() => {
     const roles: Record<number, string> = {};
     matchPlayers.forEach(p => {
-      if (p.id !== originalLiberoId && p.tacticalRole) {
+      if (p.id === originalLiberoId) return;
+      if (p.tacticalRole) {
         roles[p.id] = p.tacticalRole;
+      } else {
+        const suggestion = p.roles.find(r => r !== 'Libero');
+        if (suggestion) roles[p.id] = suggestion;
       }
     });
     return roles;
@@ -140,13 +144,9 @@ const SetSetupScreen = () => {
     setSelectedBenchId(null);
   }, []);
 
-  // ── Passer au rôle suivant (cycle) ──
-  const cycleRole = useCallback((id: number) => {
-    const currentRole = tacticalRoles[id] as FieldRole | undefined;
-    const idx      = currentRole ? FIELD_ROLES.indexOf(currentRole) : -1;
-    const nextRole = FIELD_ROLES[(idx + 1) % FIELD_ROLES.length];
-    setTacticalRoles(prev => ({ ...prev, [id]: nextRole }));
-  }, [tacticalRoles]);
+  const selectRole = useCallback((id: number, role: FieldRole) => {
+    setTacticalRoles(prev => ({ ...prev, [id]: role }));
+  }, []);
 
   // ── Confirmer et démarrer le set ──
   const handleConfirm = useCallback(() => {
@@ -161,12 +161,23 @@ const SetSetupScreen = () => {
     });
   }, [actions, positionMap, tacticalRoles, liberoActive, originalLiberoId, designatedNewLiberoId]);
 
+  const removeFromCourt = useCallback((playerId: number) => {
+    setPositionMap(prev => {
+      const next = { ...prev };
+      for (const [pos, pid] of Object.entries(next)) {
+        if (pid === playerId) delete next[Number(pos)];
+      }
+      return next;
+    });
+  }, []);
+
   // ── Désigner un libero (nouveau ou remplacement) ──
   const handleDesignateLibero = useCallback((id: number) => {
     setDesignatedNewLiberoId(id);
     setLiberoActive(true);
     setIsChangingLibero(false);
-  }, []);
+    removeFromCourt(id);
+  }, [removeFromCourt]);
 
   const handleUndesignateLibero = useCallback(() => {
     setDesignatedNewLiberoId(null);
@@ -315,63 +326,6 @@ const SetSetupScreen = () => {
         <Text style={styles.longPressHint}>Appui long sur un joueur → le retirer du terrain</Text>
       </View>
 
-      {/* ── Banc disponible ── */}
-      {benchPlayers.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>
-            BANC DISPONIBLE{'  ·  '}
-            <Text style={{ color: selectedBenchId !== null ? COLORS.green : COLORS.textDark }}>
-              {selectedBenchId !== null
-                ? 'tap une case du terrain pour placer'
-                : 'tap pour sélectionner'}
-            </Text>
-          </Text>
-
-          {benchPlayers.map(player => {
-            const color     = getPlayerColor(player.id);
-            const isChosen  = selectedBenchId === player.id;
-            return (
-              <TouchableOpacity
-                key={player.id}
-                style={[
-                  styles.benchRow,
-                  isChosen && { backgroundColor: `${COLORS.green}14`, borderColor: `${COLORS.green}55` },
-                  !isChosen && { backgroundColor: COLORS.bgInput, borderColor: COLORS.border },
-                ]}
-                onPress={() => handleBenchTap(player.id)}
-                activeOpacity={0.7}
-              >
-                <PlayerAvatar
-                  name={player.name}
-                  color={isChosen ? COLORS.green : color}
-                  size={32}
-                />
-                <View style={styles.benchInfo}>
-                  <Text style={[styles.benchName, isChosen && { color: COLORS.textPrimary }]}>
-                    {player.name}{' '}
-                    <Text style={styles.benchNumero}>#{player.numero}</Text>
-                  </Text>
-                  {tacticalRoles[player.id] ? (
-                    <Text style={[styles.benchRole, { color }]}>
-                      {tacticalRoles[player.id]}
-                    </Text>
-                  ) : null}
-                </View>
-                {isChosen ? (
-                  <View style={styles.benchSelectedBadge}>
-                    <Text style={styles.benchSelectedText}>prêt →</Text>
-                  </View>
-                ) : (
-                  <View style={styles.benchBadge}>
-                    <Text style={styles.benchBadgeText}>banc</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      )}
-
       {/* ── Postes tactiques ── */}
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>
@@ -386,33 +340,36 @@ const SetSetupScreen = () => {
 
         {/* Joueurs actuellement sur le terrain */}
         {courtPlayerIds.map(id => {
-          const player = matchPlayers.find(p => p.id === id);
+          const player     = matchPlayers.find(p => p.id === id);
           if (!player) return null;
-          const color   = getPlayerColor(id);
-          const role    = tacticalRoles[id] ?? '—';
-          const hasRole = role !== '—';
+          const color      = getPlayerColor(id);
+          const activeRole = tacticalRoles[id] as FieldRole | undefined;
 
           return (
-            <TouchableOpacity
-              key={id}
-              style={styles.roleRow}
-              onPress={() => cycleRole(id)}
-              activeOpacity={0.7}
-            >
+            <View key={id} style={styles.roleRow}>
               <PlayerAvatar name={player.name} color={color} size={28} />
               <Text style={styles.roleName} numberOfLines={1}>
                 {player.name.split(' ')[0]}{' '}
                 <Text style={styles.roleNumero}>#{player.numero}</Text>
               </Text>
-              <View style={[
-                styles.roleChip,
-                hasRole && { backgroundColor: `${color}18`, borderColor: `${color}55` },
-              ]}>
-                <Text style={[styles.roleChipText, hasRole && { color }]}>
-                  {role}
-                </Text>
+              <View style={styles.roleBtns}>
+                {FIELD_ROLES.map(role => {
+                  const active = activeRole === role;
+                  return (
+                    <TouchableOpacity
+                      key={role}
+                      style={[styles.roleBtn, active && { backgroundColor: `${color}22`, borderColor: `${color}88` }]}
+                      onPress={() => selectRole(id, role)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.roleBtnText, active && { color, fontWeight: '700' }]}>
+                        {role}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-            </TouchableOpacity>
+            </View>
           );
         })}
 
@@ -427,7 +384,11 @@ const SetSetupScreen = () => {
           <View style={styles.roleRowLibero}>
             <TouchableOpacity
               style={styles.roleRow}
-              onPress={() => setLiberoActive(prev => !prev)}
+              onPress={() => {
+                const next = !liberoActive;
+                setLiberoActive(next);
+                if (next && resolvedLiberoId !== null) removeFromCourt(resolvedLiberoId);
+              }}
               activeOpacity={0.7}
             >
               <PlayerAvatar
@@ -538,6 +499,63 @@ const SetSetupScreen = () => {
           </View>
         )}
       </View>
+
+      {/* ── Banc disponible ── */}
+      {benchPlayers.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>
+            BANC DISPONIBLE{'  ·  '}
+            <Text style={{ color: selectedBenchId !== null ? COLORS.green : COLORS.textDark }}>
+              {selectedBenchId !== null
+                ? 'tap une case du terrain pour placer'
+                : 'tap pour sélectionner'}
+            </Text>
+          </Text>
+
+          {benchPlayers.map(player => {
+            const color    = getPlayerColor(player.id);
+            const isChosen = selectedBenchId === player.id;
+            return (
+              <TouchableOpacity
+                key={player.id}
+                style={[
+                  styles.benchRow,
+                  isChosen && { backgroundColor: `${COLORS.green}14`, borderColor: `${COLORS.green}55` },
+                  !isChosen && { backgroundColor: COLORS.bgInput, borderColor: COLORS.border },
+                ]}
+                onPress={() => handleBenchTap(player.id)}
+                activeOpacity={0.7}
+              >
+                <PlayerAvatar
+                  name={player.name}
+                  color={isChosen ? COLORS.green : color}
+                  size={32}
+                />
+                <View style={styles.benchInfo}>
+                  <Text style={[styles.benchName, isChosen && { color: COLORS.textPrimary }]}>
+                    {player.name}{' '}
+                    <Text style={styles.benchNumero}>#{player.numero}</Text>
+                  </Text>
+                  {tacticalRoles[player.id] ? (
+                    <Text style={[styles.benchRole, { color }]}>
+                      {tacticalRoles[player.id]}
+                    </Text>
+                  ) : null}
+                </View>
+                {isChosen ? (
+                  <View style={styles.benchSelectedBadge}>
+                    <Text style={styles.benchSelectedText}>prêt →</Text>
+                  </View>
+                ) : (
+                  <View style={styles.benchBadge}>
+                    <Text style={styles.benchBadgeText}>banc</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
 
       {/* ── Bouton démarrer ── */}
       <TouchableOpacity
@@ -738,8 +756,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-    paddingVertical: SPACING.xs,
+    paddingVertical: SPACING.xs + 1,
     paddingHorizontal: SPACING.xs,
+    flexWrap: 'wrap',
   },
   roleRowLibero: {
     marginTop: 4,
@@ -757,6 +776,24 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.sm,
     color: COLORS.textDark,
     fontWeight: '400',
+  },
+  roleBtns: {
+    flexDirection: 'row',
+    gap: 4,
+    flexWrap: 'wrap',
+  },
+  roleBtn: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    backgroundColor: COLORS.bgInput,
+  },
+  roleBtnText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '500',
+    color: COLORS.textDark,
   },
   roleChip: {
     borderWidth: 1,

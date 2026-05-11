@@ -85,6 +85,7 @@ type Tab = {
 type TabBarProps = {
   activeTab: TabId;
   onTabChange: (id: TabId) => void;
+  disabledTabs?: Set<TabId>;
 };
 
 // ── Définition des onglets ──
@@ -97,18 +98,23 @@ const TABS: Tab[] = [
 ];
 
 // ── Composant TabBar ──
-const TabBar = ({ activeTab, onTabChange }: TabBarProps) => (
+const TabBar = ({ activeTab, onTabChange, disabledTabs }: TabBarProps) => (
   <View style={styles.tabBar}>
     {TABS.map(tab => {
-      const isActive = tab.id === activeTab;
+      const isActive   = tab.id === activeTab;
+      const isDisabled = disabledTabs?.has(tab.id) ?? false;
       return (
         <TouchableOpacity
           key={tab.id}
-          style={styles.tabItem}
-          onPress={() => onTabChange(tab.id)}
-          activeOpacity={0.7}
+          style={[styles.tabItem, isDisabled && styles.tabItemDisabled]}
+          onPress={() => !isDisabled && onTabChange(tab.id)}
+          activeOpacity={isDisabled ? 1 : 0.7}
         >
-          <Text style={[styles.tabLabel, isActive && { color: tab.activeColor, fontWeight: '500' }]}>
+          <Text style={[
+            styles.tabLabel,
+            isActive    && { color: tab.activeColor, fontWeight: '500' },
+            isDisabled  && styles.tabLabelDisabled,
+          ]}>
             {tab.label}
           </Text>
           <View style={[styles.tabIndicator, isActive && { backgroundColor: tab.activeColor }]} />
@@ -123,7 +129,10 @@ const AppContent = () => {
   const { state: teamState, actions: teamActions } = useTeam();
   const { state: matchState, actions: matchActions } = useMatch();
   const { selectedTeam } = teamState;
-  const { rosterValidated, setSetupPending, matchName } = matchState;
+  const { rosterValidated, setSetupPending, matchName, matchPlayers, liberoId } = matchState;
+
+  const hasBenchPlayers = matchPlayers.some(p => !p.onCourt && p.id !== liberoId);
+  const disabledTabs = new Set<TabId>(hasBenchPlayers ? [] : ['sub']);
 
   const [activeTab, setActiveTab] = useState<TabId>('court');
   const [homeVisible, setHomeVisible] = useState(true);
@@ -148,6 +157,13 @@ const AppContent = () => {
       setActiveTab('court');
     }
   }, [setSetupPending, rosterValidated]);
+
+  // Si l'onglet actif devient désactivé (ex: dernier remplaçant utilisé), revenir sur Terrain
+  useEffect(() => {
+    if (disabledTabs.has(activeTab)) {
+      setActiveTab('court');
+    }
+  }, [disabledTabs, activeTab]);
 
   // ── Bouton retour Android ──
   const handleBack = useCallback((): boolean => {
@@ -294,7 +310,6 @@ const AppContent = () => {
     return (
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCard} />
-        <ScoreHeader />
         <SetSetupScreen />
       </SafeAreaView>
     );
@@ -336,7 +351,7 @@ const AppContent = () => {
         </View>
       ) : (
         <>
-          <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+          <TabBar activeTab={activeTab} onTabChange={setActiveTab} disabledTabs={disabledTabs} />
           <View style={styles.screenContainer}>
             {renderScreen()}
           </View>
@@ -379,11 +394,17 @@ const styles = StyleSheet.create({
   tabItem: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: SPACING.sm + 2, // ~10px
+    paddingVertical: SPACING.sm + 2,
+  },
+  tabItemDisabled: {
+    opacity: 0.35,
   },
   tabLabel: {
     fontSize: FONT_SIZE.md,
     color: COLORS.textMuted,
+  },
+  tabLabelDisabled: {
+    color: COLORS.textDark,
   },
   // Trait coloré sous l'onglet actif
   tabIndicator: {

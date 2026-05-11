@@ -1,11 +1,16 @@
 const FAKE_DELAY_MS = 500;
 
+export type PlayerRole = 'R4' | 'Central' | 'Passeur' | 'Pointu' | 'Libero';
+
+export const PLAYER_ROLES: PlayerRole[] = ['R4', 'Central', 'Passeur', 'Pointu', 'Libero'];
+
 export type Player = {
   id: number;
   name: string;
   numero: number;
   age: number;
   taille: string;
+  roles?: PlayerRole[];
 }
 
 export type ActionKey = 'pt' | 'atk' | 'block' | 'ace' | 'atk_out' | 'srv_out' | 'recv';

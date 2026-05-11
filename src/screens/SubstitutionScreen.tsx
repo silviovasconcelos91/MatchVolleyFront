@@ -21,16 +21,21 @@ import PlayerAvatar from '../components/PlayerAvatar';
 
 const SubstitutionScreen = () => {
   const { state, actions } = useMatch();
-  const { matchPlayers, subHistory, rosterValidated, liberoId } = state;
+  const { matchPlayers, subHistory, rosterValidated, liberoId, substitutionPairs } = state;
 
-  // Joueur sélectionné pour sortir (null = étape 1 en cours)
   const [outPlayer, setOutPlayer] = useState<MatchPlayer | null>(null);
-  // Joueur sélectionné pour entrer (null = étape 2 en cours)
-  const [inPlayer, setInPlayer] = useState<MatchPlayer | null>(null);
+  const [inPlayer, setInPlayer]   = useState<MatchPlayer | null>(null);
 
-  // Listes filtrées — le libero actif est exclu du banc de remplacement
   const courtPlayers = matchPlayers.filter(p => p.onCourt);
-  const benchPlayers = matchPlayers.filter(p => !p.onCourt && p.id !== liberoId);
+  // Banc complet (hors libero actif)
+  const allBenchPlayers = matchPlayers.filter(p => !p.onCourt && p.id !== liberoId);
+  // Banc filtré selon la règle : un joueur sorti ne peut rentrer qu'à la place de son remplaçant
+  const benchPlayers = outPlayer
+    ? allBenchPlayers.filter(p => {
+        const mustReplace = substitutionPairs[p.id];
+        return mustReplace === undefined || mustReplace === outPlayer.id;
+      })
+    : allBenchPlayers;
 
   // ── Étape 1 : sélectionner le joueur sortant ──
   const handleSelectOut = (player: MatchPlayer) => {

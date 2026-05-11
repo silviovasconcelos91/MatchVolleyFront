@@ -1,5 +1,5 @@
 import { createEmptyStats } from './players';
-import type { PlayerStats, ActionKey } from './players';
+import type { PlayerStats, ActionKey, PlayerRole } from './players';
 import type { MatchState, MatchHistoryEvent } from '../context/MatchContext';
 import type { Team } from './teams';
 import { API_URL, apiFetch } from './api';
@@ -32,8 +32,6 @@ type SetStatDto = {
   teamStats: StatsDto;
   timeline: TimelineEntry[];
 };
-
-export type PlayerRole = 'R4' | 'Central' | 'Passeur' | 'Pointu' | 'Libero';
 
 type PlayerSetStatDto = {
   set: number;

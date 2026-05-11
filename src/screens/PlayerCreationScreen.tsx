@@ -7,6 +7,8 @@ import {
 import { useTeam } from '../context/TeamContext';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 import { API_URL, apiFetch } from '../data/api';
+import { PLAYER_ROLES } from '../data/players';
+import type { PlayerRole } from '../data/players';
 
 type Props = {
   onClose: () => void;
@@ -21,6 +23,7 @@ const PlayerCreationScreen = ({ onClose, defaultTeamId }: Props) => {
   const [numero,  setNumero]  = useState('');
   const [age,     setAge]     = useState('');
   const [taille,  setTaille]  = useState('');
+  const [roles,   setRoles]   = useState<PlayerRole[]>([]);
   const [teamId,  setTeamId]  = useState<number | null>(
     defaultTeamId ?? (teams.length === 1 ? teams[0].id : null)
   );
@@ -46,6 +49,7 @@ const PlayerCreationScreen = ({ onClose, defaultTeamId }: Props) => {
           numero: Number(numero),
           age:    age ? Number(age) : null,
           taille: taille.trim() || null,
+          roles,
         }),
       });
       if (!res.ok) {
@@ -62,11 +66,18 @@ const PlayerCreationScreen = ({ onClose, defaultTeamId }: Props) => {
     }
   };
 
+  const toggleRole = (role: PlayerRole) => {
+    setRoles(prev =>
+      prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
+    );
+  };
+
   const handleAddAnother = () => {
     setName('');
     setNumero('');
     setAge('');
     setTaille('');
+    setRoles([]);
     setSuccess(false);
     setError(null);
   };
@@ -177,6 +188,26 @@ const PlayerCreationScreen = ({ onClose, defaultTeamId }: Props) => {
               />
             </View>
 
+            {/* ── Rôles ── */}
+            <Text style={styles.sectionLabel}>RÔLES</Text>
+            <View style={styles.roleList}>
+              {PLAYER_ROLES.map(role => {
+                const active = roles.includes(role);
+                return (
+                  <TouchableOpacity
+                    key={role}
+                    style={[styles.roleChip, active && styles.roleChipActive]}
+                    onPress={() => toggleRole(role)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.roleChipText, active && styles.roleChipTextActive]}>
+                      {role}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
             {/* ── Erreur ── */}
             {error && (
               <View style={styles.errorBox}>
@@ -236,6 +267,34 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     letterSpacing: 1,
     marginBottom: SPACING.sm,
+  },
+
+  // Rôles
+  roleList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.xs,
+    marginBottom: SPACING.lg,
+  },
+  roleChip: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs + 2,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.bgInput,
+  },
+  roleChipActive: {
+    borderColor: COLORS.yellow + '88',
+    backgroundColor: COLORS.yellow + '22',
+  },
+  roleChipText: {
+    fontSize: FONT_SIZE.md,
+    color: COLORS.textMuted,
+  },
+  roleChipTextActive: {
+    color: COLORS.yellow,
+    fontWeight: '600',
   },
 
   // Équipe

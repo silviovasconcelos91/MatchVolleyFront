@@ -459,8 +459,18 @@
           "name": {
             "type": "string"
           },
-          "role": {
-            "type": "string"
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "R4",
+                "Central",
+                "Passeur",
+                "Pointu",
+                "Libero"
+              ]
+            }
           },
           "numero": {
             "type": "integer",
@@ -507,8 +517,18 @@
           "name": {
             "type": "string"
           },
-          "role": {
-            "type": "string"
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "R4",
+                "Central",
+                "Passeur",
+                "Pointu",
+                "Libero"
+              ]
+            }
           },
           "numero": {
             "type": "integer",
@@ -593,8 +613,18 @@
           "name": {
             "type": "string"
           },
-          "role": {
-            "type": "string"
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "R4",
+                "Central",
+                "Passeur",
+                "Pointu",
+                "Libero"
+              ]
+            }
           },
           "numero": {
             "type": "integer",
@@ -639,8 +669,18 @@
           "name": {
             "type": "string"
           },
-          "role": {
-            "type": "string"
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "R4",
+                "Central",
+                "Passeur",
+                "Pointu",
+                "Libero"
+              ]
+            }
           },
           "numero": {
             "type": "integer",
@@ -796,7 +836,14 @@
             "format": "int32"
           },
           "role": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "R4",
+              "Central",
+              "Passeur",
+              "Pointu",
+              "Libero"
+            ]
           },
           "matchStats": {
             "$ref": "#/components/schemas/StatsDto"
