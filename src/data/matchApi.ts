@@ -109,7 +109,7 @@ const aggregateStats = (statsArray: PlayerStats[]): StatsDto =>
     ),
   );
 
-const computePlayerSetStats = (
+export const computePlayerSetStats = (
   events: MatchHistoryEvent[],
   setNum: number,
   playerId: number,
@@ -225,10 +225,6 @@ export const buildMatchResult = (matchState: MatchState, team: Team): MatchStatR
     },
   };
 };
-
-// ─────────────────────────────────────────────
-//  ENVOI AU BACKEND
-// ─────────────────────────────────────────────
 
 // ─────────────────────────────────────────────
 //  GET /api/v1/match-stats/{matchId} — types réponse

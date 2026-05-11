@@ -1,13 +1,3 @@
-// ─────────────────────────────────────────────
-//  ÉCRAN : TERRAIN
-//
-//  Flux : sélectionner une action → taper le joueur concerné.
-//
-//  Postes affichés :
-//    [P4] [P3] [P2]   ← proche du filet
-//    [P5] [P6] [P1]   ← zone service
-// ─────────────────────────────────────────────
-
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet,
@@ -17,21 +7,10 @@ import type { MatchPlayer, MatchHistoryEvent } from '../context/MatchContext';
 import { getPlayerColor } from '../constants/theme';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 import { COURT_DISPLAY_ORDER } from '../data/players';
-import { getTotalPoints, getTotalFaults, createEmptyStats } from '../data/players';
+import { getTotalPoints, getTotalFaults } from '../data/players';
 import type { ActionKey } from '../data/players';
-
-const getSetStats = (events: MatchHistoryEvent[], setNum: number, playerId: number) => {
-  const stats = createEmptyStats();
-  for (const e of events) {
-    if (e.setNum === setNum && e.source === 'player' && e.playerId === playerId && e.actionKey) {
-      stats[e.actionKey] += 1;
-    }
-  }
-  return stats;
-};
+import { computePlayerSetStats } from '../data/matchApi';
 import PlayerAvatar from '../components/PlayerAvatar';
-
-const BACK_ROW = new Set([1, 5, 6]);
 
 const POINT_ACTIONS: ActionKey[]  = ['pt', 'atk', 'block', 'ace'];
 const FAULT_ACTIONS: ActionKey[]  = ['atk_out', 'srv_out', 'recv'];
@@ -85,7 +64,7 @@ const CourtScreen = () => {
     }
 
     const color = getPlayerColor(player.id);
-    const currentSetStats = getSetStats(matchHistory, setNum, player.id);
+    const currentSetStats = computePlayerSetStats(matchHistory, setNum, player.id);
     const totalPts    = getTotalPoints(currentSetStats);
     const totalFaults = getTotalFaults(currentSetStats);
 

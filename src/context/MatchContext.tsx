@@ -1,18 +1,6 @@
-// ─────────────────────────────────────────────
-//  CONTEXTE DU MATCH (état global)
-//
-//  Utilise React Context + useReducer pour
-//  centraliser tout l'état du match.
-//
-//  Tous les composants peuvent lire et modifier
-//  l'état via le hook useMatch().
-// ─────────────────────────────────────────────
-
 import React, { createContext, useContext, useReducer } from 'react';
-import { createEmptyStats, Player, ActionKey, PlayerStats } from '../data/players';
+import { createEmptyStats, Player, ActionKey, PlayerStats, BACK_ROW_POSITIONS } from '../data/players';
 
-// ── Types d'actions du reducer ──
-// Chaque action modifie l'état du match de façon prévisible
 export const ACTION_TYPES = {
   // Configuration du match
   SETUP_MATCH:        'SETUP_MATCH',        // définir nom et lieu du match
@@ -43,9 +31,7 @@ export const ACTION_TYPES = {
   RESET_MATCH:        'RESET_MATCH',        // remettre tout l'état à zéro
 } as const;
 
-// ── Définition des 7 types d'actions joueur ──
-// mine: true  → +1 mon équipe
-// mine: false → +1 adversaire
+// mine: true → +1 mon équipe / mine: false → +1 adversaire
 export const PLAYER_ACTIONS: Record<ActionKey, { label: string; mine: boolean; section: 'points' | 'fautes' }> = {
   pt:      { label: 'Point marqué',    mine: true,  section: 'points' },
   atk:     { label: 'Attaque point',   mine: true,  section: 'points' },
@@ -55,8 +41,6 @@ export const PLAYER_ACTIONS: Record<ActionKey, { label: string; mine: boolean; s
   srv_out: { label: 'Service out',     mine: false, section: 'fautes' },
   recv:    { label: 'Réception ratée', mine: false, section: 'fautes' },
 };
-
-// ── Types ──
 
 export type MatchPlayer = {
   id: number;
@@ -86,10 +70,7 @@ type HistoryEntry =
   | { source: 'opp'; mine: false }
   | { source: 'opp_fault'; mine: true };
 
-// ── Événement du match (pour reconstruction complète) ──
-// Chaque point marqué est enregistré avec son contexte.
-// Contrairement à `history` (undo, vidé entre les sets),
-// `matchHistory` accumule tous les événements du match entier.
+// history est vidé entre les sets ; matchHistory accumule tout le match.
 export type MatchHistoryEvent = {
   index: number;          // numéro séquentiel global (0, 1, 2, ...)
   setNum: number;         // numéro du set dans lequel l'événement s'est produit
@@ -101,7 +82,6 @@ export type MatchHistoryEvent = {
   scoreAfter: { my: number; opp: number }; // score du set après ce point
 };
 
-// ── Résultat d'un set terminé ──
 export type SetResult = {
   setNum: number;
   myScore: number;
@@ -135,7 +115,6 @@ export type MatchState = {
   setRoles: Record<number, Record<number, string>>; // setNum → playerId → tacticalRole
 };
 
-// Payload pour la sélection des joueurs (sans rôles ni positions — gérés dans SetSetupScreen)
 type ValidateRosterPayload = {
   starterIds: number[];
   benchIds: number[];
@@ -143,7 +122,6 @@ type ValidateRosterPayload = {
   allPlayers: Player[];
 };
 
-// Payload pour la configuration des rôles/positions avant chaque set
 type AssignSetRolesPayload = {
   positionMap: Record<number, number>;   // pos (1-6) → playerId
   tacticalRoles: Record<number, string>; // playerId → rôle tactique
@@ -187,69 +165,42 @@ type MatchContextValue = {
   };
 };
 
-// Postes de la zone arrière (le libero ne peut remplacer qu'en arrière)
-const BACK_ROW_POSITIONS = new Set([1, 5, 6]);
-
-// ── État initial ──
 const initialState: MatchState = {
-  // --- Configuration du match ---
-  matchName: null,
-  isHome:    null,
-
-  // --- Roster ---
-  rosterValidated:    false,   // true quand l'équipe a été sélectionnée
-  setSetupPending:    false,   // true quand le SetSetupScreen doit s'afficher
-  matchPlayers:       [],      // joueurs sélectionnés pour ce match (terrain + banc)
-  originalStarterIds: [],      // IDs des 6 titulaires terrain fixes (hors libero)
-  originalLiberoId:   null,    // ID du libero désigné au roster (référence immuable)
-  liberoId:           null,    // ID du libero actif ce set (null = désactivé)
-  liberoReplacedId:   null,    // ID du joueur actuellement remplacé par le libero
-
-  // --- Score du set en cours ---
-  myScore:  0,
-  oppScore: 0,
-
-  // --- Sets gagnés sur le match ---
-  mySets:   0,
-  oppSets:  0,
-  setNum:   1,              // numéro du set en cours
-
-  // --- Fin de set ---
-  setBannerVisible: false,  // afficher la bannière de fin de set ?
-  setWinner: null,          // 'me' | 'opp'
-
-  // --- Historique des actions (pour le undo) ---
-  history: [],
-
-  // --- Trajectoire du graphe ---
-  trajectory: [{ x: 0, y: 0 }],
-
-  // --- Historique des remplacements ---
-  subHistory: [],
-
-  // --- Historique complet du match (inter-sets, jamais vidé) ---
-  matchHistory: [],
-
-  // --- Résultats des sets terminés ---
-  setResults: [],
+  matchName:           null,
+  isHome:              null,
+  rosterValidated:     false,
+  setSetupPending:     false,
+  matchPlayers:        [],
+  originalStarterIds:  [],
+  originalLiberoId:    null,
+  liberoId:            null,
+  liberoReplacedId:    null,
+  myScore:             0,
+  oppScore:            0,
+  mySets:              0,
+  oppSets:             0,
+  setNum:              1,
+  setBannerVisible:    false,
+  setWinner:           null,
+  history:             [],
+  trajectory:          [{ x: 0, y: 0 }],
+  subHistory:          [],
+  matchHistory:        [],
+  setResults:          [],
   lastSetStartPositionMap: {},
-  setRoles: {},
+  setRoles:            {},
 };
 
-// ── Vérifier si un set est terminé ──
-// Règle officielle : 25 pts minimum, 2 pts d'écart (prolongation au-delà)
+// Règle officielle : 25 pts min, 2 pts d'écart (prolongation au-delà)
 const checkSetEnd = (myScore: number, oppScore: number): SetWinner => {
   if (myScore >= 25 && myScore - oppScore >= 2) return 'me';
   if (oppScore >= 25 && oppScore - myScore >= 2) return 'opp';
   return null;
 };
 
-// ── Reducer principal ──
-// Reçoit l'état actuel et une action, retourne le nouvel état
 function matchReducer(state: MatchState, action: MatchAction): MatchState {
   switch (action.type) {
 
-    // ── Configurer le match ──
     case ACTION_TYPES.SETUP_MATCH:
       return {
         ...state,
@@ -257,7 +208,6 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         isHome:    action.payload.isHome,
       };
 
-    // ── Effacer la configuration (retour arrière) ──
     case ACTION_TYPES.CLEAR_MATCH_SETUP:
       return {
         ...state,
@@ -265,12 +215,9 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         isHome:    null,
       };
 
-    // ── Valider la sélection de l'équipe ──
-    // Crée les MatchPlayers sans rôles ni positions — assignés dans ASSIGN_SET_ROLES
     case ACTION_TYPES.VALIDATE_ROSTER: {
       const { starterIds, benchIds, liberoId, allPlayers } = action.payload;
 
-      // Titulaires terrain : sans rôle ni position pour l'instant
       const fieldPlayers: MatchPlayer[] = starterIds.map((id): MatchPlayer | null => {
         const player = allPlayers.find(p => p.id === id);
         if (!player) return null;
@@ -300,7 +247,6 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         }];
       })() : [];
 
-      // Joueurs du banc
       const benchPlayers: MatchPlayer[] = benchIds.map((id): MatchPlayer | null => {
         const player = allPlayers.find(p => p.id === id);
         if (!player) return null;
@@ -318,35 +264,26 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       return {
         ...state,
         rosterValidated:    true,
-        setSetupPending:    true,   // → affiche SetSetupScreen pour le Set 1
+        setSetupPending:    true,
         liberoId,
-        originalLiberoId:   liberoId,  // référence immuable pour restaurer entre les sets
+        originalLiberoId:   liberoId,
         liberoReplacedId:   null,
         originalStarterIds: starterIds,
         matchPlayers:       [...fieldPlayers, ...liberoPlayers, ...benchPlayers],
       };
     }
 
-    // ── Assigner les rôles et positions avant un set ──
     case ACTION_TYPES.ASSIGN_SET_ROLES: {
       const { positionMap, tacticalRoles, liberoActive, newLiberoId } = action.payload;
 
-      // newLiberoId fourni → remplace le libero (désignation initiale ou changement entre sets)
-      // sinon → conserver le libero actuel
+      // newLiberoId fourni → remplace le libero désigné (désignation initiale ou entre sets)
       const resolvedOriginalLiberoId = newLiberoId !== undefined ? newLiberoId : state.originalLiberoId;
-
-      // liberoId effectif pour ce set : resolvedOriginalLiberoId si actif, null sinon
       const effectiveLiberoId = liberoActive ? resolvedOriginalLiberoId : null;
 
       const updatedPlayers = state.matchPlayers.map(p => {
-        const isActiveLibero = p.id === effectiveLiberoId;
-
-        // Libero actif → hors terrain, rôle figé
-        if (isActiveLibero) {
+        if (p.id === effectiveLiberoId) {
           return { ...p, onCourt: false, pos: null, tacticalRole: 'Libero' };
         }
-
-        // Tous les autres joueurs : position déterminée par la positionMap
         const posEntry = Object.entries(positionMap).find(([, id]) => id === p.id);
         if (posEntry) {
           return {
@@ -356,8 +293,6 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
             tacticalRole: tacticalRoles[p.id] ?? '',
           };
         }
-
-        // Joueur au banc
         return { ...p, onCourt: false, pos: null, tacticalRole: tacticalRoles[p.id] ?? '' };
       });
 
@@ -376,7 +311,6 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       };
     }
 
-    // ── Réinitialiser la sélection du roster ──
     case ACTION_TYPES.RESET_ROSTER:
       return {
         ...state,
@@ -386,12 +320,10 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         originalStarterIds: [],
       };
 
-    // ── Action attribuée à un joueur ──
     case ACTION_TYPES.PLAYER_ACTION: {
       const { playerId, actionKey } = action.payload;
       const playerAction = PLAYER_ACTIONS[actionKey];
 
-      // Mettre à jour les stats du joueur concerné
       const updatedPlayers = state.matchPlayers.map(p => {
         if (p.id !== playerId) return p;
         return {
@@ -403,15 +335,12 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         };
       });
 
-      // Mettre à jour le score selon le type d'action
       const newMyScore  = playerAction.mine ? state.myScore + 1  : state.myScore;
       const newOppScore = playerAction.mine ? state.oppScore     : state.oppScore + 1;
 
-      // Enregistrer dans l'historique pour le undo
       const historyEntry: HistoryEntry = { source: 'player', playerId, actionKey, mine: playerAction.mine };
       const newTrajectory = [...state.trajectory, { x: newMyScore, y: newOppScore }];
 
-      // Enregistrer dans l'historique complet du match (pour reconstruction)
       const player = state.matchPlayers.find(p => p.id === playerId);
       const matchEvent: MatchHistoryEvent = {
         index:      state.matchHistory.length,
@@ -424,7 +353,6 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         scoreAfter: { my: newMyScore, opp: newOppScore },
       };
 
-      // Vérifier si le set est terminé
       const winner = checkSetEnd(newMyScore, newOppScore);
 
       return {
@@ -442,7 +370,6 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       };
     }
 
-    // ── +1 adversaire (bouton manuel) ──
     case ACTION_TYPES.OPP_SCORE: {
       const newOppScore = state.oppScore + 1;
       const winner = checkSetEnd(state.myScore, newOppScore);
@@ -466,7 +393,6 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       };
     }
 
-    // ── Faute adverse → +1 mon équipe ──
     case ACTION_TYPES.OPP_FAULT: {
       const newMyScore = state.myScore + 1;
       const winner = checkSetEnd(newMyScore, state.oppScore);
@@ -490,9 +416,8 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       };
     }
 
-    // ── Annuler la dernière action ──
     case ACTION_TYPES.UNDO: {
-      if (state.history.length === 0) return state; // rien à annuler
+      if (state.history.length === 0) return state;
 
       const last = state.history[state.history.length - 1];
       const newHistory    = state.history.slice(0, -1);
@@ -500,17 +425,12 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         ? state.trajectory.slice(0, -1)
         : state.trajectory;
 
-      // Recalculer les scores
       let newMyScore  = state.myScore;
       let newOppScore = state.oppScore;
 
-      if (last.mine) {
-        newMyScore  = Math.max(0, newMyScore - 1);
-      } else {
-        newOppScore = Math.max(0, newOppScore - 1);
-      }
+      if (last.mine) newMyScore  = Math.max(0, newMyScore - 1);
+      else           newOppScore = Math.max(0, newOppScore - 1);
 
-      // Remettre à zéro la stat du joueur si c'est une action joueur
       let updatedPlayers = state.matchPlayers;
       if (last.source === 'player') {
         updatedPlayers = state.matchPlayers.map(p => {
@@ -544,24 +464,21 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       };
     }
 
-    // ── Rotation des joueurs ──
     case ACTION_TYPES.ROTATE:
       return {
         ...state,
+        // Règle officielle : chaque poste -1, poste 1 revient à 6
         matchPlayers: state.matchPlayers.map(p => {
-          if (!p.onCourt || p.pos === null) return p; // les joueurs au banc ne tournent pas
-          // Règle officielle : chaque poste diminue de 1, le poste 1 revient à 6
+          if (!p.onCourt || p.pos === null) return p;
           return { ...p, pos: p.pos === 1 ? 6 : p.pos - 1 };
         }),
       };
 
-    // ── Échange libero / centrale ──
     case ACTION_TYPES.LIBERO_SWAP: {
       const libero = state.matchPlayers.find(p => p.id === state.liberoId);
       if (!libero) return state;
 
       if (state.liberoReplacedId === null) {
-        // Libero entre : trouver un central en zone arrière
         const central = state.matchPlayers.find(
           p => p.onCourt && p.tacticalRole === 'Central' && p.pos !== null && BACK_ROW_POSITIONS.has(p.pos)
         );
@@ -576,7 +493,6 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
           }),
         };
       } else {
-        // Libero sort : le central reprend sa place
         return {
           ...state,
           liberoReplacedId: null,
@@ -589,21 +505,18 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       }
     }
 
-    // ── Confirmer un remplacement ──
     case ACTION_TYPES.CONFIRM_SUB: {
       const { outId, inId } = action.payload;
       const outPlayer = state.matchPlayers.find(p => p.id === outId);
       const inPlayer  = state.matchPlayers.find(p => p.id === inId);
       if (!outPlayer || !inPlayer) return state;
 
-      // Le joueur entrant prend le poste et le rôle tactique du joueur sortant
       const updatedPlayers = state.matchPlayers.map(p => {
         if (p.id === outId) return { ...p, onCourt: false, pos: null };
         if (p.id === inId)  return { ...p, onCourt: true,  pos: outPlayer.pos, tacticalRole: outPlayer.tacticalRole };
         return p;
       });
 
-      // Enregistrer le remplacement dans l'historique
       const subEntry: SubEntry = {
         outName: outPlayer.name,
         inName:  inPlayer.name,
@@ -617,10 +530,7 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       };
     }
 
-    // ── Démarrer le set suivant ──
-    // Remet les scores à zéro et déclenche SetSetupScreen pour reconfigurer rôles/positions
     case ACTION_TYPES.CLOSE_SET_BANNER: {
-      // Sauvegarder le résultat du set terminé
       const completedSet: SetResult = {
         setNum:   state.setNum,
         myScore:  state.myScore,
@@ -628,7 +538,6 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         winner:   state.setWinner,
       };
 
-      // Remettre tous les joueurs hors terrain (les positions seront réassignées dans SetSetupScreen)
       const resetPlayers = state.matchPlayers.map(p => ({
         ...p,
         onCourt: false,
@@ -645,13 +554,12 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         history:          [],
         trajectory:       [{ x: 0, y: 0 }],
         setResults:       [...state.setResults, completedSet],
-        setSetupPending:  true,   // → affiche SetSetupScreen pour le nouveau set
+        setSetupPending:  true,
         liberoReplacedId: null,
         matchPlayers:     resetPlayers,
       };
     }
 
-    // ── Réinitialisation complète (changement d'équipe) ──
     case ACTION_TYPES.RESET_MATCH:
       return initialState;
 
@@ -660,14 +568,11 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
   }
 }
 
-// ── Création du contexte ──
 const MatchContext = createContext<MatchContextValue | null>(null);
 
-// ── Provider à envelopper autour de l'app ──
 export const MatchProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, dispatch] = useReducer(matchReducer, initialState);
 
-  // Helpers pour dispatch - évite de répéter le type partout dans les composants
   const actions: MatchContextValue['actions'] = {
     setupMatch:      (payload) => dispatch({ type: ACTION_TYPES.SETUP_MATCH,      payload }),
     clearMatchSetup: ()        => dispatch({ type: ACTION_TYPES.CLEAR_MATCH_SETUP }),
@@ -692,8 +597,6 @@ export const MatchProvider = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-// ── Hook pour consommer le contexte ──
-// Usage : const { state, actions } = useMatch();
 export const useMatch = (): MatchContextValue => {
   const context = useContext(MatchContext);
   if (!context) throw new Error('useMatch doit être utilisé dans un MatchProvider');

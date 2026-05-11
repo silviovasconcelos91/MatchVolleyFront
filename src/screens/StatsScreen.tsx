@@ -4,13 +4,9 @@ import { useMatch } from '../context/MatchContext';
 import type { MatchHistoryEvent } from '../context/MatchContext';
 import { getPlayerColor } from '../constants/theme';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
-import { getTotalPoints, getTotalFaults } from '../data/players';
+import { getTotalPoints, getTotalFaults, createEmptyStats } from '../data/players';
 import type { ActionKey, PlayerStats } from '../data/players';
 import PlayerAvatar from '../components/PlayerAvatar';
-
-function createEmptyStats(): PlayerStats {
-  return { pt: 0, atk: 0, block: 0, ace: 0, atk_out: 0, srv_out: 0, recv: 0 };
-}
 
 function computeSetStats(
   matchHistory: MatchHistoryEvent[],

@@ -7,14 +7,12 @@ import type { MatchPlayer } from '../context/MatchContext';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 import { ROTATIONS, resolvePlayers } from '../data/volleyball51';
 import type { Roster, Pin, PinRole } from '../data/volleyball51';
-
-// ── Construire le roster depuis les joueurs actuels ──
-const BACK_ROW = new Set([1, 5, 6]);
+import { BACK_ROW_POSITIONS } from '../data/players';
 
 function buildRoster(matchPlayers: MatchPlayer[]): Roster {
   const on = matchPlayers.filter(p => p.onCourt);
   const fn = (p: MatchPlayer) => p.name.split(' ')[0];
-  const isFront = (p: MatchPlayer) => p.pos !== null && !BACK_ROW.has(p.pos);
+  const isFront = (p: MatchPlayer) => p.pos !== null && !BACK_ROW_POSITIONS.has(p.pos);
 
   const setter  = on.find(p => p.tacticalRole === 'Passeur');
   const opp     = on.find(p => p.tacticalRole === 'Pointu');
@@ -116,7 +114,7 @@ const PositionScreen = () => {
     ? resolvePlayers(rotation, roster, courtSize.w, courtSize.h)
     : [];
 
-  const setterBack = BACK_ROW.has(rotation.setterPos);
+  const setterBack = BACK_ROW_POSITIONS.has(rotation.setterPos);
 
   return (
     <View style={styles.container}>

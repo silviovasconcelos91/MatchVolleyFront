@@ -13,7 +13,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useMatch } from '../context/MatchContext';
-import type { MatchPlayer } from '../context/MatchContext';
+import type { MatchPlayer, SubEntry } from '../context/MatchContext';
 import { getPlayerColor } from '../constants/theme';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 import { getTotalPoints } from '../data/players';
@@ -72,7 +72,7 @@ const SubstitutionScreen = () => {
         <View style={styles.playerInfo}>
           <Text style={styles.playerName}>{player.name}</Text>
           <Text style={styles.playerRole}>
-            {player.role}{player.pos ? ` · P${player.pos}` : ''}
+            {player.tacticalRole}{player.pos ? ` · P${player.pos}` : ''}
           </Text>
         </View>
         {/* Badge optionnel (ex: points) */}
@@ -180,7 +180,7 @@ const SubstitutionScreen = () => {
       {subHistory.length === 0 ? (
         <Text style={styles.emptyHistory}>Aucun remplacement pour l'instant</Text>
       ) : (
-        subHistory.map((entry, index) => (
+        subHistory.map((entry: SubEntry, index: number) => (
           <View key={index} style={styles.historyRow}>
             {/* Joueur sortant */}
             <Text style={styles.historyOut}>{entry.outName}</Text>
