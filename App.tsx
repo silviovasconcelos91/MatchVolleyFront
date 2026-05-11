@@ -30,13 +30,14 @@
 //        StatsScreen.tsx         → statistiques joueurs
 // ─────────────────────────────────────────────
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StatusBar,
   StyleSheet,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
@@ -119,8 +120,8 @@ const TabBar = ({ activeTab, onTabChange }: TabBarProps) => (
 
 // ── Composant principal ──
 const AppContent = () => {
-  const { state: teamState } = useTeam();
-  const { state: matchState } = useMatch();
+  const { state: teamState, actions: teamActions } = useTeam();
+  const { state: matchState, actions: matchActions } = useMatch();
   const { selectedTeam } = teamState;
   const { rosterValidated, setSetupPending, matchName } = matchState;
 
@@ -147,6 +148,49 @@ const AppContent = () => {
       setActiveTab('court');
     }
   }, [setSetupPending, rosterValidated]);
+
+  // ── Bouton retour Android ──
+  const handleBack = useCallback((): boolean => {
+    if (playerMgmtVisible) {
+      setPlayerMgmtVisible(false);
+      return true;
+    }
+    if (statsStep !== null) {
+      if (statsStep === 'teamSelection')  { setStatsStep(null);           return true; }
+      if (statsStep === 'hub')            { setStatsStep('teamSelection'); return true; }
+      if (statsStep === 'matchList')      { setStatsStep('hub');           return true; }
+      if (statsStep === 'matchDetail')    { setStatsStep('matchList');     return true; }
+      if (statsStep === 'playerList')     { setStatsStep('hub');           return true; }
+      if (statsStep === 'playerDetail')   { setStatsStep('playerList');    return true; }
+    }
+    if (!matchName && !homeVisible) {
+      setHomeVisible(true);
+      return true;
+    }
+    if (matchName && !selectedTeam) {
+      matchActions.clearMatchSetup();
+      return true;
+    }
+    if (selectedTeam && !rosterValidated) {
+      teamActions.clearTeam();
+      return true;
+    }
+    if (rosterOverlayVisible) {
+      setRosterOverlayVisible(false);
+      return true;
+    }
+    return rosterValidated;
+
+  }, [
+    playerMgmtVisible, statsStep, matchName, homeVisible,
+    selectedTeam, rosterValidated, rosterOverlayVisible,
+    matchActions, teamActions,
+  ]);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', handleBack);
+    return () => sub.remove();
+  }, [handleBack]);
 
   // ── Gestion joueurs (accessible depuis l'accueil, hors match) ──
   if (playerMgmtVisible) {
