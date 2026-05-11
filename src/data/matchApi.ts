@@ -291,8 +291,6 @@ export type MatchDetail = {
 export const getMatchDetail = async (matchId: string): Promise<MatchDetail> => {
   const res = await apiFetch(`${API_URL}/api/v1/match-stats/${matchId}`);
   if (!res.ok) {
-    const body = await res.text();
-    console.error('[matchApi] GET /match-stats/:id HTTP', res.status, body);
     throw new Error(`HTTP ${res.status}`);
   }
   const json = await res.json() as { data: MatchDetail };

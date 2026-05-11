@@ -11,6 +11,7 @@
 
 import React, { createContext, useContext, useReducer, useState, useEffect } from 'react';
 import { fetchTeams, Team } from '../data/teams';
+import { pingBackend } from '../data/api';
 
 // ── Types d'actions du reducer ──
 const TEAM_ACTION_TYPES = {
@@ -89,11 +90,10 @@ const TeamContext = createContext<TeamContextValue | null>(null);
 export const TeamProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, dispatch] = useReducer(teamReducer, initialState);
 
-  // reloadKey est incrémenté par reload() pour déclencher un nouveau fetch
   const [reloadKey, setReloadKey] = useState(0);
 
-  // ── Chargement des équipes ──
-  // Se déclenche au montage et à chaque appel de reload()
+  useEffect(() => { pingBackend(); }, []);
+
   useEffect(() => {
     dispatch({ type: TEAM_ACTION_TYPES.FETCH_START });
     fetchTeams()
