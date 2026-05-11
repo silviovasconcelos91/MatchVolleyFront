@@ -113,6 +113,8 @@ export type MatchState = {
   subHistory: SubEntry[];
   // outId → inId : joueur sorti → joueur qui l'a remplacé (reset à chaque set)
   substitutionPairs: Record<number, number>;
+  // playerId → setNums joués (jamais vidé, accumulé sur tout le match)
+  playerSetPresence: Record<number, number[]>;
   matchHistory: MatchHistoryEvent[]; // historique complet inter-sets (jamais vidé)
   setResults: SetResult[];           // résultats des sets terminés
   lastSetStartPositionMap: Record<number, number>; // positionMap du dernier SetSetupScreen confirmé
@@ -190,6 +192,7 @@ const initialState: MatchState = {
   trajectory:          [{ x: 0, y: 0 }],
   subHistory:          [],
   substitutionPairs:   {},
+  playerSetPresence:   {},
   matchHistory:        [],
   setResults:          [],
   lastSetStartPositionMap: {},
@@ -304,6 +307,16 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         return { ...p, onCourt: false, pos: null, tacticalRole: tacticalRoles[p.id] ?? '' };
       });
 
+      const sn = state.setNum;
+      const onCourtIds = Object.values(positionMap)
+        .concat(effectiveLiberoId !== null ? [effectiveLiberoId] : []);
+
+      const playerSetPresence = { ...state.playerSetPresence };
+      for (const id of onCourtIds) {
+        if (!playerSetPresence[id]) playerSetPresence[id] = [];
+        if (!playerSetPresence[id].includes(sn)) playerSetPresence[id] = [...playerSetPresence[id], sn];
+      }
+
       return {
         ...state,
         setSetupPending:          false,
@@ -312,6 +325,7 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         originalLiberoId:         resolvedOriginalLiberoId,
         matchPlayers:             updatedPlayers,
         lastSetStartPositionMap:  positionMap,
+        playerSetPresence,
         setRoles: {
           ...state.setRoles,
           [state.setNum]: tacticalRoles,
@@ -326,6 +340,7 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         setSetupPending:    false,
         matchPlayers:       [],
         originalStarterIds: [],
+        playerSetPresence:  {},
       };
 
     case ACTION_TYPES.PLAYER_ACTION: {
@@ -531,11 +546,18 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         score:   `${state.myScore} – ${state.oppScore}`,
       };
 
+      const subSn = state.setNum;
+      const prevSets = state.playerSetPresence[inId] ?? [];
+      const updatedPresence = prevSets.includes(subSn)
+        ? state.playerSetPresence
+        : { ...state.playerSetPresence, [inId]: [...prevSets, subSn] };
+
       return {
         ...state,
         matchPlayers:      updatedPlayers,
         subHistory:        [...state.subHistory, subEntry],
         substitutionPairs: { ...state.substitutionPairs, [outId]: inId },
+        playerSetPresence: updatedPresence,
       };
     }
 

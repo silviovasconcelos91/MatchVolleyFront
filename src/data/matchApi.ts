@@ -131,7 +131,7 @@ export const computePlayerSetStats = (
 // ─────────────────────────────────────────────
 
 export const buildMatchResult = (matchState: MatchState, team: Team): MatchStatRequest => {
-  const { mySets, oppSets, matchHistory, setResults, matchPlayers, myScore, oppScore, setNum, setBannerVisible, setWinner } = matchState;
+  const { mySets, oppSets, matchHistory, setResults, matchPlayers, myScore, oppScore, setNum, setBannerVisible, setWinner, playerSetPresence } = matchState;
 
   // Si la bannière est visible, le set vient de se terminer mais n'est pas encore
   // persisté dans setResults (CLOSE_SET_BANNER n'a pas encore été appelé).
@@ -181,24 +181,32 @@ export const buildMatchResult = (matchState: MatchState, team: Team): MatchStatR
     };
   });
 
-  // ── Joueurs ──
-  const players: PlayerStatDto[] = matchPlayers.map(player => ({
-    playerId:   player.id,
-    number:     player.numero,
-    role:       player.tacticalRole as PlayerRole,
-    matchStats: toStatsDto(player.stats),
-    setStats:   setNums.map(sn => {
-      const posEvent = matchHistory.find(
-        e => e.setNum === sn && e.playerId === player.id && e.playerRole,
-      );
-      const position = posEvent?.playerRole ?? matchState.setRoles[sn]?.[player.id] ?? null;
+  // ── Joueurs ── (uniquement ceux qui ont foulé le terrain au moins un set)
+  const players: PlayerStatDto[] = matchPlayers
+    .filter(player => (playerSetPresence[player.id]?.length ?? 0) > 0)
+    .map(player => {
+      const playedSets = playerSetPresence[player.id] ?? [];
       return {
-        set:      sn,
-        position,
-        ...toStatsDto(computePlayerSetStats(matchHistory, sn, player.id)),
+        playerId:   player.id,
+        number:     player.numero,
+        role:       player.tacticalRole as PlayerRole,
+        matchStats: toStatsDto(player.stats),
+        // setStats uniquement pour les sets où le joueur était sur le terrain
+        setStats: setNums
+          .filter(sn => playedSets.includes(sn))
+          .map(sn => {
+            const posEvent = matchHistory.find(
+              e => e.setNum === sn && e.playerId === player.id && e.playerRole,
+            );
+            const position = posEvent?.playerRole ?? matchState.setRoles[sn]?.[player.id] ?? null;
+            return {
+              set:      sn,
+              position,
+              ...toStatsDto(computePlayerSetStats(matchHistory, sn, player.id)),
+            };
+          }),
       };
-    }),
-  }));
+    });
 
   return {
     match: {

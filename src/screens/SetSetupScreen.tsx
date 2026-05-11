@@ -234,6 +234,11 @@ const SetSetupScreen = () => {
 
       {/* ── En-tête ── */}
       <View style={styles.header}>
+        {setNum === 1 && (
+          <TouchableOpacity style={styles.backBtn} onPress={actions.resetRoster} activeOpacity={0.7}>
+            <Text style={styles.backBtnText}>‹ Retour</Text>
+          </TouchableOpacity>
+        )}
         <Text style={styles.headerSet}>SET {setNum}</Text>
         <Text style={styles.headerTitle}>Configuration de l'équipe</Text>
         <Text style={styles.headerHint}>
@@ -589,6 +594,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: SPACING.lg,
     marginBottom: SPACING.sm,
+  },
+  backBtn: {
+    alignSelf: 'flex-start',
+    marginBottom: SPACING.xs,
+  },
+  backBtnText: {
+    fontSize: FONT_SIZE.md,
+    color: COLORS.blue,
   },
   headerSet: {
     fontSize: FONT_SIZE.xxl,

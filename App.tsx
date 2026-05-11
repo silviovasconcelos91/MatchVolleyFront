@@ -129,7 +129,7 @@ const AppContent = () => {
   const { state: teamState, actions: teamActions } = useTeam();
   const { state: matchState, actions: matchActions } = useMatch();
   const { selectedTeam } = teamState;
-  const { rosterValidated, setSetupPending, matchName, matchPlayers, liberoId } = matchState;
+  const { rosterValidated, setSetupPending, matchName, matchPlayers, liberoId, setNum } = matchState;
 
   const hasBenchPlayers = matchPlayers.some(p => !p.onCourt && p.id !== liberoId);
   const disabledTabs = new Set<TabId>(hasBenchPlayers ? [] : ['sub']);
@@ -195,12 +195,16 @@ const AppContent = () => {
       setRosterOverlayVisible(false);
       return true;
     }
+    if (rosterValidated && setSetupPending && setNum === 1) {
+      matchActions.resetRoster();
+      return true;
+    }
     return rosterValidated;
 
   }, [
     playerMgmtVisible, statsStep, matchName, homeVisible,
     selectedTeam, rosterValidated, rosterOverlayVisible,
-    matchActions, teamActions,
+    setSetupPending, setNum, matchActions, teamActions,
   ]);
 
   useEffect(() => {
