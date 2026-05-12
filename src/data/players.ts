@@ -13,7 +13,7 @@ export type Player = {
   roles?: PlayerRole[];
 }
 
-export type ActionKey = 'pt' | 'atk' | 'block' | 'ace' | 'atk_out' | 'srv_out' | 'recv';
+export type ActionKey = 'pt' | 'atk' | 'block' | 'ace' | 'atk_out' | 'srv_out' | 'recv' | 'fault';
 
 export type PlayerStats = Record<ActionKey, number>;
 
@@ -47,11 +47,11 @@ export const COURT_DISPLAY_ORDER: number[] = [4, 3, 2, 5, 6, 1];
 export const BACK_ROW_POSITIONS = new Set([1, 5, 6]);
 
 export const createEmptyStats = (): PlayerStats => ({
-  pt: 0, atk: 0, block: 0, ace: 0, atk_out: 0, srv_out: 0, recv: 0,
+  pt: 0, atk: 0, block: 0, ace: 0, atk_out: 0, srv_out: 0, recv: 0, fault: 0,
 });
 
 export const getTotalPoints = (stats: PlayerStats): number =>
   stats.pt + stats.atk + stats.block + stats.ace;
 
 export const getTotalFaults = (stats: PlayerStats): number =>
-  stats.atk_out + stats.srv_out + stats.recv;
+  stats.atk_out + stats.srv_out + stats.recv + stats.fault;

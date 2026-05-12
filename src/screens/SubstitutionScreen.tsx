@@ -21,14 +21,15 @@ import PlayerAvatar from '../components/PlayerAvatar';
 
 const SubstitutionScreen = () => {
   const { state, actions } = useMatch();
-  const { matchPlayers, subHistory, rosterValidated, liberoId, substitutionPairs } = state;
+  const { matchPlayers, subHistory, rosterValidated, liberoId, liberoReplacedId, substitutionPairs } = state;
 
   const [outPlayer, setOutPlayer] = useState<MatchPlayer | null>(null);
   const [inPlayer, setInPlayer]   = useState<MatchPlayer | null>(null);
 
-  const courtPlayers = matchPlayers.filter(p => p.onCourt);
-  // Banc complet (hors libero actif)
-  const allBenchPlayers = matchPlayers.filter(p => !p.onCourt && p.id !== liberoId);
+  // Libero et joueur en zone libero exclus : ne peuvent pas sortir via remplacement normal
+  const courtPlayers = matchPlayers.filter(p => p.onCourt && p.id !== liberoId && p.id !== liberoReplacedId);
+  // Banc complet (hors libero actif + hors joueur temporairement remplacé par le libero)
+  const allBenchPlayers = matchPlayers.filter(p => !p.onCourt && p.id !== liberoId && p.id !== liberoReplacedId);
   // Banc filtré selon la règle : un joueur sorti ne peut rentrer qu'à la place de son remplaçant
   const benchPlayers = outPlayer
     ? allBenchPlayers.filter(p => {

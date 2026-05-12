@@ -41,6 +41,7 @@ export const PLAYER_ACTIONS: Record<ActionKey, { label: string; mine: boolean; s
   atk_out: { label: 'Attaque out',     mine: false, section: 'fautes' },
   srv_out: { label: 'Service out',     mine: false, section: 'fautes' },
   recv:    { label: 'Réception ratée', mine: false, section: 'fautes' },
+  fault:   { label: 'Faute',           mine: false, section: 'fautes' },
 };
 
 export type MatchPlayer = {
@@ -510,8 +511,8 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
           ...state,
           liberoReplacedId: central.id,
           matchPlayers: state.matchPlayers.map(p => {
-            if (p.id === libero.id)  return { ...p, onCourt: true,  pos: central.pos };
-            if (p.id === central.id) return { ...p, onCourt: false, pos: null };
+            if (p.id === libero.id)  return { ...p, onCourt: true, pos: central.pos };
+            if (p.id === central.id) return { ...p, onCourt: true, pos: null }; // zone libero = terrain, pas banc
             return p;
           }),
         };

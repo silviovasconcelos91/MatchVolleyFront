@@ -821,6 +821,10 @@
           "receptions": {
             "type": "integer",
             "format": "int32"
+          },
+          "faults": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -910,6 +914,10 @@
             "format": "int32"
           },
           "receptions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "faults": {
             "type": "integer",
             "format": "int32"
           }

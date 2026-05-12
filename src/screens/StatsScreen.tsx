@@ -36,6 +36,7 @@ function sumStats(statsList: PlayerStats[]): PlayerStats {
     total.atk_out += s.atk_out;
     total.srv_out += s.srv_out;
     total.recv    += s.recv;
+    total.fault   += s.fault;
   }
   return total;
 }
@@ -58,7 +59,7 @@ type TeamSummaryProps = {
 
 const TeamSummary = ({ myScore, oppScore, stats }: TeamSummaryProps) => {
   const playerPoints = stats.pt + stats.atk + stats.block + stats.ace;
-  const teamFaults   = stats.atk_out + stats.srv_out + stats.recv;
+  const teamFaults   = stats.atk_out + stats.srv_out + stats.recv + stats.fault;
   const oppActual    = Math.max(0, oppScore - teamFaults);
   const oppFaults    = Math.max(0, myScore - playerPoints);
 
@@ -96,9 +97,10 @@ const TeamSummary = ({ myScore, oppScore, stats }: TeamSummaryProps) => {
           <Text style={[styles.summaryBlockTotal, { color: COLORS.redLight }]}>{teamFaults}</Text>
         </View>
         <View style={styles.summaryChips}>
-          <SummaryChip label="Atk"  value={stats.atk_out} color={COLORS.redLight} />
-          <SummaryChip label="Srv"  value={stats.srv_out} color={COLORS.redLight} />
-          <SummaryChip label="Recv" value={stats.recv}    color={COLORS.redLight} />
+          <SummaryChip label="Atk"   value={stats.atk_out} color={COLORS.redLight} />
+          <SummaryChip label="Srv"   value={stats.srv_out} color={COLORS.redLight} />
+          <SummaryChip label="Recv"  value={stats.recv}    color={COLORS.redLight} />
+          <SummaryChip label="Faute" value={stats.fault}   color={COLORS.redLight} />
         </View>
       </View>
 
@@ -186,6 +188,11 @@ const PlayerCard = ({ name, numero, tacticalRole, onCourt, pos, color, stats }: 
         {stats.recv > 0 && (
           <View style={[styles.statChip, styles.chipRed]}>
             <Text style={[styles.statChipText, { color: COLORS.redLight }]}>Recv {stats.recv}</Text>
+          </View>
+        )}
+        {stats.fault > 0 && (
+          <View style={[styles.statChip, styles.chipRed]}>
+            <Text style={[styles.statChipText, { color: COLORS.redLight }]}>Faute {stats.fault}</Text>
           </View>
         )}
       </View>

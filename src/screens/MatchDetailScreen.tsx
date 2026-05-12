@@ -49,6 +49,7 @@ const TIMELINE_ACTION_LABELS: Record<string, string> = {
   atk_out:   'Err. attaque',
   srv_out:   'Err. service',
   recv:      'Err. réception',
+  fault:     'Faute',
   opp_score: 'Point adverse',
   opp_fault: 'Faute adverse',
 };
@@ -63,6 +64,7 @@ const playerSetToStats = (s: MatchDetailPlayerSetStat): MatchDetailStats => ({
   attackErrors:  s.attackErrors,
   serviceErrors: s.serviceErrors,
   receptions:    s.receptions,
+  faults:        s.faults,
 });
 
 // ── Cellule stat ──────────────────────────────────────────────────
@@ -85,7 +87,7 @@ type MatchStatsBlockProps = {
 
 const MatchStatsBlock = ({ stats, myScore, oppScore, hideTotalScore }: MatchStatsBlockProps) => {
   const playerPoints = stats.points + stats.attackPoints + stats.blockPoints + stats.acePoints;
-  const teamFaults   = stats.attackErrors + stats.serviceErrors + stats.receptions;
+  const teamFaults   = stats.attackErrors + stats.serviceErrors + stats.receptions + (stats.faults ?? 0);
   const hasScores    = myScore !== undefined && oppScore !== undefined;
   const oppActual    = hasScores ? Math.max(0, oppScore - teamFaults) : 0;
   const oppFaults    = hasScores ? Math.max(0, myScore - playerPoints) : 0;
@@ -127,9 +129,10 @@ const MatchStatsBlock = ({ stats, myScore, oppScore, hideTotalScore }: MatchStat
           <Text style={[styles.statsSectionTotal, { color: COLORS.redLight }]}>{teamFaults}</Text>
         </View>
         <View style={styles.statCellRow}>
-          <StatCell label="Atk"  value={stats.attackErrors}  color={COLORS.redLight} />
-          <StatCell label="Srv"  value={stats.serviceErrors} color={COLORS.redLight} />
-          <StatCell label="Recv" value={stats.receptions}    color={COLORS.redLight} />
+          <StatCell label="Atk"   value={stats.attackErrors}  color={COLORS.redLight} />
+          <StatCell label="Srv"   value={stats.serviceErrors} color={COLORS.redLight} />
+          <StatCell label="Recv"  value={stats.receptions}    color={COLORS.redLight} />
+          <StatCell label="Faute" value={stats.faults ?? 0}   color={COLORS.redLight} />
         </View>
       </View>
 

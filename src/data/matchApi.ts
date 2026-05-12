@@ -16,6 +16,7 @@ type StatsDto = {
   attackErrors: number;
   serviceErrors: number;
   receptions: number;
+  faults: number;
 };
 
 type TimelineEntry = {
@@ -43,6 +44,7 @@ type PlayerSetStatDto = {
   attackErrors: number;
   serviceErrors: number;
   receptions: number;
+  faults: number;
 };
 
 type PlayerStatDto = {
@@ -92,13 +94,14 @@ const toStatsDto = (s: PlayerStats): StatsDto => ({
   attackErrors:  s.atk_out,
   serviceErrors: s.srv_out,
   receptions:    s.recv,
+  faults:        s.fault,
 });
 
 const aggregateStats = (statsArray: PlayerStats[]): StatsDto =>
   toStatsDto(
     statsArray.reduce(
       (acc, s) => {
-        const key: ActionKey[] = ['pt', 'atk', 'block', 'ace', 'atk_out', 'srv_out', 'recv'];
+        const key: ActionKey[] = ['pt', 'atk', 'block', 'ace', 'atk_out', 'srv_out', 'recv', 'fault'];
         const next = { ...acc };
         for (const k of key) next[k] += s[k];
         return next;
@@ -166,9 +169,6 @@ export const buildMatchResult = (matchState: MatchState, team: Team): MatchStatR
       computePlayerSetStats(matchHistory, setResult.setNum, p.id),
     );
 
-    const oppFaultsInSet = matchHistory.filter(
-      e => e.setNum === setResult.setNum && e.source === 'opp_fault',
-    ).length;
 
     const baseTeamStats = aggregateStats(perPlayerSetStats);
 
@@ -244,6 +244,7 @@ export type MatchDetailStats = {
   attackErrors: number;
   serviceErrors: number;
   receptions: number;
+  faults?: number;
 };
 
 export type MatchDetailTimelineEntry = {
@@ -272,6 +273,7 @@ export type MatchDetailPlayerSetStat = {
   attackErrors: number;
   serviceErrors: number;
   receptions: number;
+  faults?: number;
 };
 
 export type MatchDetailPlayerStat = {

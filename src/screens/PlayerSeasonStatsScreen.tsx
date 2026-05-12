@@ -38,6 +38,7 @@ const StatsGrid = ({ stats }: { stats: MatchDetailStats }) => (
     <StatCard label="Récep."     value={stats.receptions}                          />
     <StatCard label="Err. att."  value={stats.attackErrors}  color={COLORS.red}    />
     <StatCard label="Err. serv." value={stats.serviceErrors} color={COLORS.red}    />
+    <StatCard label="Faute"      value={stats.faults ?? 0}   color={COLORS.red}    />
   </View>
 );
 
