@@ -84,7 +84,7 @@ applyMalus: (payload: { target: 'me' | 'opp'; amount: 1 | 2 }) => void
 
 ## Constraints
 
-- Score clamped at 0 (`Math.max(0, score - amount)`).
+- Score can go negative (malus may occur before any points are scored).
 - Not undoable — not added to `state.history`.
 - No set-end check after malus.
 - Disabled when `setBannerVisible` or `!rosterValidated`.

@@ -608,8 +608,8 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
     case ACTION_TYPES.APPLY_MALUS: {
       // Not pushed to `history` — malus is a referee decision, not undoable.
       const { target, amount } = action.payload;
-      const newMyScore  = target === 'me'  ? Math.max(0, state.myScore  - amount) : state.myScore;
-      const newOppScore = target === 'opp' ? Math.max(0, state.oppScore - amount) : state.oppScore;
+      const newMyScore  = target === 'me'  ? state.myScore  - amount : state.myScore;
+      const newOppScore = target === 'opp' ? state.oppScore - amount : state.oppScore;
       const matchEvent: MatchHistoryEvent = {
         index:       state.matchHistory.length,
         setNum:      state.setNum,
