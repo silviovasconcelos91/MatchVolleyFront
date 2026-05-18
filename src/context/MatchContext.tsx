@@ -30,6 +30,9 @@ export const ACTION_TYPES = {
 
   // Réinitialisation complète (changement d'équipe)
   RESET_MATCH:        'RESET_MATCH',        // remettre tout l'état à zéro
+
+  // Malus
+  APPLY_MALUS:        'APPLY_MALUS',        // pénalité de points sur une équipe
 } as const;
 
 // mine: true → +1 mon équipe / mine: false → +1 adversaire
@@ -75,14 +78,16 @@ type HistoryEntry =
 
 // history est vidé entre les sets ; matchHistory accumule tout le match.
 export type MatchHistoryEvent = {
-  index: number;          // numéro séquentiel global (0, 1, 2, ...)
-  setNum: number;         // numéro du set dans lequel l'événement s'est produit
-  source: 'player' | 'opp' | 'opp_fault';
-  playerId?: number;      // uniquement si source === 'player'
-  actionKey?: ActionKey;  // uniquement si source === 'player'
-  playerRole?: string;    // rôle tactique du joueur au moment de l'action
-  mine: boolean;          // true = mon équipe a marqué ce point
-  scoreAfter: { my: number; opp: number }; // score du set après ce point
+  index: number;
+  setNum: number;
+  source: 'player' | 'opp' | 'opp_fault' | 'malus';
+  playerId?: number;
+  actionKey?: ActionKey;
+  playerRole?: string;
+  mine: boolean;
+  scoreAfter: { my: number; opp: number };
+  malusTarget?: 'me' | 'opp';
+  malusAmount?: 1 | 2;
 };
 
 export type SetResult = {
@@ -150,7 +155,8 @@ type MatchAction =
   | { type: typeof ACTION_TYPES.LIBERO_SWAP }
   | { type: typeof ACTION_TYPES.CONFIRM_SUB; payload: { outId: number; inId: number } }
   | { type: typeof ACTION_TYPES.CLOSE_SET_BANNER }
-  | { type: typeof ACTION_TYPES.RESET_MATCH };
+  | { type: typeof ACTION_TYPES.RESET_MATCH }
+  | { type: typeof ACTION_TYPES.APPLY_MALUS; payload: { target: 'me' | 'opp'; amount: 1 | 2 } };
 
 type MatchContextValue = {
   state: MatchState;
@@ -169,6 +175,7 @@ type MatchContextValue = {
     confirmSub:      (payload: { outId: number; inId: number }) => void;
     closeSetBanner:  () => void;
     resetMatch:      () => void;
+    applyMalus:      (payload: { target: 'me' | 'opp'; amount: 1 | 2 }) => void;
   };
 };
 
@@ -200,10 +207,11 @@ const initialState: MatchState = {
   setRoles:            {},
 };
 
-// Règle officielle : 25 pts min, 2 pts d'écart (prolongation au-delà)
-const checkSetEnd = (myScore: number, oppScore: number): SetWinner => {
-  if (myScore >= 25 && myScore - oppScore >= 2) return 'me';
-  if (oppScore >= 25 && oppScore - myScore >= 2) return 'opp';
+// Règle officielle : 25 pts (15 au set décisif), 2 pts d'écart
+const checkSetEnd = (myScore: number, oppScore: number, isDecidingSet: boolean): SetWinner => {
+  const limit = isDecidingSet ? 15 : 25;
+  if (myScore >= limit && myScore - oppScore >= 2) return 'me';
+  if (oppScore >= limit && oppScore - myScore >= 2) return 'opp';
   return null;
 };
 
@@ -377,7 +385,7 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         scoreAfter: { my: newMyScore, opp: newOppScore },
       };
 
-      const winner = checkSetEnd(newMyScore, newOppScore);
+      const winner = checkSetEnd(newMyScore, newOppScore, state.mySets === 2 && state.oppSets === 2);
 
       return {
         ...state,
@@ -396,7 +404,7 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
 
     case ACTION_TYPES.OPP_SCORE: {
       const newOppScore = state.oppScore + 1;
-      const winner = checkSetEnd(state.myScore, newOppScore);
+      const winner = checkSetEnd(state.myScore, newOppScore, state.mySets === 2 && state.oppSets === 2);
       const matchEvent: MatchHistoryEvent = {
         index:      state.matchHistory.length,
         setNum:     state.setNum,
@@ -419,7 +427,7 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
 
     case ACTION_TYPES.OPP_FAULT: {
       const newMyScore = state.myScore + 1;
-      const winner = checkSetEnd(newMyScore, state.oppScore);
+      const winner = checkSetEnd(newMyScore, state.oppScore, state.mySets === 2 && state.oppSets === 2);
       const matchEvent: MatchHistoryEvent = {
         index:      state.matchHistory.length,
         setNum:     state.setNum,
@@ -597,6 +605,27 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
     case ACTION_TYPES.RESET_MATCH:
       return initialState;
 
+    case ACTION_TYPES.APPLY_MALUS: {
+      const { target, amount } = action.payload;
+      const newMyScore  = target === 'me'  ? Math.max(0, state.myScore  - amount) : state.myScore;
+      const newOppScore = target === 'opp' ? Math.max(0, state.oppScore - amount) : state.oppScore;
+      const matchEvent: MatchHistoryEvent = {
+        index:       state.matchHistory.length,
+        setNum:      state.setNum,
+        source:      'malus',
+        mine:        target === 'me',
+        malusTarget: target,
+        malusAmount: amount,
+        scoreAfter:  { my: newMyScore, opp: newOppScore },
+      };
+      return {
+        ...state,
+        myScore:      newMyScore,
+        oppScore:     newOppScore,
+        matchHistory: [...state.matchHistory, matchEvent],
+      };
+    }
+
     default:
       return state;
   }
@@ -622,6 +651,7 @@ export const MatchProvider = ({ children }: { children: React.ReactNode }) => {
     confirmSub:      (payload) => dispatch({ type: ACTION_TYPES.CONFIRM_SUB,      payload }),
     closeSetBanner:  ()        => dispatch({ type: ACTION_TYPES.CLOSE_SET_BANNER }),
     resetMatch:      ()        => dispatch({ type: ACTION_TYPES.RESET_MATCH }),
+    applyMalus:      (payload) => dispatch({ type: ACTION_TYPES.APPLY_MALUS, payload }),
   };
 
   return (
