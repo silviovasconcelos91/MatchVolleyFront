@@ -26,6 +26,7 @@ const ScoreHeader = ({ onRosterPress }: Props) => {
   const [resetModalVisible, setResetModalVisible] = useState(false);
   const [malusTarget, setMalusTarget] = useState<'me' | 'opp' | null>(null);
   const malusEnabled = rosterValidated && !setBannerVisible;
+  const malusMaxAmount: 1 | 2 = (mySets === 2 && oppSets === 2) ? 1 : 2;
 
   const handleMalusConfirm = useCallback((amount: 1 | 2) => {
     if (!malusTarget) return;
@@ -78,6 +79,7 @@ const ScoreHeader = ({ onRosterPress }: Props) => {
       <MalusModal
         visible={malusTarget !== null}
         target={malusTarget ?? 'me'}
+        maxAmount={malusMaxAmount}
         onConfirm={handleMalusConfirm}
         onClose={() => setMalusTarget(null)}
       />

@@ -6,11 +6,12 @@ import ModalBase, { modalSharedStyles } from './ModalBase';
 type Props = {
   visible: boolean;
   target: 'me' | 'opp';
+  maxAmount: 1 | 2;
   onConfirm: (amount: 1 | 2) => void;
   onClose: () => void;
 };
 
-const MalusModal = ({ visible, target, onConfirm, onClose }: Props) => {
+const MalusModal = ({ visible, target, maxAmount, onConfirm, onClose }: Props) => {
   const [amount, setAmount] = useState<1 | 2 | null>(null);
 
   useEffect(() => {
@@ -28,7 +29,7 @@ const MalusModal = ({ visible, target, onConfirm, onClose }: Props) => {
   return (
     <ModalBase visible={visible} title={title} onClose={onClose}>
       <View style={styles.amountRow}>
-        {([1, 2] as const).map(val => (
+        {([1, 2] as const).filter(val => val <= maxAmount).map(val => (
           <TouchableOpacity
             key={val}
             style={[styles.amountBtn, amount === val && styles.amountBtnActive]}
