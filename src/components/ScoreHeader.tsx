@@ -7,7 +7,7 @@
 //    - Les scores du set en cours
 // ─────────────────────────────────────────────
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Pressable, StyleSheet } from 'react-native';
 import MalusModal from './MalusModal';
 import { useMatch } from '../context/MatchContext';
@@ -26,6 +26,11 @@ const ScoreHeader = ({ onRosterPress }: Props) => {
   const [resetModalVisible, setResetModalVisible] = useState(false);
   const [malusTarget, setMalusTarget] = useState<'me' | 'opp' | null>(null);
   const malusEnabled = rosterValidated && !setBannerVisible;
+
+  const handleMalusConfirm = useCallback((amount: 1 | 2) => {
+    if (!malusTarget) return;
+    actions.applyMalus({ target: malusTarget, amount });
+  }, [malusTarget, actions]);
 
   return (
     <View style={styles.container}>
@@ -73,7 +78,7 @@ const ScoreHeader = ({ onRosterPress }: Props) => {
       <MalusModal
         visible={malusTarget !== null}
         target={malusTarget ?? 'me'}
-        onConfirm={(amount) => actions.applyMalus({ target: malusTarget ?? 'me', amount })}
+        onConfirm={handleMalusConfirm}
         onClose={() => setMalusTarget(null)}
       />
 
