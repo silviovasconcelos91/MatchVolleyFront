@@ -8,7 +8,8 @@
 // ─────────────────────────────────────────────
 
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Pressable, StyleSheet } from 'react-native';
+import MalusModal from './MalusModal';
 import { useMatch } from '../context/MatchContext';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 import EndMatchModal from './EndMatchModal';
@@ -18,11 +19,13 @@ type Props = { onRosterPress?: () => void };
 
 const ScoreHeader = ({ onRosterPress }: Props) => {
   const { state, actions } = useMatch(); // actions used for undo
-  const { myScore, oppScore, mySets, oppSets, setNum, rosterValidated, history } = state;
+  const { myScore, oppScore, mySets, oppSets, setNum, rosterValidated, history, setBannerVisible } = state;
   const undoDisabled = !rosterValidated || history.length === 0;
 
   const [endModalVisible, setEndModalVisible]     = useState(false);
   const [resetModalVisible, setResetModalVisible] = useState(false);
+  const [malusTarget, setMalusTarget] = useState<'me' | 'opp' | null>(null);
+  const malusEnabled = rosterValidated && !setBannerVisible;
 
   return (
     <View style={styles.container}>
@@ -67,20 +70,34 @@ const ScoreHeader = ({ onRosterPress }: Props) => {
         visible={resetModalVisible}
         onClose={() => setResetModalVisible(false)}
       />
+      <MalusModal
+        visible={malusTarget !== null}
+        target={malusTarget ?? 'me'}
+        onConfirm={(amount) => actions.applyMalus({ target: malusTarget ?? 'me', amount })}
+        onClose={() => setMalusTarget(null)}
+      />
 
       {/* ── Scores ── */}
       <View style={styles.scoresRow}>
-        <View style={styles.teamBlock}>
+        <Pressable
+          onLongPress={() => { if (malusEnabled) setMalusTarget('me'); }}
+          delayLongPress={400}
+          style={({ pressed }) => [styles.teamBlock, pressed && malusEnabled && styles.scorePressedFeedback]}
+        >
           <Text style={styles.teamLabel}>MON ÉQUIPE</Text>
           <Text style={styles.scoreHome}>{myScore}</Text>
-        </View>
+        </Pressable>
 
         <Text style={styles.dash}>–</Text>
 
-        <View style={styles.teamBlock}>
+        <Pressable
+          onLongPress={() => { if (malusEnabled) setMalusTarget('opp'); }}
+          delayLongPress={400}
+          style={({ pressed }) => [styles.teamBlock, pressed && malusEnabled && styles.scorePressedFeedback]}
+        >
           <Text style={styles.teamLabel}>ADVERSAIRE</Text>
           <Text style={styles.scoreAway}>{oppScore}</Text>
-        </View>
+        </Pressable>
       </View>
 
       {/* ── Annuler discret ── */}
@@ -171,6 +188,9 @@ const styles = StyleSheet.create({
   },
   teamBlock: {
     alignItems: 'center',
+  },
+  scorePressedFeedback: {
+    opacity: 0.5,
   },
   teamLabel: {
     fontSize: FONT_SIZE.xs,
