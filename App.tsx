@@ -35,6 +35,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  ActivityIndicator,
   StatusBar,
   StyleSheet,
   BackHandler,
@@ -72,6 +73,10 @@ import PlayerSeasonStatsScreen  from './src/screens/PlayerSeasonStatsScreen';
 
 // Thème
 import { COLORS, SPACING, FONT_SIZE } from './src/constants/theme';
+
+import { AuthProvider, useAuth } from './src/context/AuthContext';
+import LoginScreen    from './src/screens/LoginScreen';
+import RegisterScreen from './src/screens/RegisterScreen';
 
 // ── Types ──
 type TabId = 'court' | 'position' | 'sub' | 'graph' | 'stats';
@@ -123,6 +128,35 @@ const TabBar = ({ activeTab, onTabChange, disabledTabs }: TabBarProps) => (
     })}
   </View>
 );
+
+// ── Auth gate: renders auth screens or app based on session state ──
+const AuthGate = () => {
+  const { isAuthenticated, loading } = useAuth();
+  const [showRegister, setShowRegister] = useState(false);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator color={COLORS.green} size="large" />
+      </View>
+    );
+  }
+
+  if (!isAuthenticated) {
+    if (showRegister) {
+      return <RegisterScreen onSwitchToLogin={() => setShowRegister(false)} />;
+    }
+    return <LoginScreen onSwitchToRegister={() => setShowRegister(true)} />;
+  }
+
+  return (
+    <TeamProvider>
+      <MatchProvider>
+        <AppContent />
+      </MatchProvider>
+    </TeamProvider>
+  );
+};
 
 // ── Composant principal ──
 const AppContent = () => {
@@ -372,11 +406,9 @@ const AppContent = () => {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <TeamProvider>
-        <MatchProvider>
-          <AppContent />
-        </MatchProvider>
-      </TeamProvider>
+      <AuthProvider>
+        <AuthGate />
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }
@@ -422,6 +454,13 @@ const styles = StyleSheet.create({
   // Conteneur de l'écran (flex pour remplir l'espace restant)
   screenContainer: {
     flex: 1,
+    backgroundColor: COLORS.bgApp,
+  },
+
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: COLORS.bgApp,
   },
 });
