@@ -20,7 +20,7 @@ export const pingBackend = (): void => {
 
 type RefreshBody = { data: { accessToken: string; refreshToken: string } };
 
-async function doRefresh(): Promise<boolean> {
+async function doRefreshInner(): Promise<boolean> {
   const { refreshToken } = tokenStore.getTokens();
   if (!refreshToken) return false;
   try {
@@ -32,12 +32,20 @@ async function doRefresh(): Promise<boolean> {
     if (!res.ok) return false;
     const body = await res.json() as RefreshBody;
     tokenStore.setTokens(body.data.accessToken, body.data.refreshToken);
-    SecureStore.setItemAsync(SECURE_ACCESS_KEY, body.data.accessToken).catch(() => {});
-    SecureStore.setItemAsync(SECURE_REFRESH_KEY, body.data.refreshToken).catch(() => {});
+    await SecureStore.setItemAsync(SECURE_ACCESS_KEY, body.data.accessToken).catch(() => {});
+    await SecureStore.setItemAsync(SECURE_REFRESH_KEY, body.data.refreshToken).catch(() => {});
     return true;
   } catch {
     return false;
   }
+}
+
+let _refreshPromise: Promise<boolean> | null = null;
+
+async function doRefresh(): Promise<boolean> {
+  if (_refreshPromise) return _refreshPromise;
+  _refreshPromise = doRefreshInner().finally(() => { _refreshPromise = null; });
+  return _refreshPromise;
 }
 
 export const apiFetch = async (url: string, options?: RequestInit): Promise<Response> => {
