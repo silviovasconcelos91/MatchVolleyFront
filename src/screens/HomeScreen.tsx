@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
+import { useAuth } from '../context/AuthContext';
 
 type Props = {
   onNewMatch:      () => void;
@@ -12,64 +13,69 @@ type Props = {
   onStats:         () => void;
 };
 
-const HomeScreen = ({ onNewMatch, onManagePlayers, onStats }: Props) => (
-  <SafeAreaView style={styles.safeArea}>
-    <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCard} />
+function HomeScreen({ onNewMatch, onManagePlayers, onStats }: Props) {
+  const { logout } = useAuth();
 
-    {/* ── En-tête ── */}
-    <View style={styles.header}>
-      <Text style={styles.title}>VolleyCoach</Text>
-      <Text style={styles.subtitle}>Que voulez-vous faire ?</Text>
-    </View>
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCard} />
 
-    {/* ── Actions ── */}
-    <View style={styles.content}>
+      {/* ── En-tête ── */}
+      <View style={styles.header}>
+        <Text style={styles.title}>VolleyCoach</Text>
+        <Text style={styles.subtitle}>Que voulez-vous faire ?</Text>
+      </View>
 
-      {/* Nouveau match (actif) */}
-      <TouchableOpacity
-        style={styles.cardActive}
-        onPress={onNewMatch}
-        activeOpacity={0.7}
-      >
-        <Text style={styles.cardIcon}>🏐</Text>
-        <View style={styles.cardText}>
-          <Text style={styles.cardTitle}>Nouveau match</Text>
-          <Text style={styles.cardDesc}>Configurer et suivre un match en direct</Text>
-        </View>
-        <Text style={styles.cardChevron}>›</Text>
-      </TouchableOpacity>
+      {/* ── Actions ── */}
+      <View style={styles.content}>
 
-      {/* Stats (actif) */}
-      <TouchableOpacity
-        style={styles.cardActive}
-        onPress={onStats}
-        activeOpacity={0.7}
-      >
-        <Text style={styles.cardIcon}>📊</Text>
-        <View style={styles.cardText}>
-          <Text style={styles.cardTitle}>Statistiques</Text>
-          <Text style={styles.cardDesc}>Historique et analyses des matchs</Text>
-        </View>
-        <Text style={styles.cardChevron}>›</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.cardActive}
+          onPress={onNewMatch}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.cardIcon}>🏐</Text>
+          <View style={styles.cardText}>
+            <Text style={styles.cardTitle}>Nouveau match</Text>
+            <Text style={styles.cardDesc}>Configurer et suivre un match en direct</Text>
+          </View>
+          <Text style={styles.cardChevron}>›</Text>
+        </TouchableOpacity>
 
-      {/* Équipes / joueurs (actif) */}
-      <TouchableOpacity
-        style={styles.cardActive}
-        onPress={onManagePlayers}
-        activeOpacity={0.7}
-      >
-        <Text style={styles.cardIcon}>👥</Text>
-        <View style={styles.cardText}>
-          <Text style={styles.cardTitle}>Équipes & joueurs</Text>
-          <Text style={styles.cardDesc}>Créer et gérer vos effectifs</Text>
-        </View>
-        <Text style={styles.cardChevron}>›</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.cardActive}
+          onPress={onStats}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.cardIcon}>📊</Text>
+          <View style={styles.cardText}>
+            <Text style={styles.cardTitle}>Statistiques</Text>
+            <Text style={styles.cardDesc}>Historique et analyses des matchs</Text>
+          </View>
+          <Text style={styles.cardChevron}>›</Text>
+        </TouchableOpacity>
 
-    </View>
-  </SafeAreaView>
-);
+        <TouchableOpacity
+          style={styles.cardActive}
+          onPress={onManagePlayers}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.cardIcon}>👥</Text>
+          <View style={styles.cardText}>
+            <Text style={styles.cardTitle}>Équipes & joueurs</Text>
+            <Text style={styles.cardDesc}>Créer et gérer vos effectifs</Text>
+          </View>
+          <Text style={styles.cardChevron}>›</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={logout} style={styles.logoutButton}>
+          <Text style={styles.logoutText}>Se déconnecter</Text>
+        </TouchableOpacity>
+
+      </View>
+    </SafeAreaView>
+  );
+}
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -171,6 +177,16 @@ const styles = StyleSheet.create({
   comingSoonText: {
     fontSize: FONT_SIZE.xs,
     color: COLORS.textDark,
+  },
+
+  logoutButton: {
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+    marginTop: SPACING.sm,
+  },
+  logoutText: {
+    fontSize: FONT_SIZE.md,
+    color: COLORS.textMuted,
   },
 });
 
