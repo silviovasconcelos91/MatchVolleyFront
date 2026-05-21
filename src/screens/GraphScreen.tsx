@@ -6,8 +6,7 @@ import type { MatchHistoryEvent } from '../context/MatchContext';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const GRAPH_WIDTH  = SCREEN_WIDTH - SPACING.xl * 2 - SPACING.md * 2;
-const GRAPH_HEIGHT = 260;
+const GRAPH_SIZE  = SCREEN_WIDTH - SPACING.xl * 2 - SPACING.md * 2;
 const PAD = 30;
 
 type Point = { x: number; y: number };
@@ -50,8 +49,8 @@ const GraphScreen = () => {
 
   const maxVal = Math.max(25, displayScore.my + 3, displayScore.opp + 3);
 
-  const toX = (v: number) => PAD + (v / maxVal) * (GRAPH_WIDTH - PAD * 2);
-  const toY = (v: number) => GRAPH_HEIGHT - PAD - (v / maxVal) * (GRAPH_HEIGHT - PAD * 2);
+  const toX = (v: number) => PAD + (v / maxVal) * (GRAPH_SIZE - PAD * 2);
+  const toY = (v: number) => GRAPH_SIZE - PAD - (v / maxVal) * (GRAPH_SIZE - PAD * 2);
 
   const polylinePoints = points.map(pt => `${toX(pt.x)},${toY(pt.y)}`).join(' ');
   const axisLabels = [0, 5, 10, 15, 20, 25].filter(v => v <= maxVal);
@@ -96,7 +95,7 @@ const GraphScreen = () => {
 
       {/* ── Graphe SVG ── */}
       <View style={styles.graphWrapper}>
-        <Svg width={GRAPH_WIDTH} height={GRAPH_HEIGHT}>
+        <Svg width={GRAPH_SIZE} height={GRAPH_SIZE}>
 
           <Rect
             x={toX(0)} y={toY(0)}
@@ -118,13 +117,13 @@ const GraphScreen = () => {
           <Line x1={toX(0)} y1={toY(0)} x2={toX(maxVal)} y2={toY(maxVal)} stroke={COLORS.textMuted} strokeWidth={1} strokeDasharray="6,4" strokeOpacity={0.4} />
 
           {axisLabels.map(v => (
-            <SvgText key={`xlabel-${v}`} x={toX(v)} y={GRAPH_HEIGHT - 6} textAnchor="middle" fontSize={9} fill={COLORS.textMuted}>{v}</SvgText>
+            <SvgText key={`xlabel-${v}`} x={toX(v)} y={GRAPH_SIZE - 6} textAnchor="middle" fontSize={9} fill={COLORS.textMuted}>{v}</SvgText>
           ))}
           {axisLabels.map(v => (
             <SvgText key={`ylabel-${v}`} x={PAD - 4} y={toY(v) + 3} textAnchor="end" fontSize={9} fill={COLORS.textMuted}>{v}</SvgText>
           ))}
 
-          <SvgText x={GRAPH_WIDTH / 2} y={GRAPH_HEIGHT} textAnchor="middle" fontSize={9} fill={COLORS.blue}>Mon équipe</SvgText>
+          <SvgText x={GRAPH_SIZE / 2} y={GRAPH_SIZE} textAnchor="middle" fontSize={9} fill={COLORS.blue}>Mon équipe</SvgText>
 
           {points.length > 1 && (
             <Polyline points={polylinePoints} fill="none" stroke={COLORS.blue} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />

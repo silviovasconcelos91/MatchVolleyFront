@@ -28,7 +28,7 @@ const ACTION_LABELS: Record<ActionKey, string> = {
 
 const CourtScreen = () => {
   const { state, actions } = useMatch();
-  const { matchPlayers, setBannerVisible, rosterValidated, liberoId, matchHistory, setNum } = state;
+  const { matchPlayers, setBannerVisible, rosterValidated, liberoId, matchHistory, setNum, history } = state;
 
   const [selectedAction, setSelectedAction] = useState<ActionKey | null>(null);
 
@@ -138,11 +138,6 @@ const CourtScreen = () => {
         {/* Hint sélection joueur */}
         <View style={styles.actionPanelHeader}>
           <Text style={styles.actionPanelHint}>{actionHint}</Text>
-          {selectedAction && (
-            <TouchableOpacity onPress={() => setSelectedAction(null)}>
-              <Text style={styles.cancelSelectionBtn}>✕ Désélectionner</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* POINTS */}
@@ -233,6 +228,17 @@ const CourtScreen = () => {
             <Text style={styles.btnOppScoreLabel}>Point adv.</Text>
           </TouchableOpacity>
         </View>
+
+        <View style={styles.divider} />
+
+        <TouchableOpacity
+          style={[styles.btnUndo, (disabled || history.length === 0) && styles.btnDisabled]}
+          onPress={actions.undo}
+          disabled={disabled || history.length === 0}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.btnUndoText}>↩ Annuler la dernière action</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={{ height: SPACING.xs }} />
@@ -434,6 +440,21 @@ const styles = StyleSheet.create({
   },
   btnDisabled: {
     opacity: 0.4,
+  },
+  btnUndo: {
+    height: 56,
+    marginTop: SPACING.xs,
+    backgroundColor: `${COLORS.red}22`,
+    borderWidth: 1,
+    borderColor: `${COLORS.red}55`,
+    borderRadius: RADIUS.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnUndoText: {
+    fontSize: FONT_SIZE.xl,
+    fontWeight: '600',
+    color: COLORS.redLight,
   },
 
   groupLabel: {
