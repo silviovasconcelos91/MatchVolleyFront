@@ -12,6 +12,8 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { COLORS, FONT_SIZE, SPACING, RADIUS } from '../constants/theme';
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 type Props = {
   onSwitchToRegister: () => void;
 };
@@ -20,12 +22,21 @@ export default function LoginScreen({ onSwitchToRegister }: Props) {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleLogin(): Promise<void> {
     if (!email.trim() || !password.trim()) {
       setError('Email et mot de passe requis');
+      return;
+    }
+    if (!EMAIL_REGEX.test(email.trim())) {
+      setError('Format d\'email invalide');
+      return;
+    }
+    if (password.length < 8) {
+      setError('Le mot de passe doit contenir au moins 8 caractères');
       return;
     }
     setError(null);
@@ -63,14 +74,24 @@ export default function LoginScreen({ onSwitchToRegister }: Props) {
 
         <View style={styles.field}>
           <Text style={styles.label}>Mot de passe</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            placeholder="••••••••"
-            placeholderTextColor={COLORS.textMuted}
-          />
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.inputFlex}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              placeholder="••••••••"
+              placeholderTextColor={COLORS.textMuted}
+            />
+            <TouchableOpacity
+              onPress={() => setShowPassword(v => !v)}
+              style={styles.toggleBtn}
+            >
+              <Text style={styles.toggleText}>
+                {showPassword ? 'Cacher' : 'Voir'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {error !== null && (
@@ -141,6 +162,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     color: COLORS.textPrimary,
+    fontSize: FONT_SIZE.lg,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.bgCard,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
+  },
+  inputFlex: {
+    flex: 1,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    color: COLORS.textPrimary,
+    fontSize: FONT_SIZE.lg,
+  },
+  toggleBtn: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+  },
+  toggleText: {
+    color: COLORS.blue,
     fontSize: FONT_SIZE.lg,
   },
   errorBanner: {
