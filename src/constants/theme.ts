@@ -79,9 +79,8 @@ export const POSITION_COLORS = {
   MB2:     '#ef4444',
 } as const;
 
-export function getPositionColor(role: string): string {
-  return POSITION_COLORS[role as keyof typeof POSITION_COLORS] ?? COLORS.textMuted;
-}
+export const getPositionColor = (role: string): string =>
+  POSITION_COLORS[role as keyof typeof POSITION_COLORS] ?? COLORS.textMuted;
 
 // ── Espacements ──
 export const SPACING = {
