@@ -4,8 +4,7 @@ import {
 } from 'react-native';
 import { useMatch } from '../context/MatchContext';
 import type { MatchPlayer } from '../context/MatchContext';
-import { getPlayerColor } from '../constants/theme';
-import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
+import { getPositionColor, COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 import { COURT_DISPLAY_ORDER } from '../data/players';
 import { getTotalPoints, getTotalFaults } from '../data/players';
 import type { ActionKey } from '../data/players';
@@ -61,7 +60,7 @@ const CourtScreen = () => {
       );
     }
 
-    const color = getPlayerColor(player.id);
+    const color = getPositionColor(player.tacticalRole);
     const currentSetStats = computePlayerSetStats(matchHistory, setNum, player.id);
     const totalPts    = getTotalPoints(currentSetStats);
     const totalFaults = getTotalFaults(currentSetStats);
