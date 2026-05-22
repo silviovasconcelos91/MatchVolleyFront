@@ -16,7 +16,7 @@ const GRAPH_HEIGHT = 220;
 const PAD = 28;
 
 const SetGraph = ({ timeline, finalMyScore, finalOppScore }: Props) => {
-  const points = [{ x: 0, y: 0 }, ...timeline.map(e => ({ x: e.myScore, y: e.oppScore }))];
+  const points = [{ x: 0, y: 0 }, ...timeline.map(e => ({ x: e.myScore ?? 0, y: e.oppScore ?? 0 }))];
 
   const maxVal = Math.max(25, finalMyScore + 3, finalOppScore + 3);
   const toX = (v: number) => PAD + (v / maxVal) * (GRAPH_WIDTH - PAD * 2);

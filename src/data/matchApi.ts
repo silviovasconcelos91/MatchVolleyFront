@@ -2,13 +2,33 @@ import { createEmptyStats } from './players';
 import type { PlayerStats, ActionKey, PlayerRole } from './players';
 import type { MatchState, MatchHistoryEvent } from '../context/MatchContext';
 import type { Team } from './teams';
-import { API_URL, apiFetch } from './api';
+import {
+  getMatchStat,
+  getTeamMatches as sdkGetTeamMatches,
+  getPlayerSeasonStats as sdkGetPlayerSeasonStats,
+  saveMatchStat,
+} from './openapi/sdk.gen';
+import type { MatchStatRequest } from './openapi/types.gen';
 
 // ─────────────────────────────────────────────
-//  DTOs — mirror exact du backend Kotlin
+//  Re-exports — generated types aliased to old names
 // ─────────────────────────────────────────────
 
-type StatsDto = {
+export type { MatchDetailResponse as MatchDetail } from './openapi/types.gen';
+export type { StatsDto as MatchDetailStats } from './openapi/types.gen';
+export type { TimelineEntryDto as MatchDetailTimelineEntry } from './openapi/types.gen';
+export type { SetStatDto as MatchDetailSetStat } from './openapi/types.gen';
+export type { PlayerSetStatDto as MatchDetailPlayerSetStat } from './openapi/types.gen';
+export type { PlayerStatDto as MatchDetailPlayerStat } from './openapi/types.gen';
+export type { MatchDto as MatchSummary } from './openapi/types.gen';
+export type { PlayerSeasonStatsResponse as PlayerSeasonStats } from './openapi/types.gen';
+export type { PositionStatsDto as PositionStats } from './openapi/types.gen';
+
+// ─────────────────────────────────────────────
+//  Local internal DTOs — used only inside buildMatchResult
+// ─────────────────────────────────────────────
+
+type LocalStatsDto = {
   points: number;
   attackPoints: number;
   blockPoints: number;
@@ -19,22 +39,22 @@ type StatsDto = {
   faults: number;
 };
 
-type TimelineEntry = {
+type LocalTimelineEntry = {
   myScore: number;
   oppScore: number;
   playerId: number | null;
   action: string;
 };
 
-type SetStatDto = {
+type LocalSetStatDto = {
   set: number;
   myScore: number;
   oppScore: number;
-  teamStats: StatsDto;
-  timeline: TimelineEntry[];
+  teamStats: LocalStatsDto;
+  timeline: LocalTimelineEntry[];
 };
 
-type PlayerSetStatDto = {
+type LocalPlayerSetStatDto = {
   set: number;
   position: string | null;
   points: number;
@@ -47,46 +67,46 @@ type PlayerSetStatDto = {
   faults: number;
 };
 
-type PlayerStatDto = {
+type LocalPlayerStatDto = {
   playerId: number;
   number: number;
   role: PlayerRole;
-  matchStats: StatsDto;
-  setStats: PlayerSetStatDto[];
+  matchStats: LocalStatsDto;
+  setStats: LocalPlayerSetStatDto[];
 };
 
-type MatchDto = {
+type LocalMatchDto = {
   id: string;
   teamId: number;
-  opponentId: number | null;
-  seasonId: string | null;
-  competitionId: number | null;
-  date: string;        // LocalDate : "2026-04-07"
+  opponentId?: number;
+  seasonId?: string;
+  competitionId?: number;
+  date: string;
   result: 'won' | 'lost';
   mySets: number;
   oppSets: number;
   title: string | null;
-  home: boolean | null;
+  home?: boolean;
 };
 
-type MetaDto = {
-  clientGeneratedAt: string; // Instant ISO 8601
+type LocalMetaDto = {
+  clientGeneratedAt: string;
   appVersion: string;
 };
 
-type MatchStatRequest = {
-  match: MatchDto;
-  sets: SetStatDto[];
-  players: PlayerStatDto[];
-  teamMatchStats: StatsDto;
-  meta: MetaDto;
+type LocalMatchStatRequest = {
+  match: LocalMatchDto;
+  sets: LocalSetStatDto[];
+  players: LocalPlayerStatDto[];
+  teamMatchStats: LocalStatsDto;
+  meta: LocalMetaDto;
 };
 
 // ─────────────────────────────────────────────
 //  HELPERS
 // ─────────────────────────────────────────────
 
-const toStatsDto = (s: PlayerStats): StatsDto => ({
+const toStatsDto = (s: PlayerStats): LocalStatsDto => ({
   points:        s.pt,
   attackPoints:  s.atk,
   blockPoints:   s.block,
@@ -97,7 +117,7 @@ const toStatsDto = (s: PlayerStats): StatsDto => ({
   faults:        s.fault,
 });
 
-const aggregateStats = (statsArray: PlayerStats[]): StatsDto =>
+const aggregateStats = (statsArray: PlayerStats[]): LocalStatsDto =>
   toStatsDto(
     statsArray.reduce(
       (acc, s) => {
@@ -155,8 +175,8 @@ export const buildMatchResult = (matchState: MatchState, team: Team): MatchStatR
   const setNums = allSetResults.map(s => s.setNum);
 
   // ── Sets ──
-  const sets: SetStatDto[] = allSetResults.map(setResult => {
-    const timeline: TimelineEntry[] = matchHistory
+  const sets: LocalSetStatDto[] = allSetResults.map(setResult => {
+    const timeline: LocalTimelineEntry[] = matchHistory
       .filter(e => e.setNum === setResult.setNum)
       .map(e => ({
         myScore:  e.scoreAfter.my,
@@ -168,7 +188,6 @@ export const buildMatchResult = (matchState: MatchState, team: Team): MatchStatR
     const perPlayerSetStats = matchPlayers.map(p =>
       computePlayerSetStats(matchHistory, setResult.setNum, p.id),
     );
-
 
     const baseTeamStats = aggregateStats(perPlayerSetStats);
 
@@ -182,7 +201,7 @@ export const buildMatchResult = (matchState: MatchState, team: Team): MatchStatR
   });
 
   // ── Joueurs ── (uniquement ceux qui ont foulé le terrain au moins un set)
-  const players: PlayerStatDto[] = matchPlayers
+  const players: LocalPlayerStatDto[] = matchPlayers
     .filter(player => (playerSetPresence[player.id]?.length ?? 0) > 0)
     .map(player => {
       const playedSets = playerSetPresence[player.id] ?? [];
@@ -208,19 +227,19 @@ export const buildMatchResult = (matchState: MatchState, team: Team): MatchStatR
       };
     });
 
-  return {
+  const payload: LocalMatchStatRequest = {
     match: {
       id:            String(Date.now()),
       teamId:        team.id,
-      opponentId:    null,
-      seasonId:      null,
-      competitionId: null,
+      opponentId:    undefined,
+      seasonId:      undefined,
+      competitionId: undefined,
       date:          new Date().toISOString().split('T')[0], // "2026-04-07"
       result:        mySets >= oppSets ? 'won' : 'lost',
       mySets,
       oppSets,
       title:         matchState.matchName,
-      home:          matchState.isHome,
+      home:          matchState.isHome ?? undefined,
     },
     sets,
     players,
@@ -230,148 +249,59 @@ export const buildMatchResult = (matchState: MatchState, team: Team): MatchStatR
       appVersion:        '1.0.0',
     },
   };
+
+  // Cast to generated MatchStatRequest — fields are a superset (all optional in generated type)
+  return payload as MatchStatRequest;
 };
 
 // ─────────────────────────────────────────────
-//  GET /api/v1/match-stats/{matchId} — types réponse
+//  Network wrappers — maintain old call signatures
 // ─────────────────────────────────────────────
 
-export type MatchDetailStats = {
-  points: number;
-  attackPoints: number;
-  blockPoints: number;
-  acePoints: number;
-  attackErrors: number;
-  serviceErrors: number;
-  receptions: number;
-  faults?: number;
-};
+import type {
+  MatchDetailResponse,
+  MatchDto,
+  PlayerSeasonStatsResponse,
+} from './openapi/types.gen';
 
-export type MatchDetailTimelineEntry = {
-  myScore: number;
-  oppScore: number;
-  playerId: number | null;
-  action: string;
-  occurredAt: string;
-};
-
-export type MatchDetailSetStat = {
-  set: number;
-  myScore: number;
-  oppScore: number;
-  teamStats: MatchDetailStats;
-  timeline: MatchDetailTimelineEntry[];
-};
-
-export type MatchDetailPlayerSetStat = {
-  set: number;
-  position?: string | null;
-  points: number;
-  attackPoints: number;
-  blockPoints: number;
-  acePoints: number;
-  attackErrors: number;
-  serviceErrors: number;
-  receptions: number;
-  faults?: number;
-};
-
-export type MatchDetailPlayerStat = {
-  playerId: number;
-  number: number;
-  role: string;
-  matchStats: MatchDetailStats;
-  setStats: MatchDetailPlayerSetStat[];
-};
-
-export type MatchDetail = {
-  id: string;
-  teamId: number;
-  date: string;
-  result: string;
-  mySets: number;
-  oppSets: number;
-  title?: string | null;
-  home?: boolean | null;
-  teamMatchStats: MatchDetailStats;
-  sets: MatchDetailSetStat[];
-  players: MatchDetailPlayerStat[];
-};
-
-export const getMatchDetail = async (matchId: string): Promise<MatchDetail> => {
-  const res = await apiFetch(`${API_URL}/api/v1/match-stats/${matchId}`);
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}`);
+export const getMatchDetail = async (matchId: string): Promise<MatchDetailResponse> => {
+  const { data, error } = await getMatchStat({ path: { matchId } });
+  if (error !== undefined || data === undefined) {
+    throw new Error('Failed to fetch match detail');
   }
-  const json = await res.json() as { data: MatchDetail };
-  return json.data;
-};
-
-export type MatchSummary = {
-  id: string;
-  teamId: number;
-  date: string;
-  result: string;
-  mySets: number;
-  oppSets: number;
-  title?: string | null;
-  home?: boolean | null;
-};
-
-export const getTeamMatches = async (teamId: number): Promise<MatchSummary[]> => {
-  const res = await apiFetch(`${API_URL}/api/v1/teams/${teamId}/matches`);
-  if (!res.ok) {
-    const body = await res.text();
-    console.error('[matchApi] GET /teams/matches HTTP', res.status, body);
-    throw new Error(`HTTP ${res.status}`);
+  const result = data.data;
+  if (result === undefined) {
+    throw new Error('No data in match detail response');
   }
-  const json = await res.json() as { data: MatchSummary[] };
-  return json.data;
+  return result;
 };
 
-// ─────────────────────────────────────────────
-//  GET /api/v1/players/{id}/season-stats
-// ─────────────────────────────────────────────
-
-export type PositionStats = {
-  matchCount: number;
-  setCount: number;
-  stats: MatchDetailStats;
-};
-
-export type PlayerSeasonStats = {
-  playerId: number;
-  matchCount: number;
-  setCount: number;
-  totalStats: MatchDetailStats;
-  statsByPosition: Record<string, PositionStats>;
+export const getTeamMatches = async (teamId: number): Promise<MatchDto[]> => {
+  const { data, error } = await sdkGetTeamMatches({ path: { id: teamId } });
+  if (error !== undefined || data === undefined) {
+    throw new Error('Failed to fetch team matches');
+  }
+  return data.data ?? [];
 };
 
 export const getPlayerSeasonStats = async (
   playerId: number,
   teamId: number,
-): Promise<PlayerSeasonStats> => {
-  const res = await apiFetch(
-    `${API_URL}/api/v1/players/${playerId}/season-stats?teamId=${teamId}`,
-  );
-  if (!res.ok) {
-    const body = await res.text();
-    console.error('[matchApi] GET /players/season-stats HTTP', res.status, body);
-    throw new Error(`HTTP ${res.status}`);
+): Promise<PlayerSeasonStatsResponse> => {
+  const { data, error } = await sdkGetPlayerSeasonStats({ path: { id: playerId }, query: { teamId } });
+  if (error !== undefined || data === undefined) {
+    throw new Error('Failed to fetch player season stats');
   }
-  const json = await res.json() as { data: PlayerSeasonStats };
-  return json.data;
+  const result = data.data;
+  if (result === undefined) {
+    throw new Error('No data in player season stats response');
+  }
+  return result;
 };
 
 export const sendMatchResult = async (payload: MatchStatRequest): Promise<void> => {
-  const res = await apiFetch(`${API_URL}/api/v1/match-stats`, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const body = await res.text();
-    console.error('[matchApi] POST /match-stats HTTP', res.status, body);
-    throw new Error(`HTTP ${res.status}`);
+  const { error } = await saveMatchStat({ body: payload });
+  if (error !== undefined) {
+    throw new Error('Failed to send match result');
   }
 };

@@ -30,6 +30,8 @@
 //        StatsScreen.tsx         → statistiques joueurs
 // ─────────────────────────────────────────────
 
+import './src/data/openapi/apiClient';
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,

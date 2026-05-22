@@ -26,13 +26,15 @@ const formatDate = (iso: string): string => {
 };
 
 const MatchRow = memo(({ match, onPress }: MatchRowProps) => {
-  const won = match.result.toLowerCase() === 'won';
+  const won = (match.result ?? '').toLowerCase() === 'won';
   const hasLocation = match.home !== null && match.home !== undefined;
+  const matchId = match.id ?? '';
+  const matchDate = match.date ?? '';
 
   return (
     <TouchableOpacity
       style={styles.matchRow}
-      onPress={() => onPress(match.id, match.date)}
+      onPress={() => onPress(matchId, matchDate)}
       activeOpacity={0.7}
     >
       <View style={[styles.resultBadge, won ? styles.resultWon : styles.resultLost]}>
@@ -46,7 +48,7 @@ const MatchRow = memo(({ match, onPress }: MatchRowProps) => {
           {match.title ?? '—'}
         </Text>
         <View style={styles.matchMeta}>
-          <Text style={styles.matchDate}>{formatDate(match.date)}</Text>
+          <Text style={styles.matchDate}>{formatDate(matchDate)}</Text>
           {hasLocation && (
             <View style={[
               styles.locationBadge,
@@ -64,7 +66,7 @@ const MatchRow = memo(({ match, onPress }: MatchRowProps) => {
       </View>
 
       <Text style={styles.matchScore}>
-        {match.mySets} – {match.oppSets}
+        {match.mySets ?? 0} – {match.oppSets ?? 0}
       </Text>
       <Text style={styles.matchChevron}>›</Text>
     </TouchableOpacity>
@@ -122,7 +124,7 @@ const TeamMatchListScreen = ({ teamId, teamName, onBack, onSelectMatch }: Props)
       {!loading && error === null && (
         <FlatList<MatchSummary>
           data={matches}
-          keyExtractor={item => item.id}
+          keyExtractor={item => item.id ?? ''}
           renderItem={renderMatch}
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={{ height: SPACING.sm }} />}

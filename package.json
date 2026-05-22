@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "generate-api": "openapi-ts"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
@@ -21,6 +22,7 @@
   },
   "private": true,
   "devDependencies": {
+    "@hey-api/openapi-ts": "^0.97.2",
     "@types/react": "~19.2.10",
     "typescript": "~5.9.2"
   }

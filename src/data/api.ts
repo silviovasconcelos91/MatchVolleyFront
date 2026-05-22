@@ -9,7 +9,7 @@ function resolveApiUrl(): string {
   const hostUri: string | undefined = Constants.expoConfig?.hostUri;
   if (hostUri) return `http://${hostUri.split(':')[0]}:8080`;
 
-  return 'https://matchvolley-production.up.railway.app';
+  return 'https://volleymatch-production.up.railway.app';
 }
 
 export const API_URL = resolveApiUrl();
@@ -42,7 +42,7 @@ async function doRefreshInner(): Promise<boolean> {
 
 let _refreshPromise: Promise<boolean> | null = null;
 
-async function doRefresh(): Promise<boolean> {
+export async function doRefresh(): Promise<boolean> {
   if (_refreshPromise) return _refreshPromise;
   _refreshPromise = doRefreshInner().finally(() => { _refreshPromise = null; });
   return _refreshPromise;

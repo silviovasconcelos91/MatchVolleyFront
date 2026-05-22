@@ -57,14 +57,14 @@ const TIMELINE_ACTION_LABELS: Record<string, string> = {
 const MINE_ACTIONS = new Set(['pt', 'atk', 'block', 'ace', 'opp_fault']);
 
 const playerSetToStats = (s: MatchDetailPlayerSetStat): MatchDetailStats => ({
-  points:        s.points,
-  attackPoints:  s.attackPoints,
-  blockPoints:   s.blockPoints,
-  acePoints:     s.acePoints,
-  attackErrors:  s.attackErrors,
-  serviceErrors: s.serviceErrors,
-  receptions:    s.receptions,
-  faults:        s.faults,
+  points:        s.points        ?? 0,
+  attackPoints:  s.attackPoints  ?? 0,
+  blockPoints:   s.blockPoints   ?? 0,
+  acePoints:     s.acePoints     ?? 0,
+  attackErrors:  s.attackErrors  ?? 0,
+  serviceErrors: s.serviceErrors ?? 0,
+  receptions:    s.receptions    ?? 0,
+  faults:        s.faults        ?? 0,
 });
 
 // ── Cellule stat ──────────────────────────────────────────────────
@@ -86,8 +86,17 @@ type MatchStatsBlockProps = {
 };
 
 const MatchStatsBlock = ({ stats, myScore, oppScore, hideTotalScore }: MatchStatsBlockProps) => {
-  const playerPoints = stats.points + stats.attackPoints + stats.blockPoints + stats.acePoints;
-  const teamFaults   = stats.attackErrors + stats.serviceErrors + stats.receptions + (stats.faults ?? 0);
+  const pts    = stats.points        ?? 0;
+  const atk    = stats.attackPoints  ?? 0;
+  const blk    = stats.blockPoints   ?? 0;
+  const ace    = stats.acePoints     ?? 0;
+  const atkErr = stats.attackErrors  ?? 0;
+  const srvErr = stats.serviceErrors ?? 0;
+  const recv   = stats.receptions    ?? 0;
+  const fault  = stats.faults        ?? 0;
+
+  const playerPoints = pts + atk + blk + ace;
+  const teamFaults   = atkErr + srvErr + recv + fault;
   const hasScores    = myScore !== undefined && oppScore !== undefined;
   const oppActual    = hasScores ? Math.max(0, oppScore - teamFaults) : 0;
   const oppFaults    = hasScores ? Math.max(0, myScore - playerPoints) : 0;
@@ -113,10 +122,10 @@ const MatchStatsBlock = ({ stats, myScore, oppScore, hideTotalScore }: MatchStat
           <Text style={[styles.statsSectionTotal, { color: COLORS.greenLight }]}>{playerPoints}</Text>
         </View>
         <View style={styles.statCellRow}>
-          <StatCell label="Pt"   value={stats.points}       color={COLORS.greenLight} />
-          <StatCell label="Atk"  value={stats.attackPoints} color={COLORS.blue} />
-          <StatCell label="Bloc" value={stats.blockPoints}  color="#e040fb" />
-          <StatCell label="Ace"  value={stats.acePoints}    color={COLORS.greenLight} />
+          <StatCell label="Pt"   value={pts}  color={COLORS.greenLight} />
+          <StatCell label="Atk"  value={atk}  color={COLORS.blue} />
+          <StatCell label="Bloc" value={blk}  color="#e040fb" />
+          <StatCell label="Ace"  value={ace}  color={COLORS.greenLight} />
         </View>
       </View>
 
@@ -129,10 +138,10 @@ const MatchStatsBlock = ({ stats, myScore, oppScore, hideTotalScore }: MatchStat
           <Text style={[styles.statsSectionTotal, { color: COLORS.redLight }]}>{teamFaults}</Text>
         </View>
         <View style={styles.statCellRow}>
-          <StatCell label="Atk"   value={stats.attackErrors}  color={COLORS.redLight} />
-          <StatCell label="Srv"   value={stats.serviceErrors} color={COLORS.redLight} />
-          <StatCell label="Recv"  value={stats.receptions}    color={COLORS.redLight} />
-          <StatCell label="Faute" value={stats.faults ?? 0}   color={COLORS.redLight} />
+          <StatCell label="Atk"   value={atkErr} color={COLORS.redLight} />
+          <StatCell label="Srv"   value={srvErr} color={COLORS.redLight} />
+          <StatCell label="Recv"  value={recv}   color={COLORS.redLight} />
+          <StatCell label="Faute" value={fault}  color={COLORS.redLight} />
         </View>
       </View>
 
@@ -156,9 +165,11 @@ const MatchStatsBlock = ({ stats, myScore, oppScore, hideTotalScore }: MatchStat
 
 // ── Onglet 1 : Résumé global ───────────────────────────────────
 const ResumeTab = ({ data }: { data: MatchDetail }) => {
-  const won = data.result.toLowerCase() === 'won';
-  const myTotal  = data.sets.reduce((sum, s) => sum + s.myScore,  0);
-  const oppTotal = data.sets.reduce((sum, s) => sum + s.oppScore, 0);
+  const won = (data.result ?? '').toLowerCase() === 'won';
+  const sets = data.sets ?? [];
+  const myTotal  = sets.reduce((sum, s) => sum + (s.myScore  ?? 0), 0);
+  const oppTotal = sets.reduce((sum, s) => sum + (s.oppScore ?? 0), 0);
+  const teamStats = data.teamMatchStats ?? {};
   return (
     <View style={styles.tabContent}>
       <View style={styles.scoreCard}>
@@ -169,9 +180,9 @@ const ResumeTab = ({ data }: { data: MatchDetail }) => {
         </View>
 
         <View style={styles.scoreRow}>
-          <Text style={styles.scoreNum}>{data.mySets}</Text>
+          <Text style={styles.scoreNum}>{data.mySets ?? 0}</Text>
           <Text style={styles.scoreSep}>–</Text>
-          <Text style={styles.scoreNum}>{data.oppSets}</Text>
+          <Text style={styles.scoreNum}>{data.oppSets ?? 0}</Text>
         </View>
         <Text style={styles.scoreSublabel}>sets</Text>
 
@@ -188,7 +199,7 @@ const ResumeTab = ({ data }: { data: MatchDetail }) => {
       <Text style={styles.sectionTitle}>STATS ÉQUIPE</Text>
       <View style={styles.card}>
         <MatchStatsBlock
-          stats={data.teamMatchStats}
+          stats={teamStats}
           myScore={myTotal}
           oppScore={oppTotal}
           hideTotalScore
@@ -210,37 +221,42 @@ const SetsTab = ({ data, playerName, playerInfo }: SetsTabProps) => {
 
   return (
     <View style={styles.tabContent}>
-      {data.sets.map(set => {
-        const myWon      = set.myScore > set.oppScore;
-        const expanded   = expandedSet === set.set;
-        const hasTimeline = set.timeline.length > 0;
+      {(data.sets ?? []).map(set => {
+        const setNum      = set.set ?? 0;
+        const myScore     = set.myScore  ?? 0;
+        const oppScore    = set.oppScore ?? 0;
+        const myWon       = myScore > oppScore;
+        const expanded    = expandedSet === setNum;
+        const timeline    = set.timeline ?? [];
+        const hasTimeline = timeline.length > 0;
+        const teamStats   = set.teamStats ?? {};
 
         return (
-          <View key={set.set} style={styles.card}>
+          <View key={setNum} style={styles.card}>
             <View style={styles.setHeader}>
-              <Text style={styles.setLabel}>Set {set.set}</Text>
+              <Text style={styles.setLabel}>Set {setNum}</Text>
               <View style={styles.setScoreRow}>
                 <Text style={[styles.setScore, myWon ? styles.setScoreWon : styles.setScoreLost]}>
-                  {set.myScore}
+                  {myScore}
                 </Text>
                 <Text style={styles.setScoreSep}> – </Text>
                 <Text style={[styles.setScore, myWon ? styles.setScoreLost : styles.setScoreWon]}>
-                  {set.oppScore}
+                  {oppScore}
                 </Text>
               </View>
             </View>
 
             <Text style={styles.subSectionTitle}>Stats équipe</Text>
             <MatchStatsBlock
-              stats={set.teamStats}
-              myScore={set.myScore}
-              oppScore={set.oppScore}
+              stats={teamStats}
+              myScore={myScore}
+              oppScore={oppScore}
             />
 
             {hasTimeline && (
               <TouchableOpacity
                 style={styles.timelineToggle}
-                onPress={() => setExpandedSet(expanded ? null : set.set)}
+                onPress={() => setExpandedSet(expanded ? null : setNum)}
                 activeOpacity={0.7}
               >
                 <Text style={styles.timelineToggleText}>Timeline</Text>
@@ -251,25 +267,27 @@ const SetsTab = ({ data, playerName, playerInfo }: SetsTabProps) => {
             {expanded && hasTimeline && (
               <>
                 <SetGraph
-                  timeline={set.timeline}
-                  finalMyScore={set.myScore}
-                  finalOppScore={set.oppScore}
+                  timeline={timeline}
+                  finalMyScore={myScore}
+                  finalOppScore={oppScore}
                 />
                 <View style={styles.actionList}>
-                  {set.timeline.map((entry, i) => {
-                    const mine = MINE_ACTIONS.has(entry.action);
-                    const info = entry.playerId !== null ? playerInfo(entry.playerId) : null;
-                    const name = entry.playerId !== null ? playerName(entry.playerId) : null;
+                  {timeline.map((entry, i) => {
+                    const action   = entry.action ?? '';
+                    const mine     = MINE_ACTIONS.has(action);
+                    const pid      = entry.playerId ?? null;
+                    const info     = pid !== null ? playerInfo(pid) : null;
+                    const name     = pid !== null ? playerName(pid) : null;
                     return (
                       <View key={i} style={[styles.actionRow, mine ? styles.actionRowMine : styles.actionRowOpp]}>
                         <View style={[styles.scoreTag, mine ? styles.scoreTagMine : styles.scoreTagOpp]}>
                           <Text style={[styles.scoreTagText, mine ? styles.scoreTagTextMine : styles.scoreTagTextOpp]}>
-                            {entry.myScore}–{entry.oppScore}
+                            {entry.myScore ?? 0}–{entry.oppScore ?? 0}
                           </Text>
                         </View>
                         <View style={styles.actionInfo}>
                           <Text style={styles.actionLabel}>
-                            {TIMELINE_ACTION_LABELS[entry.action] ?? entry.action}
+                            {TIMELINE_ACTION_LABELS[action] ?? action}
                           </Text>
                           {name && (
                             <Text style={styles.actionPlayer} numberOfLines={1}>{name}</Text>
@@ -304,28 +322,29 @@ const PlayersTab = ({ data, playerName }: PlayersTabProps) => {
 
   return (
     <View style={styles.tabContent}>
-      {data.players.map(p => {
-        const expanded = expandedId === p.playerId;
+      {(data.players ?? []).map(p => {
+        const pid      = p.playerId ?? 0;
+        const expanded = expandedId === pid;
         return (
-          <View key={p.playerId} style={styles.card}>
+          <View key={pid} style={styles.card}>
             <TouchableOpacity
               style={styles.playerHeader}
-              onPress={() => setExpandedId(expanded ? null : p.playerId)}
+              onPress={() => setExpandedId(expanded ? null : pid)}
               activeOpacity={0.7}
             >
               <View style={styles.playerNum}>
-                <Text style={styles.playerNumText}>#{p.number}</Text>
+                <Text style={styles.playerNumText}>#{p.number ?? 0}</Text>
               </View>
-              <Text style={styles.playerName}>{playerName(p.playerId)}</Text>
+              <Text style={styles.playerName}>{playerName(pid)}</Text>
               <Text style={styles.expandChevron}>{expanded ? '▲' : '▼'}</Text>
             </TouchableOpacity>
 
-            <MatchStatsBlock stats={p.matchStats} />
+            <MatchStatsBlock stats={p.matchStats ?? {}} />
 
-            {expanded && p.setStats.map(ss => (
-              <View key={ss.set} style={styles.setStatBlock}>
+            {expanded && (p.setStats ?? []).map(ss => (
+              <View key={ss.set ?? 0} style={styles.setStatBlock}>
                 <View style={styles.setStatHeader}>
-                  <Text style={styles.setStatLabel}>Set {ss.set}</Text>
+                  <Text style={styles.setStatLabel}>Set {ss.set ?? 0}</Text>
                   {ss.position ? (
                     <View style={styles.roleTag}>
                       <Text style={styles.roleTagText}>{ROLE_LABELS[ss.position] ?? ss.position}</Text>
@@ -363,7 +382,7 @@ const MatchDetailScreen = ({ matchId, matchDate, onBack }: Props) => {
 
   const playerName = useMemo(() => {
     if (!data) return (id: number) => `#${id}`;
-    const team = teamState.teams.find(t => t.id === data.teamId);
+    const team = teamState.teams.find(t => t.id === (data.teamId ?? -1));
     const map = new Map<number, string>();
     for (const p of team?.players ?? []) map.set(p.id, p.name);
     return (id: number) => map.get(id) ?? `Joueur ${id}`;
@@ -371,7 +390,12 @@ const MatchDetailScreen = ({ matchId, matchDate, onBack }: Props) => {
 
   const playerInfo = useMemo(() => {
     if (!data) return (_id: number) => null;
-    const map = new Map(data.players.map(p => [p.playerId, { role: p.role, number: p.number }]));
+    const map = new Map(
+      (data.players ?? []).map(p => [
+        p.playerId ?? 0,
+        { role: p.role ?? '', number: p.number ?? 0 },
+      ]),
+    );
     return (id: number) => map.get(id) ?? null;
   }, [data]);
 

@@ -31,30 +31,34 @@ const StatCard = ({ label, value, color }: StatCardProps) => (
 
 const StatsGrid = ({ stats }: { stats: MatchDetailStats }) => (
   <View style={styles.statsGrid}>
-    <StatCard label="Points"     value={stats.points}        color={COLORS.green}  />
-    <StatCard label="Attaques"   value={stats.attackPoints}  color={COLORS.blue}   />
-    <StatCard label="Contres"    value={stats.blockPoints}   color={COLORS.yellow} />
-    <StatCard label="Aces"       value={stats.acePoints}     color={COLORS.pink}   />
-    <StatCard label="Récep."     value={stats.receptions}                          />
-    <StatCard label="Err. att."  value={stats.attackErrors}  color={COLORS.red}    />
-    <StatCard label="Err. serv." value={stats.serviceErrors} color={COLORS.red}    />
-    <StatCard label="Faute"      value={stats.faults ?? 0}   color={COLORS.red}    />
+    <StatCard label="Points"     value={stats.points        ?? 0} color={COLORS.green}  />
+    <StatCard label="Attaques"   value={stats.attackPoints  ?? 0} color={COLORS.blue}   />
+    <StatCard label="Contres"    value={stats.blockPoints   ?? 0} color={COLORS.yellow} />
+    <StatCard label="Aces"       value={stats.acePoints     ?? 0} color={COLORS.pink}   />
+    <StatCard label="Récep."     value={stats.receptions    ?? 0}                       />
+    <StatCard label="Err. att."  value={stats.attackErrors  ?? 0} color={COLORS.red}    />
+    <StatCard label="Err. serv." value={stats.serviceErrors ?? 0} color={COLORS.red}    />
+    <StatCard label="Faute"      value={stats.faults        ?? 0} color={COLORS.red}    />
   </View>
 );
 
-const PositionCard = ({ position, data }: { position: string; data: PositionStats }) => (
-  <View style={styles.sectionCard}>
-    <View style={styles.positionHeader}>
-      <Text style={styles.positionTitle}>{position}</Text>
-      <View style={styles.positionMeta}>
-        <Text style={styles.positionMetaText}>{data.matchCount} match{data.matchCount !== 1 ? 's' : ''}</Text>
-        <Text style={styles.positionMetaSep}>·</Text>
-        <Text style={styles.positionMetaText}>{data.setCount} set{data.setCount !== 1 ? 's' : ''}</Text>
+const PositionCard = ({ position, data }: { position: string; data: PositionStats }) => {
+  const matchCount = data.matchCount ?? 0;
+  const setCount   = data.setCount   ?? 0;
+  return (
+    <View style={styles.sectionCard}>
+      <View style={styles.positionHeader}>
+        <Text style={styles.positionTitle}>{position}</Text>
+        <View style={styles.positionMeta}>
+          <Text style={styles.positionMetaText}>{matchCount} match{matchCount !== 1 ? 's' : ''}</Text>
+          <Text style={styles.positionMetaSep}>·</Text>
+          <Text style={styles.positionMetaText}>{setCount} set{setCount !== 1 ? 's' : ''}</Text>
+        </View>
       </View>
+      <StatsGrid stats={data.stats ?? {}} />
     </View>
-    <StatsGrid stats={data.stats} />
-  </View>
-);
+  );
+};
 
 const PlayerSeasonStatsScreen = ({ playerId, playerName, playerNumero, teamId, onBack }: Props) => {
   const [stats, setStats] = useState<PlayerSeasonStats | null>(null);
@@ -104,24 +108,24 @@ const PlayerSeasonStatsScreen = ({ playerId, playerName, playerNumero, teamId, o
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.summaryRow}>
             <View style={styles.summaryCard}>
-              <Text style={styles.summaryNumber}>{stats.matchCount}</Text>
-              <Text style={styles.summaryLabel}>match{stats.matchCount !== 1 ? 's' : ''}</Text>
+              <Text style={styles.summaryNumber}>{stats.matchCount ?? 0}</Text>
+              <Text style={styles.summaryLabel}>match{(stats.matchCount ?? 0) !== 1 ? 's' : ''}</Text>
             </View>
             <View style={styles.summaryCard}>
-              <Text style={styles.summaryNumber}>{stats.setCount}</Text>
-              <Text style={styles.summaryLabel}>set{stats.setCount !== 1 ? 's' : ''}</Text>
+              <Text style={styles.summaryNumber}>{stats.setCount ?? 0}</Text>
+              <Text style={styles.summaryLabel}>set{(stats.setCount ?? 0) !== 1 ? 's' : ''}</Text>
             </View>
           </View>
 
           <Text style={styles.sectionTitle}>Stats globales</Text>
           <View style={styles.sectionCard}>
-            <StatsGrid stats={stats.totalStats} />
+            <StatsGrid stats={stats.totalStats ?? {}} />
           </View>
 
-          {Object.keys(stats.statsByPosition).length > 0 && (
+          {Object.keys(stats.statsByPosition ?? {}).length > 0 && (
             <>
               <Text style={styles.sectionTitle}>Par poste</Text>
-              {Object.entries(stats.statsByPosition).map(([position, posData]) => (
+              {Object.entries(stats.statsByPosition ?? {}).map(([position, posData]) => (
                 <PositionCard key={position} position={position} data={posData} />
               ))}
             </>
