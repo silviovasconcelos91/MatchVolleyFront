@@ -27,6 +27,7 @@ export const ACTION_TYPES = {
 
   // Set
   CLOSE_SET_BANNER:   'CLOSE_SET_BANNER',   // démarrer le set suivant
+  FORCE_END_SET:      'FORCE_END_SET',      // terminer le set manuellement (tournoi temps)
 
   // Réinitialisation complète (changement d'équipe)
   RESET_MATCH:        'RESET_MATCH',        // remettre tout l'état à zéro
@@ -161,7 +162,8 @@ type MatchAction =
   | { type: typeof ACTION_TYPES.CONFIRM_SUB; payload: { outId: number; inId: number } }
   | { type: typeof ACTION_TYPES.CLOSE_SET_BANNER }
   | { type: typeof ACTION_TYPES.RESET_MATCH }
-  | { type: typeof ACTION_TYPES.APPLY_MALUS; payload: { target: 'me' | 'opp'; amount: 1 | 2 } };
+  | { type: typeof ACTION_TYPES.APPLY_MALUS; payload: { target: 'me' | 'opp'; amount: 1 | 2 } }
+  | { type: typeof ACTION_TYPES.FORCE_END_SET };
 
 type MatchContextValue = {
   state: MatchState;
@@ -181,6 +183,7 @@ type MatchContextValue = {
     closeSetBanner:  () => void;
     resetMatch:      () => void;
     applyMalus:      (payload: { target: 'me' | 'opp'; amount: 1 | 2 }) => void;
+    forceEndSet:     () => void;
   };
 };
 
@@ -773,6 +776,20 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       };
     }
 
+    case ACTION_TYPES.FORCE_END_SET: {
+      const winner: SetWinner =
+        state.myScore > state.oppScore ? 'me' :
+        state.oppScore > state.myScore ? 'opp' :
+        null;
+      return {
+        ...state,
+        setBannerVisible: true,
+        setWinner:        winner,
+        mySets:           winner === 'me'  ? state.mySets + 1  : state.mySets,
+        oppSets:          winner === 'opp' ? state.oppSets + 1 : state.oppSets,
+      };
+    }
+
     default:
       return state;
   }
@@ -799,6 +816,7 @@ export const MatchProvider = ({ children }: { children: React.ReactNode }) => {
     closeSetBanner:  ()        => dispatch({ type: ACTION_TYPES.CLOSE_SET_BANNER }),
     resetMatch:      ()        => dispatch({ type: ACTION_TYPES.RESET_MATCH }),
     applyMalus:      (payload) => dispatch({ type: ACTION_TYPES.APPLY_MALUS, payload }),
+    forceEndSet:     ()        => dispatch({ type: ACTION_TYPES.FORCE_END_SET }),
   };
 
   return (
