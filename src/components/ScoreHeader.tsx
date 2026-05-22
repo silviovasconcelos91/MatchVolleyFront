@@ -21,7 +21,7 @@ type Props = { onRosterPress?: () => void };
 const ScoreHeader = ({ onRosterPress }: Props) => {
   const { state, actions } = useMatch(); // actions used for undo
   const { myScore, oppScore, mySets, oppSets, setNum, rosterValidated, history, setBannerVisible } = state;
-  const undoDisabled = !rosterValidated || history.length === 0;
+  const undoDisabled = !rosterValidated || history.length === 0 || setBannerVisible;
 
   const [endModalVisible, setEndModalVisible]     = useState(false);
   const [resetModalVisible, setResetModalVisible] = useState(false);
@@ -52,6 +52,7 @@ const ScoreHeader = ({ onRosterPress }: Props) => {
         <Pressable
           onLongPress={() => { if (forceEndEnabled) setForceEndVisible(true); }}
           delayLongPress={600}
+          style={({ pressed }) => pressed && forceEndEnabled ? { opacity: 0.5 } : undefined}
         >
           <Text style={styles.setLabel}>SET {setNum}</Text>
         </Pressable>
