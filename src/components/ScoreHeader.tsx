@@ -14,6 +14,7 @@ import { useMatch } from '../context/MatchContext';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 import EndMatchModal from './EndMatchModal';
 import ResetConfirmModal from './ResetConfirmModal';
+import ForceEndSetModal from './ForceEndSetModal';
 
 type Props = { onRosterPress?: () => void };
 
@@ -25,7 +26,9 @@ const ScoreHeader = ({ onRosterPress }: Props) => {
   const [endModalVisible, setEndModalVisible]     = useState(false);
   const [resetModalVisible, setResetModalVisible] = useState(false);
   const [malusTarget, setMalusTarget] = useState<'me' | 'opp' | null>(null);
+  const [forceEndVisible, setForceEndVisible] = useState(false);
   const malusEnabled = rosterValidated && !setBannerVisible;
+  const forceEndEnabled = rosterValidated && !setBannerVisible;
   const malusMaxAmount: 1 | 2 = (mySets === 2 && oppSets === 2) ? 1 : 2;
 
   const handleMalusConfirm = useCallback((amount: 1 | 2) => {
@@ -46,7 +49,12 @@ const ScoreHeader = ({ onRosterPress }: Props) => {
           <Text style={styles.resetBtnText}>⟳</Text>
         </TouchableOpacity>
 
-        <Text style={styles.setLabel}>SET {setNum}</Text>
+        <Pressable
+          onLongPress={() => { if (forceEndEnabled) setForceEndVisible(true); }}
+          delayLongPress={600}
+        >
+          <Text style={styles.setLabel}>SET {setNum}</Text>
+        </Pressable>
 
         <View style={styles.setsBadge}>
           <Text style={styles.setsBadgeText}>Sets {mySets} – {oppSets}</Text>
@@ -82,6 +90,14 @@ const ScoreHeader = ({ onRosterPress }: Props) => {
         maxAmount={malusMaxAmount}
         onConfirm={handleMalusConfirm}
         onClose={() => setMalusTarget(null)}
+      />
+      <ForceEndSetModal
+        visible={forceEndVisible}
+        setNum={setNum}
+        myScore={myScore}
+        oppScore={oppScore}
+        onConfirm={actions.forceEndSet}
+        onClose={() => setForceEndVisible(false)}
       />
 
       {/* ── Scores ── */}
