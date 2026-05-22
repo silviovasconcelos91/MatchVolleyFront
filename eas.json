@@ -9,7 +9,7 @@
         "buildType": "apk"
       },
       "env": {
-        "API_URL": "https://matchvolley-production.up.railway.app"
+        "API_URL": "https://volleymatch-production.up.railway.app"
       }
     },
     "production": {
@@ -17,7 +17,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "API_URL": "https://matchvolley-production.up.railway.app"
+        "API_URL": "https://volleymatch-production.up.railway.app"
       }
     }
   }

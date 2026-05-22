@@ -28,15 +28,12 @@ const ACTION_LABELS: Record<ActionKey, string> = {
 
 const CourtScreen = () => {
   const { state, actions } = useMatch();
-  const { matchPlayers, setBannerVisible, rosterValidated, liberoId, matchHistory, setNum, history } = state;
+  const { matchPlayers, setBannerVisible, rosterValidated, availableLiberoIds, liberoReplacements, matchHistory, setNum, history } = state;
 
   const [selectedAction, setSelectedAction] = useState<ActionKey | null>(null);
 
   const disabled = !rosterValidated || setBannerVisible;
   const courtPlayers = matchPlayers.filter(p => p.onCourt);
-
-  // ── Libero ──
-  const liberoPlayer = liberoId !== null ? matchPlayers.find(p => p.id === liberoId) : null;
 
 
   const selectAction = (key: ActionKey) => {
@@ -180,7 +177,7 @@ const CourtScreen = () => {
           })}
         </View>
 
-        {/* Rotation + Libero */}
+        {/* Rotation + Liberos */}
         <View style={styles.rotationRow}>
           <TouchableOpacity
             style={[styles.btnRotation, disabled && styles.btnDisabled]}
@@ -191,17 +188,25 @@ const CourtScreen = () => {
             <Text style={styles.btnRotationIcon}>↻</Text>
             <Text style={styles.btnRotationText}>Rotation</Text>
           </TouchableOpacity>
-          {liberoPlayer && (
-            <TouchableOpacity
-              style={[styles.btnLibero, disabled && styles.btnDisabled]}
-              onPress={actions.liberoSwap}
-              disabled={disabled}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.btnLiberoIcon}>↕</Text>
-              <Text style={styles.btnLiberoText}>Libero</Text>
-            </TouchableOpacity>
-          )}
+          {availableLiberoIds.map(lId => {
+            const lPlayer  = matchPlayers.find(p => p.id === lId);
+            if (!lPlayer) return null;
+            const onCourt  = liberoReplacements[lId] !== undefined;
+            return (
+              <TouchableOpacity
+                key={lId}
+                style={[styles.btnLibero, disabled && styles.btnDisabled, onCourt && styles.btnLiberoActive]}
+                onPress={() => actions.liberoSwap({ liberoId: lId })}
+                disabled={disabled}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.btnLiberoIcon}>{onCourt ? '↓' : '↕'}</Text>
+                <Text style={styles.btnLiberoText} numberOfLines={1}>
+                  {lPlayer.name.split(' ')[0]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         <View style={styles.divider} />
@@ -325,6 +330,10 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  btnLiberoActive: {
+    backgroundColor: `${COLORS.yellow}28`,
+    borderColor: `${COLORS.yellow}66`,
   },
   btnLiberoIcon: {
     fontSize: 20,

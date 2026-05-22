@@ -104,9 +104,10 @@ export type MatchState = {
   setSetupPending: boolean;   // true quand rôles/positions doivent être configurés avant le set
   matchPlayers: MatchPlayer[];
   originalStarterIds: number[];      // IDs des 6 titulaires terrain (hors libero), fixés à la validation
-  originalLiberoId: number | null;  // ID du libero désigné au roster (jamais modifié)
+  availableLiberoIds: number[];      // IDs des liberos désignés au roster (max 2, jamais modifié)
+  originalLiberoId: number | null;  // ID du libero principal (1er sélectionné au roster)
   liberoId: number | null;          // ID du libero actif pour le set en cours (null = désactivé)
-  liberoReplacedId: number | null;  // ID du joueur actuellement remplacé par le libero
+  liberoReplacements: Record<number, number>; // liberoId → replacedPlayerId (présent = libero sur terrain)
   myScore: number;
   oppScore: number;
   mySets: number;
@@ -130,7 +131,7 @@ export type MatchState = {
 type ValidateRosterPayload = {
   starterIds: number[];
   benchIds: number[];
-  liberoId: number | null;
+  liberoIds: number[];
   allPlayers: Player[];
 };
 
@@ -152,7 +153,7 @@ type MatchAction =
   | { type: typeof ACTION_TYPES.OPP_FAULT }
   | { type: typeof ACTION_TYPES.UNDO }
   | { type: typeof ACTION_TYPES.ROTATE }
-  | { type: typeof ACTION_TYPES.LIBERO_SWAP }
+  | { type: typeof ACTION_TYPES.LIBERO_SWAP; payload: { liberoId: number } }
   | { type: typeof ACTION_TYPES.CONFIRM_SUB; payload: { outId: number; inId: number } }
   | { type: typeof ACTION_TYPES.CLOSE_SET_BANNER }
   | { type: typeof ACTION_TYPES.RESET_MATCH }
@@ -171,7 +172,7 @@ type MatchContextValue = {
     oppFault:        () => void;
     undo:            () => void;
     rotate:          () => void;
-    liberoSwap:      () => void;
+    liberoSwap:      (payload: { liberoId: number }) => void;
     confirmSub:      (payload: { outId: number; inId: number }) => void;
     closeSetBanner:  () => void;
     resetMatch:      () => void;
@@ -186,9 +187,10 @@ const initialState: MatchState = {
   setSetupPending:     false,
   matchPlayers:        [],
   originalStarterIds:  [],
+  availableLiberoIds:  [],
   originalLiberoId:    null,
   liberoId:            null,
-  liberoReplacedId:    null,
+  liberoReplacements:  {},
   myScore:             0,
   oppScore:            0,
   mySets:              0,
@@ -233,7 +235,8 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       };
 
     case ACTION_TYPES.VALIDATE_ROSTER: {
-      const { starterIds, benchIds, liberoId, allPlayers } = action.payload;
+      const { starterIds, benchIds, liberoIds, allPlayers } = action.payload;
+      const primaryLiberoId = liberoIds[0] ?? null;
 
       const fieldPlayers: MatchPlayer[] = starterIds.map((id): MatchPlayer | null => {
         const player = allPlayers.find(p => p.id === id);
@@ -250,21 +253,22 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         };
       }).filter((p): p is MatchPlayer => p !== null);
 
-      // Le libero
-      const liberoPlayers: MatchPlayer[] = liberoId !== null ? (() => {
-        const player = allPlayers.find(p => p.id === liberoId);
-        if (!player) return [];
-        return [{
-          id:           player.id,
-          name:         player.name,
-          tacticalRole: 'Libero',
-          numero:       player.numero,
-          onCourt:      false,
-          pos:          null,
-          stats:        createEmptyStats(),
-          roles:        player.roles ?? [],
-        }];
-      })() : [];
+      const liberoPlayers: MatchPlayer[] = liberoIds
+        .map((id): MatchPlayer | null => {
+          const player = allPlayers.find(p => p.id === id);
+          if (!player) return null;
+          return {
+            id:           player.id,
+            name:         player.name,
+            tacticalRole: 'Libero',
+            numero:       player.numero,
+            onCourt:      false,
+            pos:          null,
+            stats:        createEmptyStats(),
+            roles:        player.roles ?? [],
+          };
+        })
+        .filter((p): p is MatchPlayer => p !== null);
 
       const benchPlayers: MatchPlayer[] = benchIds.map((id): MatchPlayer | null => {
         const player = allPlayers.find(p => p.id === id);
@@ -285,9 +289,10 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         ...state,
         rosterValidated:    true,
         setSetupPending:    true,
-        liberoId,
-        originalLiberoId:   liberoId,
-        liberoReplacedId:   null,
+        liberoId:           primaryLiberoId,
+        originalLiberoId:   primaryLiberoId,
+        availableLiberoIds:  liberoIds,
+        liberoReplacements:  {},
         originalStarterIds: starterIds,
         matchPlayers:       [...fieldPlayers, ...liberoPlayers, ...benchPlayers],
       };
@@ -330,7 +335,7 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         ...state,
         setSetupPending:          false,
         liberoId:                 effectiveLiberoId,
-        liberoReplacedId:         null,
+        liberoReplacements:       {},
         originalLiberoId:         resolvedOriginalLiberoId,
         matchPlayers:             updatedPlayers,
         lastSetStartPositionMap:  positionMap,
@@ -507,30 +512,43 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       };
 
     case ACTION_TYPES.LIBERO_SWAP: {
-      const libero = state.matchPlayers.find(p => p.id === state.liberoId);
+      const { liberoId } = action.payload;
+      const libero = state.matchPlayers.find(p => p.id === liberoId);
       if (!libero) return state;
 
-      if (state.liberoReplacedId === null) {
+      const replacedId = state.liberoReplacements[liberoId];
+      const alreadyReplacedIds = new Set(Object.values(state.liberoReplacements));
+
+      if (replacedId === undefined) {
+        // Swap in : trouver un central en zone arrière non déjà remplacé
         const central = state.matchPlayers.find(
-          p => p.onCourt && p.tacticalRole === 'Central' && p.pos !== null && BACK_ROW_POSITIONS.has(p.pos)
+          p =>
+            p.onCourt &&
+            p.tacticalRole === 'Central' &&
+            p.pos !== null &&
+            BACK_ROW_POSITIONS.has(p.pos) &&
+            !alreadyReplacedIds.has(p.id),
         );
         if (!central) return state;
         return {
           ...state,
-          liberoReplacedId: central.id,
+          liberoId: liberoId,
+          liberoReplacements: { ...state.liberoReplacements, [liberoId]: central.id },
           matchPlayers: state.matchPlayers.map(p => {
-            if (p.id === libero.id)  return { ...p, onCourt: true, pos: central.pos };
-            if (p.id === central.id) return { ...p, onCourt: true, pos: null }; // zone libero = terrain, pas banc
+            if (p.id === liberoId)   return { ...p, onCourt: true,  pos: central.pos };
+            if (p.id === central.id) return { ...p, onCourt: true,  pos: null };
             return p;
           }),
         };
       } else {
+        // Swap out : remettre le central
+        const { [liberoId]: _removed, ...remainingReplacements } = state.liberoReplacements;
         return {
           ...state,
-          liberoReplacedId: null,
+          liberoReplacements: remainingReplacements,
           matchPlayers: state.matchPlayers.map(p => {
-            if (p.id === libero.id)             return { ...p, onCourt: false, pos: null };
-            if (p.id === state.liberoReplacedId) return { ...p, onCourt: true,  pos: libero.pos };
+            if (p.id === liberoId)   return { ...p, onCourt: false, pos: null };
+            if (p.id === replacedId) return { ...p, onCourt: true,  pos: libero.pos };
             return p;
           }),
         };
@@ -597,8 +615,8 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         substitutionPairs: {},
         setResults:        [...state.setResults, completedSet],
         setSetupPending:   true,
-        liberoReplacedId:  null,
-        matchPlayers:      resetPlayers,
+        liberoReplacements: {},
+        matchPlayers:       resetPlayers,
       };
     }
 
@@ -648,7 +666,7 @@ export const MatchProvider = ({ children }: { children: React.ReactNode }) => {
     oppFault:        ()        => dispatch({ type: ACTION_TYPES.OPP_FAULT }),
     undo:            ()        => dispatch({ type: ACTION_TYPES.UNDO }),
     rotate:          ()        => dispatch({ type: ACTION_TYPES.ROTATE }),
-    liberoSwap:      ()        => dispatch({ type: ACTION_TYPES.LIBERO_SWAP }),
+    liberoSwap:      (payload) => dispatch({ type: ACTION_TYPES.LIBERO_SWAP, payload }),
     confirmSub:      (payload) => dispatch({ type: ACTION_TYPES.CONFIRM_SUB,      payload }),
     closeSetBanner:  ()        => dispatch({ type: ACTION_TYPES.CLOSE_SET_BANNER }),
     resetMatch:      ()        => dispatch({ type: ACTION_TYPES.RESET_MATCH }),

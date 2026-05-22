@@ -29,11 +29,9 @@ type FieldRole = typeof FIELD_ROLES[number];
 
 const SetSetupScreen = () => {
   const { state, actions } = useMatch();
-  const { originalStarterIds, originalLiberoId, matchPlayers, setNum, lastSetStartPositionMap } = state;
+  const { originalStarterIds, originalLiberoId, availableLiberoIds, matchPlayers, setNum, lastSetStartPositionMap } = state;
 
   // ── positionMap : pos (1-6) → playerId ──
-  // Set 2+ : pré-rempli depuis le début du set précédent (avant rotations)
-  // Set 1  : INITIAL_POSITIONS × originalStarterIds
   const [positionMap, setPositionMap] = useState<Record<number, number>>(() => {
     if (Object.keys(lastSetStartPositionMap).length === 6) return lastSetStartPositionMap;
 
@@ -44,26 +42,13 @@ const SetSetupScreen = () => {
     return map;
   });
 
-  // Position sélectionnée pour l'échange terrain↔terrain (null = aucune)
   const [swapFromPos, setSwapFromPos] = useState<number | null>(null);
-
-  // Joueur du banc sélectionné pour être placé sur le terrain (null = aucun)
   const [selectedBenchId, setSelectedBenchId] = useState<number | null>(null);
 
-  // Le libero est-il actif pour ce set ? (par défaut oui s'il existe au roster)
+  // Libero actif pour ce set (par défaut oui s'il existe au roster)
   const [liberoActive, setLiberoActive] = useState<boolean>(originalLiberoId !== null);
 
-  // Libero désigné à la volée (remplace ou complète le libero du roster)
-  const [designatedNewLiberoId, setDesignatedNewLiberoId] = useState<number | null>(null);
-
-  // Mode "changement de libero" : affiche le picker de remplacement
-  const [isChangingLibero, setIsChangingLibero] = useState(false);
-
-  // Libero effectif pour cet écran (nouvelle désignation prioritaire sur le roster)
-  const resolvedLiberoId = designatedNewLiberoId ?? originalLiberoId;
-
   // ── tacticalRoles : playerId → rôle ──
-  // Priorité : (1) rôle du set précédent  (2) premier rôle terrain du profil joueur
   const [tacticalRoles, setTacticalRoles] = useState<Record<number, string>>(() => {
     const roles: Record<number, string> = {};
     matchPlayers.forEach(p => {
@@ -78,20 +63,12 @@ const SetSetupScreen = () => {
     return roles;
   });
 
-  // ── Joueurs disponibles au banc (non libero actif, non placés sur le terrain) ──
+  // ── Joueurs disponibles au banc (liberos exclus, non placés sur le terrain) ──
+  const liberoIdSet = useMemo(() => new Set(availableLiberoIds), [availableLiberoIds]);
   const benchPlayers = useMemo(() => {
-    const onCourtIds     = new Set(Object.values(positionMap));
-    const activeLiberoId = liberoActive ? (designatedNewLiberoId ?? originalLiberoId) : null;
-    return matchPlayers.filter(p => p.id !== activeLiberoId && !onCourtIds.has(p.id));
-  }, [matchPlayers, originalLiberoId, designatedNewLiberoId, liberoActive, positionMap]);
-
-  // ── Candidats au rôle de libero (mode changement) ──
-  // Tous les joueurs hors terrain, y compris le libero actuel
-  const liberoChangeCandidates = useMemo(() => {
-    if (!isChangingLibero) return [];
     const onCourtIds = new Set(Object.values(positionMap));
-    return matchPlayers.filter(p => !onCourtIds.has(p.id));
-  }, [isChangingLibero, matchPlayers, positionMap]);
+    return matchPlayers.filter(p => !liberoIdSet.has(p.id) && !onCourtIds.has(p.id));
+  }, [matchPlayers, liberoIdSet, positionMap]);
 
   // ── Joueurs effectivement sur le terrain (dans l'ordre d'affichage) ──
   const courtPlayerIds = useMemo(
@@ -150,51 +127,12 @@ const SetSetupScreen = () => {
 
   // ── Confirmer et démarrer le set ──
   const handleConfirm = useCallback(() => {
-    // Transmettre newLiberoId uniquement si le libero a changé par rapport au roster
-    const liberoChanged = designatedNewLiberoId !== null && designatedNewLiberoId !== originalLiberoId;
-    const noLiberoAtRoster = originalLiberoId === null && designatedNewLiberoId !== null;
-    actions.assignSetRoles({
-      positionMap,
-      tacticalRoles,
-      liberoActive,
-      ...(liberoChanged || noLiberoAtRoster ? { newLiberoId: designatedNewLiberoId } : {}),
-    });
-  }, [actions, positionMap, tacticalRoles, liberoActive, originalLiberoId, designatedNewLiberoId]);
-
-  const removeFromCourt = useCallback((playerId: number) => {
-    setPositionMap(prev => {
-      const next = { ...prev };
-      for (const [pos, pid] of Object.entries(next)) {
-        if (pid === playerId) delete next[Number(pos)];
-      }
-      return next;
-    });
-  }, []);
-
-  // ── Désigner un libero (nouveau ou remplacement) ──
-  const handleDesignateLibero = useCallback((id: number) => {
-    setDesignatedNewLiberoId(id);
-    setLiberoActive(true);
-    setIsChangingLibero(false);
-    removeFromCourt(id);
-  }, [removeFromCourt]);
-
-  const handleUndesignateLibero = useCallback(() => {
-    setDesignatedNewLiberoId(null);
-    setLiberoActive(false);
-  }, []);
-
-  const handleStartChangeLibero = useCallback(() => {
-    setIsChangingLibero(true);
-  }, []);
-
-  const handleCancelChangeLibero = useCallback(() => {
-    setIsChangingLibero(false);
-  }, []);
+    actions.assignSetRoles({ positionMap, tacticalRoles, liberoActive });
+  }, [actions, positionMap, tacticalRoles, liberoActive]);
 
   // ── Libero (infos pour affichage) ──
-  const liberoPlayer = resolvedLiberoId !== null
-    ? matchPlayers.find(p => p.id === resolvedLiberoId) ?? null
+  const liberoPlayer = originalLiberoId !== null
+    ? matchPlayers.find(p => p.id === originalLiberoId) ?? null
     : null;
 
   // Texte d'état de la grille
@@ -384,125 +322,27 @@ const SetSetupScreen = () => {
           </Text>
         )}
 
-        {/* Libero — toggle actif/désactivé (libero au roster OU nouvellement désigné) */}
-        {liberoPlayer !== null && !isChangingLibero && (
-          <View style={styles.roleRowLibero}>
-            <TouchableOpacity
-              style={styles.roleRow}
-              onPress={() => {
-                const next = !liberoActive;
-                setLiberoActive(next);
-                if (next && resolvedLiberoId !== null) removeFromCourt(resolvedLiberoId);
-              }}
-              activeOpacity={0.7}
-            >
-              <PlayerAvatar
-                name={liberoPlayer.name}
-                color={liberoActive ? COLORS.yellow : COLORS.textDark}
-                size={28}
-              />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.roleName, !liberoActive && { color: COLORS.textMuted }]} numberOfLines={1}>
-                  {liberoPlayer.name.split(' ')[0]}{' '}
-                  <Text style={styles.roleNumero}>#{liberoPlayer.numero}</Text>
-                </Text>
-                <Text style={styles.liberoToggleHint}>
-                  {liberoActive ? 'tap pour désactiver ce set' : 'tap pour activer'}
-                </Text>
-              </View>
-              <View style={[
-                styles.roleChip,
-                liberoActive ? styles.roleChipLibero : styles.roleChipLiberoOff,
-              ]}>
-                <Text style={[
-                  styles.roleChipText,
-                  liberoActive ? styles.roleChipLiberoText : styles.roleChipLiberoOffText,
-                ]}>
-                  {liberoActive ? 'Libero' : 'inactif'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            <View style={styles.liberoActions}>
-              {/* Changer le libero */}
-              <TouchableOpacity style={styles.liberoActionBtn} onPress={handleStartChangeLibero} activeOpacity={0.7}>
-                <Text style={styles.liberoActionBtnText}>Changer de libero</Text>
-              </TouchableOpacity>
-              {/* Retirer — uniquement si désigné à la volée */}
-              {(originalLiberoId === null || designatedNewLiberoId !== null) && (
-                <TouchableOpacity style={styles.undesignateBtn} onPress={handleUndesignateLibero} activeOpacity={0.7}>
-                  <Text style={styles.undesignateBtnText}>✕ Retirer</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-        )}
-
-        {/* Picker de remplacement libero (mode changement) */}
-        {isChangingLibero && (
-          <View style={styles.roleRowLibero}>
-            <Text style={styles.liberoPickerLabel}>Choisir le nouveau libero</Text>
-            {liberoChangeCandidates.map(player => {
-              const color      = getPlayerColor(player.id);
-              const isCurrent  = player.id === (designatedNewLiberoId ?? originalLiberoId);
-              return (
-                <TouchableOpacity
-                  key={player.id}
-                  style={[styles.liberoPickerRow, isCurrent && styles.liberoPickerRowCurrent]}
-                  onPress={() => handleDesignateLibero(player.id)}
-                  activeOpacity={0.7}
-                >
-                  <PlayerAvatar name={player.name} color={isCurrent ? COLORS.yellow : color} size={26} />
-                  <Text style={[styles.liberoPickerName, isCurrent && { color: COLORS.yellow }]} numberOfLines={1}>
-                    {player.name.split(' ')[0]}{' '}
-                    <Text style={styles.roleNumero}>#{player.numero}</Text>
+        {/* Liberos — lecture seule, désignés au roster */}
+        {availableLiberoIds.map(lId => {
+          const lPlayer = matchPlayers.find(p => p.id === lId);
+          if (!lPlayer) return null;
+          return (
+            <View key={lId} style={styles.roleRowLibero}>
+              <View style={styles.roleRow}>
+                <PlayerAvatar name={lPlayer.name} color={COLORS.yellow} size={28} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.roleName} numberOfLines={1}>
+                    {lPlayer.name.split(' ')[0]}{' '}
+                    <Text style={styles.roleNumero}>#{lPlayer.numero}</Text>
                   </Text>
-                  <View style={[styles.liberoPickerChip, isCurrent && styles.liberoPickerChipCurrent]}>
-                    <Text style={[styles.liberoPickerChipText, isCurrent && { color: COLORS.yellow }]}>
-                      {isCurrent ? 'actuel' : 'Désigner L'}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-            <TouchableOpacity style={styles.undesignateBtn} onPress={handleCancelChangeLibero} activeOpacity={0.7}>
-              <Text style={styles.undesignateBtnText}>Annuler</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Picker libero initial — uniquement si aucun libero au roster et aucun désigné */}
-        {originalLiberoId === null && liberoPlayer === null && !isChangingLibero && (
-          <View style={styles.roleRowLibero}>
-            <Text style={styles.liberoPickerLabel}>
-              Libero — <Text style={{ color: COLORS.textDark }}>non désigné (optionnel)</Text>
-            </Text>
-            {benchPlayers.length > 0 ? (
-              benchPlayers.map(player => {
-                const color = getPlayerColor(player.id);
-                return (
-                  <TouchableOpacity
-                    key={player.id}
-                    style={styles.liberoPickerRow}
-                    onPress={() => handleDesignateLibero(player.id)}
-                    activeOpacity={0.7}
-                  >
-                    <PlayerAvatar name={player.name} color={color} size={26} />
-                    <Text style={styles.liberoPickerName} numberOfLines={1}>
-                      {player.name.split(' ')[0]}{' '}
-                      <Text style={styles.roleNumero}>#{player.numero}</Text>
-                    </Text>
-                    <View style={styles.liberoPickerChip}>
-                      <Text style={styles.liberoPickerChipText}>Désigner L</Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })
-            ) : (
-              <Text style={styles.liberoPickerEmpty}>Aucun joueur au banc disponible</Text>
-            )}
-          </View>
-        )}
+                </View>
+                <View style={[styles.roleChip, styles.roleChipLibero]}>
+                  <Text style={[styles.roleChipText, styles.roleChipLiberoText]}>Libero</Text>
+                </View>
+              </View>
+            </View>
+          );
+        })}
       </View>
 
       {/* ── Banc disponible ── */}

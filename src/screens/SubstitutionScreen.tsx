@@ -21,15 +21,20 @@ import PlayerAvatar from '../components/PlayerAvatar';
 
 const SubstitutionScreen = () => {
   const { state, actions } = useMatch();
-  const { matchPlayers, subHistory, rosterValidated, liberoId, liberoReplacedId, substitutionPairs } = state;
+  const { matchPlayers, subHistory, rosterValidated, availableLiberoIds, liberoReplacements, substitutionPairs } = state;
 
   const [outPlayer, setOutPlayer] = useState<MatchPlayer | null>(null);
   const [inPlayer, setInPlayer]   = useState<MatchPlayer | null>(null);
 
-  // Libero et joueur en zone libero exclus : ne peuvent pas sortir via remplacement normal
-  const courtPlayers = matchPlayers.filter(p => p.onCourt && p.id !== liberoId && p.id !== liberoReplacedId);
-  // Banc complet (hors libero actif + hors joueur temporairement remplacé par le libero)
-  const allBenchPlayers = matchPlayers.filter(p => !p.onCourt && p.id !== liberoId && p.id !== liberoReplacedId);
+  // Exclure du terrain : libero actuellement actif + central qu'il remplace
+  // Les deux ont onCourt:true → exclus naturellement du banc
+  const liberoOnCourtIds   = new Set(Object.keys(liberoReplacements).map(Number));
+  const replacedByLiberoIds = new Set(Object.values(liberoReplacements));
+  const courtExcluded = new Set([...liberoOnCourtIds, ...replacedByLiberoIds]);
+
+  const liberoIds = new Set(availableLiberoIds);
+  const courtPlayers    = matchPlayers.filter(p =>  p.onCourt && !courtExcluded.has(p.id));
+  const allBenchPlayers = matchPlayers.filter(p => !p.onCourt && !liberoIds.has(p.id));
   // Banc filtré selon la règle : un joueur sorti ne peut rentrer qu'à la place de son remplaçant
   const benchPlayers = outPlayer
     ? allBenchPlayers.filter(p => {
