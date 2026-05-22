@@ -20,7 +20,7 @@ import {
 } from 'react-native';
 import { useMatch } from '../context/MatchContext';
 import { INITIAL_POSITIONS, COURT_DISPLAY_ORDER } from '../data/players';
-import { getPlayerColor, COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
+import { getPositionColor, COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 import PlayerAvatar from '../components/PlayerAvatar';
 
 // Rôles disponibles pour les joueurs terrain (libero exclu — il est fixe)
@@ -237,7 +237,7 @@ const SetSetupScreen = () => {
             const player    = playerId !== undefined
               ? matchPlayers.find(p => p.id === playerId)
               : null;
-            const color      = player ? getPlayerColor(player.id) : COLORS.border;
+            const color = player ? getPositionColor(tacticalRoles[player.id] ?? '') : COLORS.border;
             const isSelected = swapFromPos === pos;
             const isTarget   = selectedBenchId !== null; // toutes les cases sont des cibles
 
@@ -314,8 +314,8 @@ const SetSetupScreen = () => {
         {courtPlayerIds.map(id => {
           const player     = matchPlayers.find(p => p.id === id);
           if (!player) return null;
-          const color      = getPlayerColor(id);
           const activeRole = tacticalRoles[id] as FieldRole | undefined;
+          const color      = getPositionColor(activeRole ?? '');
 
           return (
             <View key={id} style={styles.roleRow}>
@@ -326,15 +326,16 @@ const SetSetupScreen = () => {
               </Text>
               <View style={styles.roleBtns}>
                 {FIELD_ROLES.map(role => {
-                  const active = activeRole === role;
+                  const active    = activeRole === role;
+                  const roleColor = getPositionColor(role);
                   return (
                     <TouchableOpacity
                       key={role}
-                      style={[styles.roleBtn, active && { backgroundColor: `${color}22`, borderColor: `${color}88` }]}
+                      style={[styles.roleBtn, active && { backgroundColor: `${roleColor}22`, borderColor: `${roleColor}88` }]}
                       onPress={() => selectRole(id, role)}
                       activeOpacity={0.7}
                     >
-                      <Text style={[styles.roleBtnText, active && { color, fontWeight: '700' }]}>
+                      <Text style={[styles.roleBtnText, active && { color: roleColor, fontWeight: '700' }]}>
                         {role}
                       </Text>
                     </TouchableOpacity>
@@ -358,7 +359,7 @@ const SetSetupScreen = () => {
           return (
             <View key={lId} style={styles.roleRowLibero}>
               <View style={styles.roleRow}>
-                <PlayerAvatar name={lPlayer.name} color={COLORS.yellow} size={28} />
+                <PlayerAvatar name={lPlayer.name} color={getPositionColor('Libero')} size={28} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.roleName} numberOfLines={1}>
                     {lPlayer.name.split(' ')[0]}{' '}
@@ -387,7 +388,7 @@ const SetSetupScreen = () => {
           </Text>
 
           {benchPlayers.map(player => {
-            const color    = getPlayerColor(player.id);
+            const color = getPositionColor(tacticalRoles[player.id] ?? '');
             const isChosen = selectedBenchId === player.id;
             return (
               <TouchableOpacity
