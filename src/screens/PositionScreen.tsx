@@ -4,9 +4,9 @@ import {
 } from 'react-native';
 import { useMatch } from '../context/MatchContext';
 import type { MatchPlayer } from '../context/MatchContext';
-import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
+import { getPositionColor, COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 import { ROTATIONS, resolvePlayers } from '../data/volleyball51';
-import type { Roster, Pin, PinRole } from '../data/volleyball51';
+import type { Roster, Pin } from '../data/volleyball51';
 import { BACK_ROW_POSITIONS } from '../data/players';
 
 function buildRoster(matchPlayers: MatchPlayer[]): Roster {
@@ -39,24 +39,21 @@ function getInitialIdx(matchPlayers: MatchPlayer[]): number {
   return idx >= 0 ? idx : 0;
 }
 
-// ── Couleurs par rôle de pin ──
-const PIN_STYLE: Record<PinRole, { color: string; bg: string }> = {
-  setter:   { color: COLORS.yellow,    bg: `${COLORS.yellow}35`  },
-  receiver: { color: COLORS.greenLight, bg: `${COLORS.green}35`  },
-  net:      { color: COLORS.blue,       bg: `${COLORS.blue}35`   },
-};
+const POSITION_LEGEND = [
+  { role: 'S',      label: 'Passeur'  },
+  { role: 'OH1',    label: 'R4'       },
+  { role: 'MB1',    label: 'Central'  },
+  { role: 'OPP',    label: 'Pointu'   },
+  { role: 'Libero', label: 'Libero'   },
+] as const;
 
-const PIN_LABELS: Record<PinRole, string> = {
-  setter:   'Passe',
-  receiver: 'Réception',
-  net:      'Filet',
-};
+type PinEx = Pin & { isLibero?: boolean };
 
 const PIN_SIZE = 42;
 
 // ── Terrain ──
 type CourtViewProps = {
-  pins:     Pin[];
+  pins:     PinEx[];
   onLayout: (w: number, h: number) => void;
 };
 
@@ -75,18 +72,18 @@ const CourtView = ({ pins, onLayout }: CourtViewProps) => {
       <View style={styles.baseline} />
 
       {pins.map((pin, i) => {
-        const conf = PIN_STYLE[pin.pinRole];
+        const color = getPositionColor(pin.isLibero ? 'Libero' : pin.role);
         return (
           <View
             key={i}
             style={[styles.pinWrapper, { left: pin.x - PIN_SIZE / 2, top: pin.y - PIN_SIZE / 2 }]}
           >
-            <View style={[styles.pinCircle, { backgroundColor: conf.bg, borderColor: conf.color }]}>
-              <Text style={[styles.pinInitial, { color: conf.color }]}>
+            <View style={[styles.pinCircle, { backgroundColor: `${color}35`, borderColor: color }]}>
+              <Text style={[styles.pinInitial, { color }]}>
                 {pin.name.charAt(0).toUpperCase()}
               </Text>
             </View>
-            <Text style={[styles.pinName, { color: conf.color }]} numberOfLines={1}>
+            <Text style={[styles.pinName, { color }]} numberOfLines={1}>
               {pin.name}
             </Text>
           </View>
@@ -110,8 +107,14 @@ const PositionScreen = () => {
 
   const rotation = ROTATIONS[rotIdx];
   const roster   = buildRoster(matchPlayers);
-  const pins     = courtSize.w > 0
-    ? resolvePlayers(rotation, roster, courtSize.w, courtSize.h)
+
+  const liberoName = matchPlayers.find(p => p.tacticalRole === 'Libero' && p.onCourt)?.name.split(' ')[0] ?? null;
+
+  const pins: PinEx[] = courtSize.w > 0
+    ? resolvePlayers(rotation, roster, courtSize.w, courtSize.h).map(pin => ({
+        ...pin,
+        isLibero: liberoName !== null && pin.name === liberoName,
+      }))
     : [];
 
   const setterBack = BACK_ROW_POSITIONS.has(rotation.setterPos);
@@ -150,12 +153,12 @@ const PositionScreen = () => {
 
       {/* Légende */}
       <View style={styles.legend}>
-        {(Object.keys(PIN_STYLE) as PinRole[]).map(role => {
-          const conf = PIN_STYLE[role];
+        {POSITION_LEGEND.map(({ role, label }) => {
+          const color = getPositionColor(role);
           return (
             <View key={role} style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: conf.color }]} />
-              <Text style={[styles.legendLabel, { color: conf.color }]}>{PIN_LABELS[role]}</Text>
+              <View style={[styles.legendDot, { backgroundColor: color }]} />
+              <Text style={[styles.legendLabel, { color }]}>{label}</Text>
             </View>
           );
         })}
