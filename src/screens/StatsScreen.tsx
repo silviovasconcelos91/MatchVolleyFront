@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useMatch } from '../context/MatchContext';
 import type { MatchHistoryEvent } from '../context/MatchContext';
-import { getPlayerColor } from '../constants/theme';
+import { getPositionColor } from '../constants/theme';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 import { getTotalPoints, getTotalFaults, createEmptyStats } from '../data/players';
 import type { ActionKey, PlayerStats } from '../data/players';
@@ -246,7 +246,7 @@ const StatsScreen = () => {
           tacticalRole={player.tacticalRole}
           onCourt={player.onCourt}
           pos={player.pos}
-          color={getPlayerColor(player.id)}
+          color={getPositionColor(player.tacticalRole)}
           stats={setStatsMap[player.id] ?? createEmptyStats()}
         />
       ))}
@@ -264,7 +264,7 @@ const StatsScreen = () => {
           tacticalRole={player.tacticalRole}
           onCourt={player.onCourt}
           pos={player.pos}
-          color={getPlayerColor(player.id)}
+          color={getPositionColor(player.tacticalRole)}
           stats={player.stats}
         />
       ))}
