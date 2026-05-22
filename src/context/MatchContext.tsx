@@ -222,6 +222,49 @@ const checkSetEnd = (myScore: number, oppScore: number, isDecidingSet: boolean):
   return null;
 };
 
+function applyRotation(players: MatchPlayer[]): MatchPlayer[] {
+  return players.map(p => {
+    if (!p.onCourt || p.pos === null) return p;
+    return { ...p, pos: p.pos === 1 ? 6 : p.pos - 1 };
+  });
+}
+
+function applyAutoLiberoSwap(
+  liberoReplacements: Record<number, number>,
+  players: MatchPlayer[],
+): {
+  players: MatchPlayer[];
+  swapInfo?: LiberoSwapInfo;
+  newLiberoReplacements: Record<number, number>;
+} {
+  let currentPlayers = players;
+  let swapInfo: LiberoSwapInfo | undefined;
+  let newLiberoReplacements = liberoReplacements;
+
+  for (const [liberoIdStr, centralId] of Object.entries(liberoReplacements)) {
+    const liberoId = Number(liberoIdStr);
+    const libero = currentPlayers.find(p => p.id === liberoId);
+    if (!libero || !libero.onCourt || libero.pos === null) continue;
+    if (BACK_ROW_POSITIONS.has(libero.pos)) continue; // still in back row — no swap needed
+
+    const liberoPos = libero.pos;
+    swapInfo = { liberoId, centralId, liberoPos };
+
+    const { [liberoId]: _removed, ...remaining } = newLiberoReplacements;
+    newLiberoReplacements = remaining;
+
+    currentPlayers = currentPlayers.map(p => {
+      if (p.id === liberoId) return { ...p, onCourt: false, pos: null };
+      if (p.id === centralId) return { ...p, onCourt: true, pos: liberoPos };
+      return p;
+    });
+
+    break; // only one libero on court at a time in practice
+  }
+
+  return { players: currentPlayers, swapInfo, newLiberoReplacements };
+}
+
 function matchReducer(state: MatchState, action: MatchAction): MatchState {
   switch (action.type) {
 
