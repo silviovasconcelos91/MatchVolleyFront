@@ -108,12 +108,12 @@ const PositionScreen = () => {
   const rotation = ROTATIONS[rotIdx];
   const roster   = buildRoster(matchPlayers);
 
-  const liberoName = matchPlayers.find(p => p.tacticalRole === 'Libero' && p.onCourt)?.name.split(' ')[0] ?? null;
+  const liberoOnCourt = matchPlayers.some(p => p.tacticalRole === 'Libero' && p.onCourt);
 
   const pins: PinEx[] = courtSize.w > 0
     ? resolvePlayers(rotation, roster, courtSize.w, courtSize.h).map(pin => ({
         ...pin,
-        isLibero: liberoName !== null && pin.name === liberoName,
+        isLibero: liberoOnCourt && pin.role === 'MB2',
       }))
     : [];
 
