@@ -14,8 +14,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useMatch } from '../context/MatchContext';
 import type { MatchPlayer, SubEntry } from '../context/MatchContext';
-import { getPlayerColor } from '../constants/theme';
-import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
+import { getPositionColor, COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 import { getTotalPoints } from '../data/players';
 import PlayerAvatar from '../components/PlayerAvatar';
 
@@ -71,7 +70,7 @@ const SubstitutionScreen = () => {
 
   // ── Rendu d'une ligne joueur cliquable ──
   const renderPlayerRow = (player: MatchPlayer, onPress: (p: MatchPlayer) => void, badge: React.ReactNode = null) => {
-    const color = getPlayerColor(player.id);
+    const color = getPositionColor(player.tacticalRole);
     return (
       <TouchableOpacity
         key={player.id}
@@ -127,7 +126,7 @@ const SubstitutionScreen = () => {
             <View style={styles.outChip}>
               <PlayerAvatar
                 name={outPlayer.name}
-                color={getPlayerColor(outPlayer.id)}
+                color={getPositionColor(outPlayer.tacticalRole)}
                 size={26}
               />
               <View>
