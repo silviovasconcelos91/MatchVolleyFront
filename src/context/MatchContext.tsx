@@ -388,6 +388,7 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         matchPlayers:             updatedPlayers,
         lastSetStartPositionMap:  positionMap,
         playerSetPresence,
+        opponentServing:          action.payload.opponentServesFirst,
         setRoles: {
           ...state.setRoles,
           [state.setNum]: tacticalRoles,
@@ -423,7 +424,33 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       const newMyScore  = playerAction.mine ? state.myScore + 1  : state.myScore;
       const newOppScore = playerAction.mine ? state.oppScore     : state.oppScore + 1;
 
-      const historyEntry: HistoryEntry = { source: 'player', playerId, actionKey, mine: playerAction.mine };
+      let finalPlayers = updatedPlayers;
+      let newLiberoReplacements = state.liberoReplacements;
+      let rotated: true | undefined;
+      let liberoAutoSwapped: LiberoSwapInfo | undefined;
+      let newOpponentServing = state.opponentServing;
+
+      if (playerAction.mine && state.opponentServing) {
+        const rotatedPlayers = applyRotation(updatedPlayers);
+        const result = applyAutoLiberoSwap(state.liberoReplacements, rotatedPlayers);
+        finalPlayers = result.players;
+        newLiberoReplacements = result.newLiberoReplacements;
+        rotated = true;
+        liberoAutoSwapped = result.swapInfo;
+        newOpponentServing = false;
+      } else if (!playerAction.mine) {
+        newOpponentServing = true;
+      }
+
+      const historyEntry: HistoryEntry = {
+        source: 'player',
+        playerId,
+        actionKey,
+        mine: playerAction.mine,
+        ...(rotated ? { rotated } : {}),
+        ...(liberoAutoSwapped ? { liberoAutoSwapped } : {}),
+      };
+
       const newTrajectory = [...state.trajectory, { x: newMyScore, y: newOppScore }];
 
       const player = state.matchPlayers.find(p => p.id === playerId);
@@ -442,7 +469,9 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
 
       return {
         ...state,
-        matchPlayers:       updatedPlayers,
+        matchPlayers:       finalPlayers,
+        liberoReplacements: newLiberoReplacements,
+        opponentServing:    newOpponentServing,
         myScore:            newMyScore,
         oppScore:           newOppScore,
         history:            [...state.history, historyEntry],
@@ -468,6 +497,7 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       return {
         ...state,
         oppScore:           newOppScore,
+        opponentServing:    true,
         history:            [...state.history, { source: 'opp', mine: false }],
         matchHistory:       [...state.matchHistory, matchEvent],
         trajectory:         [...state.trajectory, { x: state.myScore, y: newOppScore }],
@@ -481,6 +511,30 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
     case ACTION_TYPES.OPP_FAULT: {
       const newMyScore = state.myScore + 1;
       const winner = checkSetEnd(newMyScore, state.oppScore, state.mySets === 2 && state.oppSets === 2);
+
+      let finalPlayers = state.matchPlayers;
+      let newLiberoReplacements = state.liberoReplacements;
+      let rotated: true | undefined;
+      let liberoAutoSwapped: LiberoSwapInfo | undefined;
+      let newOpponentServing = state.opponentServing;
+
+      if (state.opponentServing) {
+        const rotatedPlayers = applyRotation(state.matchPlayers);
+        const result = applyAutoLiberoSwap(state.liberoReplacements, rotatedPlayers);
+        finalPlayers = result.players;
+        newLiberoReplacements = result.newLiberoReplacements;
+        rotated = true;
+        liberoAutoSwapped = result.swapInfo;
+        newOpponentServing = false;
+      }
+
+      const historyEntry: HistoryEntry = {
+        source: 'opp_fault',
+        mine: true,
+        ...(rotated ? { rotated } : {}),
+        ...(liberoAutoSwapped ? { liberoAutoSwapped } : {}),
+      };
+
       const matchEvent: MatchHistoryEvent = {
         index:      state.matchHistory.length,
         setNum:     state.setNum,
@@ -488,10 +542,14 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         mine:       true,
         scoreAfter: { my: newMyScore, opp: state.oppScore },
       };
+
       return {
         ...state,
+        matchPlayers:       finalPlayers,
+        liberoReplacements: newLiberoReplacements,
+        opponentServing:    newOpponentServing,
         myScore:            newMyScore,
-        history:            [...state.history, { source: 'opp_fault', mine: true }],
+        history:            [...state.history, historyEntry],
         matchHistory:       [...state.matchHistory, matchEvent],
         trajectory:         [...state.trajectory, { x: newMyScore, y: state.oppScore }],
         setBannerVisible:   !!winner && !state.setBannerVisible,
@@ -530,22 +588,44 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         });
       }
 
+      let restoredLiberoReplacements = state.liberoReplacements;
+      let newOpponentServing = state.opponentServing;
+
+      if (last.rotated) {
+        if (last.liberoAutoSwapped) {
+          const { liberoId, centralId, liberoPos } = last.liberoAutoSwapped;
+          updatedPlayers = updatedPlayers.map(p => {
+            if (p.id === liberoId) return { ...p, onCourt: true, pos: liberoPos };
+            if (p.id === centralId) return { ...p, onCourt: true, pos: null };
+            return p;
+          });
+          restoredLiberoReplacements = { ...state.liberoReplacements, [liberoId]: centralId };
+        }
+        updatedPlayers = updatedPlayers.map(p => {
+          if (!p.onCourt || p.pos === null) return p;
+          return { ...p, pos: p.pos === 6 ? 1 : p.pos + 1 };
+        });
+        newOpponentServing = true;
+      }
+
       const undoingSetWinner = state.setBannerVisible;
       const newMySets  = undoingSetWinner && last.mine  ? state.mySets  - 1 : state.mySets;
       const newOppSets = undoingSetWinner && !last.mine ? state.oppSets - 1 : state.oppSets;
 
       return {
         ...state,
-        myScore:          newMyScore,
-        oppScore:         newOppScore,
-        history:          newHistory,
-        matchHistory:     state.matchHistory.slice(0, -1),
-        trajectory:       newTrajectory,
-        matchPlayers:     updatedPlayers,
-        setBannerVisible: undoingSetWinner ? false : state.setBannerVisible,
-        setWinner:        undoingSetWinner ? null  : state.setWinner,
-        mySets:           newMySets,
-        oppSets:          newOppSets,
+        myScore:            newMyScore,
+        oppScore:           newOppScore,
+        history:            newHistory,
+        matchHistory:       state.matchHistory.slice(0, -1),
+        trajectory:         newTrajectory,
+        matchPlayers:       updatedPlayers,
+        liberoReplacements: restoredLiberoReplacements,
+        opponentServing:    newOpponentServing,
+        setBannerVisible:   undoingSetWinner ? false : state.setBannerVisible,
+        setWinner:          undoingSetWinner ? null  : state.setWinner,
+        mySets:             newMySets,
+        oppSets:            newOppSets,
       };
     }
 
