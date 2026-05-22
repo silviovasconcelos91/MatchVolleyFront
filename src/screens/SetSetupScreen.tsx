@@ -29,7 +29,7 @@ type FieldRole = typeof FIELD_ROLES[number];
 
 const SetSetupScreen = () => {
   const { state, actions } = useMatch();
-  const { originalStarterIds, originalLiberoId, availableLiberoIds, matchPlayers, setNum, lastSetStartPositionMap } = state;
+  const { originalStarterIds, originalLiberoId, availableLiberoIds, matchPlayers, setNum, lastSetStartPositionMap, setResults } = state;
 
   // ── positionMap : pos (1-6) → playerId ──
   const [positionMap, setPositionMap] = useState<Record<number, number>>(() => {
@@ -47,6 +47,11 @@ const SetSetupScreen = () => {
 
   // Libero actif pour ce set (par défaut oui s'il existe au roster)
   const [liberoActive, setLiberoActive] = useState<boolean>(originalLiberoId !== null);
+
+  const [opponentServesFirst, setOpponentServesFirst] = useState<boolean>(() => {
+    const lastResult = setResults[setResults.length - 1];
+    return lastResult ? lastResult.winner === 'opp' : false;
+  });
 
   // ── tacticalRoles : playerId → rôle ──
   const [tacticalRoles, setTacticalRoles] = useState<Record<number, string>>(() => {
@@ -127,8 +132,8 @@ const SetSetupScreen = () => {
 
   // ── Confirmer et démarrer le set ──
   const handleConfirm = useCallback(() => {
-    actions.assignSetRoles({ positionMap, tacticalRoles, liberoActive });
-  }, [actions, positionMap, tacticalRoles, liberoActive]);
+    actions.assignSetRoles({ positionMap, tacticalRoles, liberoActive, opponentServesFirst });
+  }, [actions, positionMap, tacticalRoles, liberoActive, opponentServesFirst]);
 
   // ── Libero (infos pour affichage) ──
   const liberoPlayer = originalLiberoId !== null
@@ -182,6 +187,30 @@ const SetSetupScreen = () => {
         <Text style={styles.headerHint}>
           Place 6 joueurs sur le terrain et assigne les rôles
         </Text>
+
+        <View style={styles.serveToggle}>
+          <Text style={styles.serveLabel}>QUI SERT EN PREMIER ?</Text>
+          <View style={styles.serveButtons}>
+            <TouchableOpacity
+              style={[styles.serveBtn, !opponentServesFirst && styles.serveBtnActive]}
+              onPress={() => setOpponentServesFirst(false)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.serveBtnText, !opponentServesFirst && styles.serveBtnActiveText]}>
+                Mon équipe
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.serveBtn, opponentServesFirst && styles.serveBtnActive]}
+              onPress={() => setOpponentServesFirst(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.serveBtnText, opponentServesFirst && styles.serveBtnActiveText]}>
+                Adversaire
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
 
       {/* ── Éditeur de positions ── */}
@@ -460,6 +489,43 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.sm,
     color: COLORS.textMuted,
     textAlign: 'center',
+  },
+  serveToggle: {
+    marginTop: SPACING.sm,
+    alignSelf: 'stretch',
+    gap: SPACING.xs,
+  },
+  serveLabel: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textMuted,
+    letterSpacing: 1,
+    textAlign: 'center',
+  },
+  serveButtons: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
+  },
+  serveBtn: {
+    flex: 1,
+    paddingVertical: SPACING.xs + 2,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.bgInput,
+    alignItems: 'center',
+  },
+  serveBtnActive: {
+    backgroundColor: `${COLORS.blue}22`,
+    borderColor: `${COLORS.blue}66`,
+  },
+  serveBtnText: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textDark,
+    fontWeight: '500',
+  },
+  serveBtnActiveText: {
+    color: COLORS.blue,
+    fontWeight: '600',
   },
 
   // Section générique
