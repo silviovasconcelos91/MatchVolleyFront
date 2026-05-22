@@ -28,7 +28,7 @@ const ACTION_LABELS: Record<ActionKey, string> = {
 
 const CourtScreen = () => {
   const { state, actions } = useMatch();
-  const { matchPlayers, setBannerVisible, rosterValidated, availableLiberoIds, liberoReplacements, matchHistory, setNum, history } = state;
+  const { matchPlayers, setBannerVisible, rosterValidated, availableLiberoIds, liberoReplacements, matchHistory, setNum, history, opponentServing } = state;
 
   const [selectedAction, setSelectedAction] = useState<ActionKey | null>(null);
 
@@ -179,6 +179,11 @@ const CourtScreen = () => {
 
         {/* Rotation + Liberos */}
         <View style={styles.rotationRow}>
+          <View style={styles.serveIndicator}>
+            <Text style={[styles.serveIndicatorText, { color: opponentServing ? COLORS.yellow : COLORS.textDark }]}>
+              {opponentServing ? '⚡ Adv. sert' : '● Mon service'}
+            </Text>
+          </View>
           <TouchableOpacity
             style={[styles.btnRotation, disabled && styles.btnDisabled]}
             onPress={actions.rotate}
@@ -446,6 +451,15 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xs,
     color: COLORS.textMuted,
     marginTop: 2,
+  },
+  serveIndicator: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xs,
+  },
+  serveIndicatorText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '500',
   },
   btnDisabled: {
     opacity: 0.4,
