@@ -71,10 +71,12 @@ export type SubEntry = {
 
 export type SetWinner = 'me' | 'opp' | null;
 
+type LiberoSwapInfo = { liberoId: number; centralId: number; liberoPos: number };
+
 type HistoryEntry =
-  | { source: 'player'; playerId: number; actionKey: ActionKey; mine: boolean }
-  | { source: 'opp'; mine: false }
-  | { source: 'opp_fault'; mine: true };
+  | { source: 'player'; playerId: number; actionKey: ActionKey; mine: boolean; rotated?: true; liberoAutoSwapped?: LiberoSwapInfo }
+  | { source: 'opp'; mine: false; rotated?: true; liberoAutoSwapped?: LiberoSwapInfo }
+  | { source: 'opp_fault'; mine: true; rotated?: true; liberoAutoSwapped?: LiberoSwapInfo };
 
 // history est vidé entre les sets ; matchHistory accumule tout le match.
 export type MatchHistoryEvent = {
@@ -108,6 +110,7 @@ export type MatchState = {
   originalLiberoId: number | null;  // ID du libero principal (1er sélectionné au roster)
   liberoId: number | null;          // ID du libero actif pour le set en cours (null = désactivé)
   liberoReplacements: Record<number, number>; // liberoId → replacedPlayerId (présent = libero sur terrain)
+  opponentServing: boolean;                   // true = adversaire au service
   myScore: number;
   oppScore: number;
   mySets: number;
@@ -140,6 +143,7 @@ type AssignSetRolesPayload = {
   tacticalRoles: Record<number, string>; // playerId → rôle tactique
   liberoActive: boolean;                 // false = libero joue comme joueur normal ce set
   newLiberoId?: number | null;           // désigner un libero si aucun n'était au roster
+  opponentServesFirst: boolean;          // true = adversaire sert en premier ce set
 };
 
 type MatchAction =
@@ -191,6 +195,7 @@ const initialState: MatchState = {
   originalLiberoId:    null,
   liberoId:            null,
   liberoReplacements:  {},
+  opponentServing:     false,
   myScore:             0,
   oppScore:            0,
   mySets:              0,
