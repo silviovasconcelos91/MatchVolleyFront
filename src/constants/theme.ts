@@ -63,6 +63,26 @@ export const PLAYER_COLORS: string[] = [
 export const getPlayerColor = (id: number): string =>
   PLAYER_COLORS[(id - 1) % PLAYER_COLORS.length];
 
+export const POSITION_COLORS = {
+  // tacticalRole values (SetSetupScreen → MatchContext)
+  Passeur: '#f59e0b',
+  R4:      '#3b82f6',
+  Central: '#ef4444',
+  Pointu:  '#a855f7',
+  Libero:  '#10b981',
+  // PositionScreen Role notation
+  S:       '#f59e0b',
+  OPP:     '#a855f7',
+  OH1:     '#3b82f6',
+  OH2:     '#3b82f6',
+  MB1:     '#ef4444',
+  MB2:     '#ef4444',
+} as const;
+
+export function getPositionColor(role: string): string {
+  return POSITION_COLORS[role as keyof typeof POSITION_COLORS] ?? COLORS.textMuted;
+}
+
 // ── Espacements ──
 export const SPACING = {
   xs:   4,
