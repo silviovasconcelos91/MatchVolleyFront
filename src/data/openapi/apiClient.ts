@@ -16,6 +16,7 @@
 import { API_URL, doRefresh } from '../api';
 import { tokenStore } from '../tokenStore';
 import { client } from './client.gen';
+import type { ResolvedRequestOptions } from './client/types.gen';
 
 // ── 1. Override baseUrl (client.gen.ts hardcodes localhost:8080) ──────────────
 client.setConfig({ baseUrl: API_URL });
@@ -32,7 +33,7 @@ client.interceptors.request.use((request: Request): Request => {
 
 // ── 3. Response interceptor — handle 401: refresh + retry ────────────────────
 client.interceptors.response.use(
-  async (response: Response, request: Request): Promise<Response> => {
+  async (response: Response, request: Request, opts: ResolvedRequestOptions): Promise<Response> => {
     if (response.status !== 401) return response;
 
     const refreshed = await doRefresh();
@@ -42,13 +43,19 @@ client.interceptors.response.use(
       return response;
     }
 
-    // Retry the original request with the refreshed access token
+    // Rebuild request from scratch — request.body is consumed after the initial fetch,
+    // so new Request(request, { headers }) would send an empty body on retry.
     const { accessToken: newToken } = tokenStore.getTokens();
     const headers = new Headers(request.headers);
     if (newToken) {
       headers.set('Authorization', `Bearer ${newToken}`);
     }
-    return fetch(new Request(request, { headers }));
+    return fetch(new Request(request.url, {
+      method: request.method,
+      redirect: request.redirect,
+      headers,
+      body: opts.serializedBody ?? null,
+    }));
   },
 );
 
