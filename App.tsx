@@ -74,6 +74,7 @@ import MatchDetailScreen         from './src/screens/MatchDetailScreen';
 import PlayerSeasonStatsScreen  from './src/screens/PlayerSeasonStatsScreen';
 import MatchModeScreen from './src/screens/MatchModeScreen';
 import LiveStatsScreen from './src/screens/LiveStatsScreen';
+import LiveStatsSummaryScreen from './src/screens/LiveStatsSummaryScreen';
 import { LiveStatsProvider } from './src/context/LiveStatsContext';
 
 // Thème
@@ -436,7 +437,7 @@ const AppContent = () => {
                 {liveTab === 'live'     && <LiveStatsScreen team={selectedTeam} />}
                 {liveTab === 'position' && <PositionScreen />}
                 {liveTab === 'graph'    && <GraphScreen />}
-                {liveTab === 'stats'    && <StatsScreen />}
+                {liveTab === 'stats'    && <LiveStatsSummaryScreen />}
               </View>
             </>
           )}
