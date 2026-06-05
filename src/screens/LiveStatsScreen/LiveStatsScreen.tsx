@@ -141,7 +141,7 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
             const count = countByPlayer.get(`${activeTeam}:${p.id}`) ?? 0;
             return (
               <TouchableOpacity
-                key={p.id}
+                key={`${activeTeam}:${p.id}`}
                 style={[
                   styles.playerCell,
                   isSel && { borderColor: p.color, borderWidth: 2, backgroundColor: `${p.color}22` },
