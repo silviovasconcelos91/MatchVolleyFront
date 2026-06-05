@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Team } from '../../data/teams';
@@ -84,6 +84,13 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
     }));
     return buildCourt(players);
   }, []);
+
+  // Transfert de tout l'effectif : les joueurs de l'équipe absents du roster
+  // (ni titulaires, ni banc explicite) sont ajoutés au banc pour les changements.
+  useEffect(() => {
+    const missing = team.players.filter(p => !matchPlayers.some(mp => mp.id === p.id));
+    if (missing.length > 0) matchActions.hydrateBench({ players: missing });
+  }, [team.players, matchPlayers, matchActions]);
 
   // Joueurs du banc disponibles pour un remplacement (hors terrain, hors libero).
   const benchPlayers = useMemo(() => {
