@@ -2,20 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useLiveStats } from '../context/LiveStatsContext';
 import { LIVE_ACTIONS, LIVE_ACTION_BY_KEY } from '../data/liveStats';
-import type { LiveTeam, LiveActionKey, LiveActionCategory } from '../data/liveStats';
+import type { LiveTeam, LiveActionKey } from '../data/liveStats';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
-
-const CATEGORY_ORDER: LiveActionCategory[] = ['point', 'fault', 'neutral'];
-const CATEGORY_LABEL: Record<LiveActionCategory, string> = {
-  point:   'POINTS REMPORTÉS',
-  fault:   'FAUTES',
-  neutral: 'SANS POINT',
-};
-const CATEGORY_COLOR: Record<LiveActionCategory, string> = {
-  point:   COLORS.green,
-  fault:   COLORS.red,
-  neutral: COLORS.textMuted,
-};
 
 type PlayerAgg = {
   playerId: number;
@@ -40,35 +28,6 @@ const LiveStatsSummaryScreen = () => {
     [state.events, activeTeam],
   );
 
-  // Comptage par type d'action sur l'équipe active.
-  const byType = useMemo(() => {
-    const map: Partial<Record<LiveActionKey, number>> = {};
-    for (const e of teamEvents) map[e.actionKey] = (map[e.actionKey] ?? 0) + 1;
-    return map;
-  }, [teamEvents]);
-
-  const count = (...keys: LiveActionKey[]): number => keys.reduce((s, k) => s + (byType[k] ?? 0), 0);
-
-  // KPIs d'équipe.
-  const kpis = useMemo(() => {
-    const points = teamEvents.filter(e => LIVE_ACTION_BY_KEY[e.actionKey].category === 'point').length;
-    const faults = teamEvents.filter(e => LIVE_ACTION_BY_KEY[e.actionKey].category === 'fault').length;
-    const attacks = count('attack_pt', 'attack_out', 'attack_net', 'attack_no_pt');
-    const kills   = count('attack_pt');
-    const serves  = count('ace', 'serve_in', 'serve_out', 'serve_net');
-    const serveErr = count('serve_out', 'serve_net');
-    const recvTotal = count('good_recv', 'bad_recv', 'recv_shank');
-    const goodRecv  = count('good_recv');
-    return {
-      points, faults,
-      attacks, kills, attackPct: pct(kills, attacks),
-      serves, aces: count('ace'), serveErr,
-      recvTotal, recvPct: pct(goodRecv, recvTotal),
-      total: teamEvents.length,
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teamEvents, byType]);
-
   // Agrégat par joueur.
   const players = useMemo(() => {
     const map = new Map<number, PlayerAgg>();
@@ -85,41 +44,6 @@ const LiveStatsSummaryScreen = () => {
       else if (cat === 'fault') agg.faults += 1;
     }
     return [...map.values()].sort((a, b) => b.points - a.points || b.total - a.total || a.jersey - b.jersey);
-  }, [teamEvents]);
-
-  // Trajectoires d'attaque (balle en jeu) groupées par zone de départ → zone d'arrivée.
-  const attackGroups = useMemo(() => {
-    const groups = new Map<number, {
-      start: number; total: number; points: number;
-      lands: Map<number, { land: number; total: number; points: number }>;
-    }>();
-    for (const e of teamEvents) {
-      if (e.zoneStart === null || e.zone === null) continue;
-      if (e.actionKey !== 'attack_pt' && e.actionKey !== 'attack_no_pt') continue;
-      const isPoint = e.actionKey === 'attack_pt';
-      let g = groups.get(e.zoneStart);
-      if (!g) { g = { start: e.zoneStart, total: 0, points: 0, lands: new Map() }; groups.set(e.zoneStart, g); }
-      g.total += 1; if (isPoint) g.points += 1;
-      let l = g.lands.get(e.zone);
-      if (!l) { l = { land: e.zone, total: 0, points: 0 }; g.lands.set(e.zone, l); }
-      l.total += 1; if (isPoint) l.points += 1;
-    }
-    return [...groups.values()]
-      .map(g => ({ ...g, lands: [...g.lands.values()].sort((a, b) => b.total - a.total || a.land - b.land) }))
-      .sort((a, b) => a.start - b.start);
-  }, [teamEvents]);
-
-  // Services aboutis (ace / réussi) groupés par zone d'arrivée → % ace.
-  const serviceZones = useMemo(() => {
-    const m = new Map<number, { land: number; total: number; points: number }>();
-    for (const e of teamEvents) {
-      if (e.zone === null) continue;
-      if (e.actionKey !== 'ace' && e.actionKey !== 'serve_in') continue;
-      let r = m.get(e.zone);
-      if (!r) { r = { land: e.zone, total: 0, points: 0 }; m.set(e.zone, r); }
-      r.total += 1; if (e.actionKey === 'ace') r.points += 1;
-    }
-    return [...m.values()].sort((a, b) => b.total - a.total || a.land - b.land);
   }, [teamEvents]);
 
   // Trajectoires d'attaque d'un joueur précis (zone départ → arrivée).
@@ -173,57 +97,7 @@ const LiveStatsSummaryScreen = () => {
         <Text style={styles.empty}>Aucune saisie pour cette équipe.</Text>
       ) : (
         <>
-          {/* KPIs */}
-          <View style={styles.kpiRow}>
-            <View style={styles.kpiTile}>
-              <Text style={[styles.kpiValue, { color: COLORS.green }]}>{kpis.points}</Text>
-              <Text style={styles.kpiLabel}>Points</Text>
-            </View>
-            <View style={styles.kpiTile}>
-              <Text style={[styles.kpiValue, { color: COLORS.redLight }]}>{kpis.faults}</Text>
-              <Text style={styles.kpiLabel}>Fautes</Text>
-            </View>
-            <View style={styles.kpiTile}>
-              <Text style={[styles.kpiValue, { color: accent }]}>{kpis.attackPct}</Text>
-              <Text style={styles.kpiLabel}>Att. {kpis.kills}/{kpis.attacks}</Text>
-            </View>
-          </View>
-          <View style={styles.kpiRow}>
-            <View style={styles.kpiTile}>
-              <Text style={[styles.kpiValue, { color: accent }]}>{kpis.aces}</Text>
-              <Text style={styles.kpiLabel}>Aces · {kpis.serveErr} err</Text>
-            </View>
-            <View style={styles.kpiTile}>
-              <Text style={[styles.kpiValue, { color: accent }]}>{kpis.recvPct}</Text>
-              <Text style={styles.kpiLabel}>Récept. ({kpis.recvTotal})</Text>
-            </View>
-            <View style={styles.kpiTile}>
-              <Text style={[styles.kpiValue, { color: COLORS.textPrimary }]}>{kpis.total}</Text>
-              <Text style={styles.kpiLabel}>Actions</Text>
-            </View>
-          </View>
-
-          {/* Détail par type */}
-          <Text style={styles.sectionLabel}>PAR TYPE</Text>
-          {CATEGORY_ORDER.map(cat => {
-            const rows = LIVE_ACTIONS.filter(a => a.category === cat && (byType[a.key] ?? 0) > 0);
-            if (rows.length === 0) return null;
-            return (
-              <View key={cat} style={styles.typeGroup}>
-                <Text style={[styles.typeGroupLabel, { color: CATEGORY_COLOR[cat] }]}>{CATEGORY_LABEL[cat]}</Text>
-                <View style={styles.typeWrap}>
-                  {rows.map(a => (
-                    <View key={a.key} style={[styles.typeChip, { borderColor: `${CATEGORY_COLOR[cat]}44` }]}>
-                      <Text style={[styles.typeChipNum, { color: CATEGORY_COLOR[cat] }]}>{byType[a.key]}</Text>
-                      <Text style={styles.typeChipLabel}>{a.label}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            );
-          })}
-
-          {/* Détail par joueur */}
+          {/* Détail par joueur — tap pour voir les trajectoires d'attaque */}
           <Text style={styles.sectionLabel}>PAR JOUEUR</Text>
           {players.map(p => {
             const expanded = expandedPlayer === p.playerId;
@@ -289,48 +163,6 @@ const LiveStatsSummaryScreen = () => {
               </View>
             );
           })}
-
-          {/* % point d'attaque par trajectoire (zone départ → arrivée) */}
-          <Text style={styles.sectionLabel}>ATTAQUE — % POINT PAR TRAJECTOIRE</Text>
-          {attackGroups.length === 0 ? (
-            <Text style={styles.smallEmpty}>Aucune attaque avec trajectoire saisie.</Text>
-          ) : (
-            attackGroups.map(g => (
-              <View key={`atk-${g.start}`} style={styles.trajGroup}>
-                <View style={styles.trajHeader}>
-                  <Text style={styles.trajTitle}>Départ · Zone {g.start}</Text>
-                  <Text style={[styles.trajPct, { color: COLORS.green }]}>
-                    {pct(g.points, g.total)} · {g.points}/{g.total}
-                  </Text>
-                </View>
-                {g.lands.map(l => (
-                  <View key={`atk-${g.start}-${l.land}`} style={styles.trajRow}>
-                    <Text style={styles.trajRowLabel}>→ arrivée Z{l.land}</Text>
-                    <View style={styles.bar}>
-                      <View style={[styles.barFill, { width: `${pctNum(l.points, l.total)}%`, backgroundColor: COLORS.green }]} />
-                    </View>
-                    <Text style={styles.trajRowVal}>{pct(l.points, l.total)} ({l.points}/{l.total})</Text>
-                  </View>
-                ))}
-              </View>
-            ))
-          )}
-
-          {/* % ace par zone d'arrivée du service */}
-          <Text style={styles.sectionLabel}>SERVICE — % ACE PAR ZONE D'ARRIVÉE</Text>
-          {serviceZones.length === 0 ? (
-            <Text style={styles.smallEmpty}>Aucun service avec zone saisie.</Text>
-          ) : (
-            serviceZones.map(z => (
-              <View key={`srv-${z.land}`} style={styles.trajRow}>
-                <Text style={styles.trajRowLabel}>Zone {z.land}</Text>
-                <View style={styles.bar}>
-                  <View style={[styles.barFill, { width: `${pctNum(z.points, z.total)}%`, backgroundColor: accent }]} />
-                </View>
-                <Text style={styles.trajRowVal}>{pct(z.points, z.total)} ({z.points}/{z.total})</Text>
-              </View>
-            ))
-          )}
         </>
       )}
 
