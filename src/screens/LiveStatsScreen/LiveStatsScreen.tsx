@@ -53,11 +53,12 @@ const buildCourt = (players: CourtPlayer[]): Record<number, CourtPlayer> => {
 
 const LiveStatsScreen = ({ team, onBack }: Props) => {
   const { state, actions } = useLiveStats();
-  const { state: matchState } = useMatch();
-  const { matchPlayers } = matchState;
+  const { state: matchState, actions: matchActions } = useMatch();
+  const { matchPlayers, availableLiberoIds } = matchState;
 
   const [target, setTarget] = useState<Target | null>(null);
   const [pendingAction, setPendingAction] = useState<LiveActionKey | null>(null);
+  const [subFor, setSubFor] = useState<CourtPlayer | null>(null);
 
   // Joueurs sur le terrain : positions réelles issues du roster/SetSetup (MatchContext).
   const myCourt = useMemo(() => {
@@ -83,6 +84,18 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
     }));
     return buildCourt(players);
   }, []);
+
+  // Joueurs du banc disponibles pour un remplacement (hors terrain, hors libero).
+  const benchPlayers = useMemo(() => {
+    const liberoSet = new Set(availableLiberoIds);
+    return matchPlayers.filter(p => !p.onCourt && !liberoSet.has(p.id));
+  }, [matchPlayers, availableLiberoIds]);
+
+  const handleSub = (inId: number) => {
+    if (!subFor) return;
+    matchActions.confirmSub({ outId: subFor.id, inId });
+    setSubFor(null);
+  };
 
   // Nb d'événements par joueur (team:id) pour le compteur sur la case.
   const countByPlayer = useMemo(() => {
@@ -139,6 +152,7 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
         key={zone}
         style={[styles.courtCell, { borderColor: `${player.color}88`, backgroundColor: `${player.color}1a` }]}
         onPress={() => setTarget({ team: courtTeam, player })}
+        onLongPress={courtTeam === 'mine' ? () => setSubFor(player) : undefined}
         activeOpacity={0.7}
       >
         <Text style={[styles.courtNum, { color: player.color }]}>{player.jersey}</Text>
@@ -273,6 +287,39 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
           <TouchableOpacity style={styles.zoneCancel} onPress={() => setPendingAction(null)} activeOpacity={0.7}>
             <Text style={styles.zoneCancelText}>Annuler</Text>
           </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ── Remplacement (appui long sur un joueur) ── */}
+      {subFor !== null && (
+        <View style={styles.overlay}>
+          <View style={styles.subCard}>
+            <Text style={styles.modalTitle}>Remplacer {subFor.name.split(' ')[0]}</Text>
+            {benchPlayers.length === 0 ? (
+              <Text style={styles.subEmpty}>Aucun joueur disponible sur le banc.</Text>
+            ) : (
+              <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+                {benchPlayers.map(p => {
+                  const color = getPositionColor(p.tacticalRole);
+                  return (
+                    <TouchableOpacity
+                      key={p.id}
+                      style={styles.benchBtn}
+                      onPress={() => handleSub(p.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.benchNum, { color }]}>{p.numero}</Text>
+                      <Text style={styles.benchName} numberOfLines={1}>{p.name}</Text>
+                      {p.tacticalRole ? <Text style={[styles.benchRole, { color }]}>{p.tacticalRole}</Text> : null}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
+            <TouchableOpacity style={styles.modalCancel} onPress={() => setSubFor(null)} activeOpacity={0.7}>
+              <Text style={styles.modalCancelText}>Annuler</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
     </SafeAreaView>

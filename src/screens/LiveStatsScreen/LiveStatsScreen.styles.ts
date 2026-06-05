@@ -210,6 +210,51 @@ export const styles = StyleSheet.create({
     color: COLORS.redLight,
   },
 
+  // ── Modal remplacement ──
+  subCard: {
+    width: '100%',
+    maxHeight: '80%',
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: SPACING.lg,
+  },
+  benchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.bgInput,
+    marginBottom: SPACING.xs,
+  },
+  benchNum: {
+    fontSize: FONT_SIZE.xxl,
+    fontWeight: '700',
+    width: 40,
+    textAlign: 'center',
+  },
+  benchName: {
+    flex: 1,
+    fontSize: FONT_SIZE.lg,
+    color: COLORS.textPrimary,
+    fontWeight: '500',
+  },
+  benchRole: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '600',
+  },
+  subEmpty: {
+    fontSize: FONT_SIZE.md,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    paddingVertical: SPACING.xl,
+  },
+
   // ── Zone : demi-terrain adverse ──
   zoneTitle: {
     fontSize: FONT_SIZE.xxl,
