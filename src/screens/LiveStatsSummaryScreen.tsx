@@ -33,6 +33,7 @@ const pctNum = (num: number, den: number): number => (den > 0 ? Math.round((num 
 const LiveStatsSummaryScreen = () => {
   const { state } = useLiveStats();
   const [activeTeam, setActiveTeam] = useState<LiveTeam>('mine');
+  const [expandedPlayer, setExpandedPlayer] = useState<number | null>(null);
 
   const teamEvents = useMemo(
     () => state.events.filter(e => e.team === activeTeam),
@@ -121,6 +122,29 @@ const LiveStatsSummaryScreen = () => {
     return [...m.values()].sort((a, b) => b.total - a.total || a.land - b.land);
   }, [teamEvents]);
 
+  // Trajectoires d'attaque d'un joueur précis (zone départ → arrivée).
+  const playerAttackGroups = (playerId: number) => {
+    const groups = new Map<number, {
+      start: number; total: number; points: number;
+      lands: Map<number, { land: number; total: number; points: number }>;
+    }>();
+    for (const e of teamEvents) {
+      if (e.playerId !== playerId) continue;
+      if (e.zoneStart === null || e.zone === null) continue;
+      if (e.actionKey !== 'attack_pt' && e.actionKey !== 'attack_no_pt') continue;
+      const isPoint = e.actionKey === 'attack_pt';
+      let g = groups.get(e.zoneStart);
+      if (!g) { g = { start: e.zoneStart, total: 0, points: 0, lands: new Map() }; groups.set(e.zoneStart, g); }
+      g.total += 1; if (isPoint) g.points += 1;
+      let l = g.lands.get(e.zone);
+      if (!l) { l = { land: e.zone, total: 0, points: 0 }; g.lands.set(e.zone, l); }
+      l.total += 1; if (isPoint) l.points += 1;
+    }
+    return [...groups.values()]
+      .map(g => ({ ...g, lands: [...g.lands.values()].sort((a, b) => b.total - a.total || a.land - b.land) }))
+      .sort((a, b) => a.start - b.start);
+  };
+
   const accent = activeTeam === 'mine' ? COLORS.blue : COLORS.pink;
 
   return (
@@ -134,7 +158,7 @@ const LiveStatsSummaryScreen = () => {
             <TouchableOpacity
               key={t}
               style={[styles.segmentItem, isActive && { backgroundColor: `${c}33` }]}
-              onPress={() => setActiveTeam(t)}
+              onPress={() => { setActiveTeam(t); setExpandedPlayer(null); }}
               activeOpacity={0.8}
             >
               <Text style={[styles.segmentText, isActive && styles.segmentTextActive]}>
@@ -201,30 +225,70 @@ const LiveStatsSummaryScreen = () => {
 
           {/* Détail par joueur */}
           <Text style={styles.sectionLabel}>PAR JOUEUR</Text>
-          {players.map(p => (
-            <View key={p.playerId} style={styles.playerRow}>
-              <View style={[styles.playerNumBadge, { borderColor: `${accent}66`, backgroundColor: `${accent}1a` }]}>
-                <Text style={[styles.playerNum, { color: accent }]}>{p.jersey}</Text>
+          {players.map(p => {
+            const expanded = expandedPlayer === p.playerId;
+            const groups = expanded ? playerAttackGroups(p.playerId) : [];
+            return (
+              <View key={p.playerId}>
+                <TouchableOpacity
+                  style={styles.playerRow}
+                  onPress={() => setExpandedPlayer(expanded ? null : p.playerId)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.playerNumBadge, { borderColor: `${accent}66`, backgroundColor: `${accent}1a` }]}>
+                    <Text style={[styles.playerNum, { color: accent }]}>{p.jersey}</Text>
+                  </View>
+                  <View style={styles.playerBody}>
+                    <View style={styles.playerHeader}>
+                      <Text style={styles.playerName} numberOfLines={1}>
+                        {activeTeam === 'opp' ? `Adversaire #${p.jersey}` : p.name}
+                      </Text>
+                      <Text style={styles.playerScore}>
+                        <Text style={{ color: COLORS.green }}>{p.points} pt</Text>
+                        <Text style={styles.playerScoreDot}> · </Text>
+                        <Text style={{ color: COLORS.redLight }}>{p.faults} f</Text>
+                        <Text style={styles.chevron}>{expanded ? '  ▾' : '  ▸'}</Text>
+                      </Text>
+                    </View>
+                    <Text style={styles.playerBreakdown} numberOfLines={2}>
+                      {LIVE_ACTIONS.filter(a => (p.byKey[a.key] ?? 0) > 0)
+                        .map(a => `${a.label} ${p.byKey[a.key]}`)
+                        .join('  ·  ')}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {expanded && (
+                  <View style={styles.playerDetail}>
+                    <Text style={styles.playerDetailLabel}>ATTAQUE — % POINT PAR TRAJECTOIRE</Text>
+                    {groups.length === 0 ? (
+                      <Text style={styles.smallEmpty}>Aucune attaque avec trajectoire saisie.</Text>
+                    ) : (
+                      groups.map(g => (
+                        <View key={`pa-${g.start}`} style={styles.trajGroup}>
+                          <View style={styles.trajHeader}>
+                            <Text style={styles.trajTitle}>Départ · Zone {g.start}</Text>
+                            <Text style={[styles.trajPct, { color: COLORS.green }]}>
+                              {pct(g.points, g.total)} · {g.points}/{g.total}
+                            </Text>
+                          </View>
+                          {g.lands.map(l => (
+                            <View key={`pa-${g.start}-${l.land}`} style={styles.trajRow}>
+                              <Text style={styles.trajRowLabel}>Z{g.start}→Z{l.land}</Text>
+                              <View style={styles.bar}>
+                                <View style={[styles.barFill, { width: `${pctNum(l.points, l.total)}%`, backgroundColor: COLORS.green }]} />
+                              </View>
+                              <Text style={styles.trajRowVal}>{pct(l.points, l.total)} ({l.points}/{l.total})</Text>
+                            </View>
+                          ))}
+                        </View>
+                      ))
+                    )}
+                  </View>
+                )}
               </View>
-              <View style={styles.playerBody}>
-                <View style={styles.playerHeader}>
-                  <Text style={styles.playerName} numberOfLines={1}>
-                    {activeTeam === 'opp' ? `Adversaire #${p.jersey}` : p.name}
-                  </Text>
-                  <Text style={styles.playerScore}>
-                    <Text style={{ color: COLORS.green }}>{p.points} pt</Text>
-                    <Text style={styles.playerScoreDot}> · </Text>
-                    <Text style={{ color: COLORS.redLight }}>{p.faults} f</Text>
-                  </Text>
-                </View>
-                <Text style={styles.playerBreakdown} numberOfLines={2}>
-                  {LIVE_ACTIONS.filter(a => (p.byKey[a.key] ?? 0) > 0)
-                    .map(a => `${a.label} ${p.byKey[a.key]}`)
-                    .join('  ·  ')}
-                </Text>
-              </View>
-            </View>
-          ))}
+            );
+          })}
 
           {/* % point d'attaque par trajectoire (zone départ → arrivée) */}
           <Text style={styles.sectionLabel}>ATTAQUE — % POINT PAR TRAJECTOIRE</Text>
@@ -420,6 +484,29 @@ const styles = StyleSheet.create({
   },
   playerScoreDot: {
     color: COLORS.textMuted,
+  },
+  chevron: {
+    color: COLORS.textMuted,
+    fontSize: FONT_SIZE.md,
+  },
+  playerDetail: {
+    marginTop: -SPACING.xs,
+    marginBottom: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+    paddingBottom: SPACING.sm,
+    paddingTop: SPACING.sm,
+    backgroundColor: COLORS.bgInput,
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderColor: COLORS.border,
+    borderBottomLeftRadius: RADIUS.md,
+    borderBottomRightRadius: RADIUS.md,
+  },
+  playerDetailLabel: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textSecondary,
+    letterSpacing: 1,
+    marginBottom: SPACING.xs,
   },
   playerBreakdown: {
     fontSize: FONT_SIZE.sm,
