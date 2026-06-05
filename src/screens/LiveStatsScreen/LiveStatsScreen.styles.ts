@@ -281,6 +281,12 @@ export const styles = StyleSheet.create({
     fontSize: FONT_SIZE.sm,
     fontWeight: '600',
   },
+  subCount: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+  },
   subEmpty: {
     fontSize: FONT_SIZE.md,
     color: COLORS.textMuted,

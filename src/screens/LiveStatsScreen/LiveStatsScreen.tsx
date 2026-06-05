@@ -54,7 +54,7 @@ const buildCourt = (players: CourtPlayer[]): Record<number, CourtPlayer> => {
 const LiveStatsScreen = ({ team, onBack }: Props) => {
   const { state, actions } = useLiveStats();
   const { state: matchState, actions: matchActions } = useMatch();
-  const { matchPlayers, availableLiberoIds, liberoReplacements } = matchState;
+  const { matchPlayers, availableLiberoIds, liberoReplacements, substitutionPairs, subHistory } = matchState;
 
   const [target, setTarget] = useState<Target | null>(null);
   const [pendingAction, setPendingAction] = useState<LiveActionKey | null>(null);
@@ -92,6 +92,46 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
     const liberoSet = new Set(availableLiberoIds);
     return matchPlayers.filter(p => !p.onCourt && !liberoSet.has(p.id));
   }, [matchPlayers, availableLiberoIds]);
+
+  // Règles FIVB de remplacement (par set) :
+  // - chaque joueur ne peut être impliqué que 2 fois (sortie puis retour) ;
+  // - un sortant ne peut être échangé qu'avec son partenaire de paire ;
+  // - un titulaire vierge ne peut être remplacé que par un remplaçant vierge ;
+  // - 6 remplacements maximum par set.
+  const subsCount = subHistory.length;
+
+  const partnerOf = (id: number): number | undefined => {
+    for (const [outId, inId] of Object.entries(substitutionPairs)) {
+      if (Number(outId) === id) return inId;
+      if (inId === id) return Number(outId);
+    }
+    return undefined;
+  };
+
+  const involvement = (id: number): number => {
+    let n = 0;
+    for (const [outId, inId] of Object.entries(substitutionPairs)) {
+      if (Number(outId) === id) n += 1;
+      if (inId === id) n += 1;
+    }
+    return n;
+  };
+
+  // Remplaçants légaux pour le joueur sortant sélectionné.
+  const benchOptions = useMemo(() => {
+    if (!subFor) return [];
+    if (subsCount >= 6) return [];
+    if (involvement(subFor.id) >= 2) return [];
+    const outPartner = partnerOf(subFor.id);
+    return benchPlayers.filter(b => {
+      if (involvement(b.id) >= 2) return false;
+      const inPartner = partnerOf(b.id);
+      if (outPartner !== undefined) return b.id === outPartner;
+      if (inPartner !== undefined) return false;
+      return true;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subFor, benchPlayers, substitutionPairs, subsCount]);
 
   const handleSub = (inId: number) => {
     if (!subFor) return;
@@ -154,7 +194,7 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
         key={zone}
         style={[styles.courtCell, { borderColor: `${player.color}88`, backgroundColor: `${player.color}1a` }]}
         onPress={() => setTarget({ team: courtTeam, player })}
-        onLongPress={courtTeam === 'mine' ? () => setSubFor(player) : undefined}
+        onLongPress={courtTeam === 'mine' && !availableLiberoIds.includes(player.id) ? () => setSubFor(player) : undefined}
         activeOpacity={0.7}
       >
         <Text style={[styles.courtNum, { color: player.color }]}>{player.jersey}</Text>
@@ -321,11 +361,16 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
         <View style={styles.overlay}>
           <View style={styles.subCard}>
             <Text style={styles.modalTitle}>Remplacer {subFor.name.split(' ')[0]}</Text>
-            {benchPlayers.length === 0 ? (
-              <Text style={styles.subEmpty}>Aucun joueur disponible sur le banc.</Text>
+            <Text style={styles.subCount}>Remplacements : {subsCount}/6</Text>
+            {benchOptions.length === 0 ? (
+              <Text style={styles.subEmpty}>
+                {subsCount >= 6
+                  ? 'Limite de 6 remplacements atteinte pour le set.'
+                  : 'Aucun remplaçant autorisé (règle de paire) ou banc vide.'}
+              </Text>
             ) : (
               <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-                {benchPlayers.map(p => {
+                {benchOptions.map(p => {
                   const color = getPositionColor(p.tacticalRole);
                   return (
                     <TouchableOpacity
