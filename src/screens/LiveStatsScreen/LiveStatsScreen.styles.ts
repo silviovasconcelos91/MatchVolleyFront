@@ -148,17 +148,21 @@ export const styles = StyleSheet.create({
     backgroundColor: 'rgba(13,27,42,0.92)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: SPACING.xl,
+    padding: SPACING.md,
   },
 
-  // ── Modal actions ──
+  // ── Modal actions (quasi plein écran pour faciliter la saisie) ──
   modalCard: {
     width: '100%',
+    height: '94%',
     backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
     padding: SPACING.lg,
+  },
+  modalScroll: {
+    flex: 1,
   },
   modalTitle: {
     fontSize: FONT_SIZE.xxl,
@@ -168,35 +172,38 @@ export const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   actionGroupLabel: {
-    fontSize: FONT_SIZE.xs,
+    fontSize: FONT_SIZE.lg,
     letterSpacing: 1,
-    marginTop: SPACING.sm,
+    fontWeight: '600',
+    marginTop: SPACING.md,
     marginBottom: SPACING.xs,
   },
   actionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: SPACING.xs,
+    gap: SPACING.sm,
   },
   actionBtn: {
     flexGrow: 1,
-    flexBasis: '31%',
-    minHeight: 52,
+    flexBasis: '46%',
+    minHeight: 72,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
   },
   actionBtnText: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: '500',
+    fontSize: FONT_SIZE.xl,
+    fontWeight: '600',
     textAlign: 'center',
   },
   modalCancel: {
-    marginTop: SPACING.lg,
+    marginTop: SPACING.md,
     paddingVertical: SPACING.md,
     alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
   },
   modalCancelText: {
     fontSize: FONT_SIZE.xl,

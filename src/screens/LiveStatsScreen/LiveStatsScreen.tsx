@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Team } from '../../data/teams';
 import { LIVE_ACTIONS, LIVE_ACTION_BY_KEY } from '../../data/liveStats';
@@ -213,30 +213,32 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
             <Text style={styles.modalTitle}>
               {target.team === 'opp' ? `Adversaire #${target.player.jersey}` : target.player.name}
             </Text>
-            {CATEGORY_ORDER.map(cat => (
-              <View key={cat}>
-                <Text style={[styles.actionGroupLabel, { color: CATEGORY_COLOR[cat] }]}>
-                  {CATEGORY_LABEL[cat]}
-                </Text>
-                <View style={styles.actionsRow}>
-                  {LIVE_ACTIONS.filter(a => a.category === cat).map(a => {
-                    const color = CATEGORY_COLOR[cat];
-                    return (
-                      <TouchableOpacity
-                        key={a.key}
-                        style={[styles.actionBtn, { backgroundColor: `${color}1f`, borderColor: `${color}55` }]}
-                        onPress={() => handleAction(a.key)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.actionBtnText, { color }]}>
-                          {a.label}{a.needsZone ? ' °' : ''}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+              {CATEGORY_ORDER.map(cat => (
+                <View key={cat}>
+                  <Text style={[styles.actionGroupLabel, { color: CATEGORY_COLOR[cat] }]}>
+                    {CATEGORY_LABEL[cat]}
+                  </Text>
+                  <View style={styles.actionsRow}>
+                    {LIVE_ACTIONS.filter(a => a.category === cat).map(a => {
+                      const color = CATEGORY_COLOR[cat];
+                      return (
+                        <TouchableOpacity
+                          key={a.key}
+                          style={[styles.actionBtn, { backgroundColor: `${color}1f`, borderColor: `${color}55` }]}
+                          onPress={() => handleAction(a.key)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={[styles.actionBtnText, { color }]}>
+                            {a.label}{a.needsZone ? ' °' : ''}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
                 </View>
-              </View>
-            ))}
+              ))}
+            </ScrollView>
             <TouchableOpacity style={styles.modalCancel} onPress={() => setTarget(null)} activeOpacity={0.7}>
               <Text style={styles.modalCancelText}>Annuler</Text>
             </TouchableOpacity>
