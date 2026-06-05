@@ -36,8 +36,11 @@ const ZONE_FILL_ORDER = [4, 3, 2, 5, 6, 1];
 const MINE_ROWS = [[4, 3, 2], [5, 6, 1]]; // avant (près filet) en haut, arrière en bas
 const OPP_ROWS  = [[5, 6, 1], [4, 3, 2]]; // arrière en haut, avant (près filet) en bas
 
-// Demi-terrain adverse pour la zone d'arrivée : avant 4-3-2 près du filet (haut).
-const ZONE_PICKER_ROWS = [[4, 3, 2], [5, 6, 1]];
+// Demi-terrain pour la zone d'arrivée. L'orientation suit la vue du coach :
+// le filet est du côté du centre du terrain selon qui réalise l'action.
+// Filet en haut → avant 4-3-2 en haut ; filet en bas → avant 4-3-2 en bas.
+const ZONE_ROWS_NET_TOP    = [[4, 3, 2], [5, 6, 1]];
+const ZONE_ROWS_NET_BOTTOM = [[5, 6, 1], [4, 3, 2]];
 
 const buildCourt = (players: CourtPlayer[]): Record<number, CourtPlayer> => {
   const map: Record<number, CourtPlayer> = {};
@@ -109,6 +112,11 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
   };
 
   const last = state.events.length > 0 ? state.events[state.events.length - 1] : null;
+
+  // Adversaire attaque → balle tombe dans mon camp (bas) → filet en haut.
+  // Mon équipe attaque → balle tombe camp adverse (haut) → filet en bas.
+  const zoneNetAtTop = target?.team === 'opp';
+  const zoneRows = zoneNetAtTop ? ZONE_ROWS_NET_TOP : ZONE_ROWS_NET_BOTTOM;
 
   const renderCell = (courtTeam: LiveTeam, courtMap: Record<number, CourtPlayer>, zone: number) => {
     const player = courtMap[zone];
@@ -236,9 +244,9 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
           <Text style={styles.zoneTitle}>
             Zone d'arrivée — {LIVE_ACTION_BY_KEY[pendingAction].label}
           </Text>
-          <Text style={styles.zoneNetLabel}>FILET</Text>
+          {zoneNetAtTop && <Text style={styles.zoneNetLabel}>FILET</Text>}
           <View style={styles.zoneCourt}>
-            {ZONE_PICKER_ROWS.map((row, i) => (
+            {zoneRows.map((row, i) => (
               <View key={`zrow-${i}`} style={styles.zoneRow}>
                 {row.map(z => (
                   <TouchableOpacity
@@ -253,6 +261,7 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
               </View>
             ))}
           </View>
+          {!zoneNetAtTop && <Text style={styles.zoneNetLabel}>FILET</Text>}
           <TouchableOpacity style={styles.zoneCancel} onPress={() => setPendingAction(null)} activeOpacity={0.7}>
             <Text style={styles.zoneCancelText}>Annuler</Text>
           </TouchableOpacity>
