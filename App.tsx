@@ -232,7 +232,7 @@ const AppContent = () => {
       matchActions.clearMatchSetup();
       return true;
     }
-    if (selectedTeam && matchMode !== null) {
+    if (matchMode === 'live') {
       setMatchMode(null);
       return true;
     }
