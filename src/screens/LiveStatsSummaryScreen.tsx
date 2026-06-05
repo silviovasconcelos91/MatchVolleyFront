@@ -28,6 +28,7 @@ type PlayerAgg = {
 };
 
 const pct = (num: number, den: number): string => (den > 0 ? `${Math.round((num / den) * 100)}%` : '—');
+const pctNum = (num: number, den: number): number => (den > 0 ? Math.round((num / den) * 100) : 0);
 
 const LiveStatsSummaryScreen = () => {
   const { state } = useLiveStats();
@@ -83,6 +84,41 @@ const LiveStatsSummaryScreen = () => {
       else if (cat === 'fault') agg.faults += 1;
     }
     return [...map.values()].sort((a, b) => b.points - a.points || b.total - a.total || a.jersey - b.jersey);
+  }, [teamEvents]);
+
+  // Trajectoires d'attaque (balle en jeu) groupées par zone de départ → zone d'arrivée.
+  const attackGroups = useMemo(() => {
+    const groups = new Map<number, {
+      start: number; total: number; points: number;
+      lands: Map<number, { land: number; total: number; points: number }>;
+    }>();
+    for (const e of teamEvents) {
+      if (e.zoneStart === null || e.zone === null) continue;
+      if (e.actionKey !== 'attack_pt' && e.actionKey !== 'attack_no_pt') continue;
+      const isPoint = e.actionKey === 'attack_pt';
+      let g = groups.get(e.zoneStart);
+      if (!g) { g = { start: e.zoneStart, total: 0, points: 0, lands: new Map() }; groups.set(e.zoneStart, g); }
+      g.total += 1; if (isPoint) g.points += 1;
+      let l = g.lands.get(e.zone);
+      if (!l) { l = { land: e.zone, total: 0, points: 0 }; g.lands.set(e.zone, l); }
+      l.total += 1; if (isPoint) l.points += 1;
+    }
+    return [...groups.values()]
+      .map(g => ({ ...g, lands: [...g.lands.values()].sort((a, b) => b.total - a.total || a.land - b.land) }))
+      .sort((a, b) => a.start - b.start);
+  }, [teamEvents]);
+
+  // Services aboutis (ace / réussi) groupés par zone d'arrivée → % ace.
+  const serviceZones = useMemo(() => {
+    const m = new Map<number, { land: number; total: number; points: number }>();
+    for (const e of teamEvents) {
+      if (e.zone === null) continue;
+      if (e.actionKey !== 'ace' && e.actionKey !== 'serve_in') continue;
+      let r = m.get(e.zone);
+      if (!r) { r = { land: e.zone, total: 0, points: 0 }; m.set(e.zone, r); }
+      r.total += 1; if (e.actionKey === 'ace') r.points += 1;
+    }
+    return [...m.values()].sort((a, b) => b.total - a.total || a.land - b.land);
   }, [teamEvents]);
 
   const accent = activeTeam === 'mine' ? COLORS.blue : COLORS.pink;
@@ -189,6 +225,48 @@ const LiveStatsSummaryScreen = () => {
               </View>
             </View>
           ))}
+
+          {/* % point d'attaque par trajectoire (zone départ → arrivée) */}
+          <Text style={styles.sectionLabel}>ATTAQUE — % POINT PAR TRAJECTOIRE</Text>
+          {attackGroups.length === 0 ? (
+            <Text style={styles.smallEmpty}>Aucune attaque avec trajectoire saisie.</Text>
+          ) : (
+            attackGroups.map(g => (
+              <View key={`atk-${g.start}`} style={styles.trajGroup}>
+                <View style={styles.trajHeader}>
+                  <Text style={styles.trajTitle}>Départ · Zone {g.start}</Text>
+                  <Text style={[styles.trajPct, { color: COLORS.green }]}>
+                    {pct(g.points, g.total)} · {g.points}/{g.total}
+                  </Text>
+                </View>
+                {g.lands.map(l => (
+                  <View key={`atk-${g.start}-${l.land}`} style={styles.trajRow}>
+                    <Text style={styles.trajRowLabel}>→ arrivée Z{l.land}</Text>
+                    <View style={styles.bar}>
+                      <View style={[styles.barFill, { width: `${pctNum(l.points, l.total)}%`, backgroundColor: COLORS.green }]} />
+                    </View>
+                    <Text style={styles.trajRowVal}>{pct(l.points, l.total)} ({l.points}/{l.total})</Text>
+                  </View>
+                ))}
+              </View>
+            ))
+          )}
+
+          {/* % ace par zone d'arrivée du service */}
+          <Text style={styles.sectionLabel}>SERVICE — % ACE PAR ZONE D'ARRIVÉE</Text>
+          {serviceZones.length === 0 ? (
+            <Text style={styles.smallEmpty}>Aucun service avec zone saisie.</Text>
+          ) : (
+            serviceZones.map(z => (
+              <View key={`srv-${z.land}`} style={styles.trajRow}>
+                <Text style={styles.trajRowLabel}>Zone {z.land}</Text>
+                <View style={styles.bar}>
+                  <View style={[styles.barFill, { width: `${pctNum(z.points, z.total)}%`, backgroundColor: accent }]} />
+                </View>
+                <Text style={styles.trajRowVal}>{pct(z.points, z.total)} ({z.points}/{z.total})</Text>
+              </View>
+            ))
+          )}
         </>
       )}
 
@@ -347,6 +425,63 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.sm,
     color: COLORS.textMuted,
     marginTop: 2,
+  },
+
+  smallEmpty: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textDark,
+    paddingVertical: SPACING.sm,
+  },
+  trajGroup: {
+    backgroundColor: COLORS.bgCard,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
+    padding: SPACING.sm,
+    marginBottom: SPACING.xs,
+  },
+  trajHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.xs,
+  },
+  trajTitle: {
+    fontSize: FONT_SIZE.lg,
+    color: COLORS.textPrimary,
+    fontWeight: '600',
+  },
+  trajPct: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: '700',
+  },
+  trajRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: 3,
+  },
+  trajRowLabel: {
+    width: 92,
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textSecondary,
+  },
+  bar: {
+    flex: 1,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.bgInput,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: 8,
+    borderRadius: 4,
+  },
+  trajRowVal: {
+    width: 86,
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textMuted,
+    textAlign: 'right',
   },
 });
 
