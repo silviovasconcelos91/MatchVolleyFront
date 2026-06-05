@@ -246,7 +246,7 @@ export const styles = StyleSheet.create({
   // ── Modal remplacement ──
   subCard: {
     width: '100%',
-    maxHeight: '80%',
+    height: '80%',
     backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
