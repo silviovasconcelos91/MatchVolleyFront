@@ -32,86 +32,141 @@ export const styles = StyleSheet.create({
     color: COLORS.redLight,
   },
 
-  container: {
+  // ── Court ──
+  court: {
     flex: 1,
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.sm,
+    padding: SPACING.lg,
   },
-
-  // ── Segmented team toggle ──
-  segment: {
-    flexDirection: 'row',
+  half: {
+    flex: 1,
     backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,
-    padding: 3,
-    marginBottom: SPACING.sm,
+    padding: SPACING.sm,
+    gap: SPACING.sm,
   },
-  segmentItem: {
-    flex: 1,
-    paddingVertical: SPACING.sm,
-    alignItems: 'center',
-    borderRadius: RADIUS.sm,
+  halfTop: {
+    borderTopLeftRadius: RADIUS.lg,
+    borderTopRightRadius: RADIUS.lg,
   },
-  segmentItemActiveMine: {
-    backgroundColor: `${COLORS.blue}33`,
+  halfBottom: {
+    borderBottomLeftRadius: RADIUS.lg,
+    borderBottomRightRadius: RADIUS.lg,
   },
-  segmentItemActiveOpp: {
-    backgroundColor: `${COLORS.pink}33`,
-  },
-  segmentText: {
-    fontSize: FONT_SIZE.lg,
-    color: COLORS.textMuted,
-    fontWeight: '500',
-  },
-  segmentTextActive: {
-    color: COLORS.textPrimary,
-    fontWeight: '700',
-  },
-
-  // ── Section labels ──
-  sectionLabel: {
+  halfLabel: {
     fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
     letterSpacing: 1,
-    marginTop: SPACING.sm,
-    marginBottom: SPACING.xs,
+    textAlign: 'center',
   },
-
-  // ── Player grid ──
-  grid: {
+  courtRow: {
+    flex: 1,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.xs,
+    gap: SPACING.sm,
   },
-  playerCell: {
-    width: '23.5%',
-    minHeight: 54,
+  courtCell: {
+    flex: 1,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.bgInput,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.xs,
     gap: 2,
+    paddingVertical: SPACING.xs,
   },
-  playerNum: {
-    fontSize: FONT_SIZE.xl,
+  courtCellEmpty: {
+    flex: 1,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  courtCellEmptyText: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textDark,
+  },
+  courtNum: {
+    fontSize: FONT_SIZE.xxl,
     fontWeight: '700',
   },
-  playerName: {
-    fontSize: 9,
-    color: COLORS.textMuted,
+  courtName: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textSecondary,
     maxWidth: '95%',
   },
-  playerCount: {
+  courtCount: {
     fontSize: 9,
     color: COLORS.textDark,
   },
+  courtZoneTag: {
+    fontSize: 8,
+    color: COLORS.textDark,
+  },
 
-  // ── Action groups ──
+  // Filet au centre du terrain
+  net: {
+    height: 4,
+    backgroundColor: COLORS.borderLight,
+    borderRadius: 2,
+    marginVertical: 2,
+  },
+
+  // ── Footer (dernière saisie + undo) ──
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.sm,
+  },
+  footerText: {
+    flex: 1,
+    fontSize: FONT_SIZE.md,
+    color: COLORS.textMuted,
+  },
+  undoBtn: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    backgroundColor: `${COLORS.red}22`,
+    borderWidth: 1,
+    borderColor: `${COLORS.red}55`,
+    borderRadius: RADIUS.md,
+  },
+  undoBtnDisabled: {
+    opacity: 0.35,
+  },
+  undoBtnText: {
+    fontSize: FONT_SIZE.lg,
+    fontWeight: '600',
+    color: COLORS.redLight,
+  },
+
+  // ── Overlay commun ──
+  overlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(13,27,42,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING.xl,
+  },
+
+  // ── Modal actions ──
+  modalCard: {
+    width: '100%',
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: SPACING.lg,
+  },
+  modalTitle: {
+    fontSize: FONT_SIZE.xxl,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+  },
   actionGroupLabel: {
     fontSize: FONT_SIZE.xs,
     letterSpacing: 1,
@@ -138,75 +193,48 @@ export const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
-  actionBtnDisabled: {
-    opacity: 0.35,
-  },
-
-  hint: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textMuted,
-    marginTop: SPACING.xs,
-  },
-
-  // ── Undo + recent ──
-  undoBtn: {
-    height: 48,
-    marginTop: SPACING.sm,
-    backgroundColor: `${COLORS.red}22`,
-    borderWidth: 1,
-    borderColor: `${COLORS.red}55`,
-    borderRadius: RADIUS.md,
+  modalCancel: {
+    marginTop: SPACING.lg,
+    paddingVertical: SPACING.md,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  undoBtnText: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: '600',
+  modalCancelText: {
+    fontSize: FONT_SIZE.xl,
     color: COLORS.redLight,
   },
-  recentRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  recentText: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.textSecondary,
-  },
-  recentZone: {
-    fontSize: FONT_SIZE.md,
-    color: COLORS.textMuted,
-  },
 
-  // ── Zone overlay ──
-  overlay: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(13,27,42,0.92)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: SPACING.xl,
-  },
-  overlayTitle: {
+  // ── Zone : demi-terrain adverse ──
+  zoneTitle: {
     fontSize: FONT_SIZE.xxl,
     fontWeight: '600',
     color: COLORS.textPrimary,
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.md,
     textAlign: 'center',
   },
-  zoneGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  zoneNetLabel: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textMuted,
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  zoneCourt: {
+    width: '90%',
+    aspectRatio: 1.1,
+    backgroundColor: `${COLORS.pink}14`,
+    borderWidth: 1,
+    borderColor: `${COLORS.pink}55`,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.sm,
     gap: SPACING.sm,
-    width: '80%',
-    justifyContent: 'center',
+  },
+  zoneRow: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: SPACING.sm,
   },
   zoneCell: {
-    width: '30%',
-    aspectRatio: 1.4,
-    borderRadius: RADIUS.lg,
+    flex: 1,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
     backgroundColor: COLORS.bgCard,
@@ -217,13 +245,6 @@ export const styles = StyleSheet.create({
     fontSize: FONT_SIZE.score,
     fontWeight: '700',
     color: COLORS.textPrimary,
-  },
-  zoneNet: {
-    width: '80%',
-    height: 3,
-    backgroundColor: COLORS.borderLight,
-    borderRadius: 2,
-    marginVertical: SPACING.md,
   },
   zoneCancel: {
     marginTop: SPACING.xl,

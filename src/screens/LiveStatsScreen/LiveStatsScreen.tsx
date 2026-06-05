@@ -1,13 +1,8 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Team } from '../../data/teams';
-import {
-  LIVE_ACTIONS,
-  LIVE_ACTION_BY_KEY,
-  LIVE_ZONE_DISPLAY_ORDER,
-  OPP_JERSEYS,
-} from '../../data/liveStats';
+import { LIVE_ACTIONS, LIVE_ACTION_BY_KEY } from '../../data/liveStats';
 import type { LiveTeam, LiveActionKey, LiveActionCategory } from '../../data/liveStats';
 import { useLiveStats } from '../../context/LiveStatsContext';
 import { getPositionColor, getPlayerColor, COLORS } from '../../constants/theme';
@@ -15,7 +10,9 @@ import { styles } from './LiveStatsScreen.styles';
 
 type Props = { team: Team; onBack: () => void };
 
-type GridPlayer = { id: number; jersey: number; name: string; color: string };
+type CourtPlayer = { id: number; jersey: number; name: string; color: string };
+
+type Target = { team: LiveTeam; player: CourtPlayer };
 
 const CATEGORY_ORDER: LiveActionCategory[] = ['point', 'fault', 'neutral'];
 
@@ -31,32 +28,54 @@ const CATEGORY_COLOR: Record<LiveActionCategory, string> = {
   neutral: COLORS.textMuted,
 };
 
+// Ordre d'attribution des joueurs aux zones (mock — positions figées pour l'instant).
+// TODO: positions décidées en amont + rotation auto sur les points.
+const ZONE_FILL_ORDER = [4, 3, 2, 5, 6, 1];
+
+// Lignes affichées (haut → bas). Filet au centre du terrain.
+const MINE_ROWS = [[4, 3, 2], [5, 6, 1]]; // avant (près filet) en haut, arrière en bas
+const OPP_ROWS  = [[5, 6, 1], [4, 3, 2]]; // arrière en haut, avant (près filet) en bas
+
+// Demi-terrain adverse pour la zone d'arrivée : avant 4-3-2 près du filet (haut).
+const ZONE_PICKER_ROWS = [[4, 3, 2], [5, 6, 1]];
+
+const buildCourt = (players: CourtPlayer[]): Record<number, CourtPlayer> => {
+  const map: Record<number, CourtPlayer> = {};
+  ZONE_FILL_ORDER.forEach((zone, i) => {
+    const p = players[i];
+    if (p) map[zone] = p;
+  });
+  return map;
+};
+
 const LiveStatsScreen = ({ team, onBack }: Props) => {
   const { state, actions } = useLiveStats();
 
-  const [activeTeam, setActiveTeam] = useState<LiveTeam>('mine');
-  const [selected, setSelected] = useState<GridPlayer | null>(null);
+  const [target, setTarget] = useState<Target | null>(null);
   const [pendingAction, setPendingAction] = useState<LiveActionKey | null>(null);
 
-  // Grille de joueurs selon l'équipe active (dérivée, jamais dupliquée en state).
-  const gridPlayers: GridPlayer[] = useMemo(() => {
-    if (activeTeam === 'opp') {
-      return OPP_JERSEYS.map(j => ({
-        id: j,
-        jersey: j,
-        name: `Adv #${j}`,
-        color: COLORS.pink,
-      }));
-    }
-    return team.players.map(p => ({
+  // Joueurs sur le terrain par équipe (dérivés, jamais dupliqués en state).
+  const myCourt = useMemo(() => {
+    const players: CourtPlayer[] = team.players.slice(0, 6).map(p => ({
       id: p.id,
       jersey: p.numero,
       name: p.name,
       color: p.roles[0] ? getPositionColor(p.roles[0]) : getPlayerColor(p.id),
     }));
-  }, [activeTeam, team.players]);
+    return buildCourt(players);
+  }, [team.players]);
 
-  // Nb d'événements par joueur (team:id) pour affichage compteur.
+  const oppCourt = useMemo(() => {
+    const players: CourtPlayer[] = [1, 2, 3, 4, 5, 6].map(j => ({
+      id: j,
+      jersey: j,
+      name: `Adv #${j}`,
+      color: COLORS.pink,
+    }));
+    return buildCourt(players);
+  }, []);
+
+  // Nb d'événements par joueur (team:id) pour le compteur sur la case.
   const countByPlayer = useMemo(() => {
     const map = new Map<string, number>();
     for (const e of state.events) {
@@ -66,28 +85,22 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
     return map;
   }, [state.events]);
 
-  const selectTeam = (t: LiveTeam) => {
-    if (t === activeTeam) return;
-    setActiveTeam(t);
-    setSelected(null);
-    setPendingAction(null);
-  };
-
   const record = useCallback((actionKey: LiveActionKey, zone: number | null) => {
-    if (!selected) return;
+    if (!target) return;
     actions.addEvent({
-      team:       activeTeam,
-      playerId:   selected.id,
-      jersey:     selected.jersey,
-      playerName: selected.name,
+      team:       target.team,
+      playerId:   target.player.id,
+      jersey:     target.player.jersey,
+      playerName: target.player.name,
       actionKey,
       zone,
     });
     setPendingAction(null);
-  }, [actions, activeTeam, selected]);
+    setTarget(null);
+  }, [actions, target]);
 
   const handleAction = (actionKey: LiveActionKey) => {
-    if (!selected) return;
+    if (!target) return;
     if (LIVE_ACTION_BY_KEY[actionKey].needsZone) {
       setPendingAction(actionKey);
       return;
@@ -95,7 +108,34 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
     record(actionKey, null);
   };
 
-  const recent = useMemo(() => state.events.slice(-6).reverse(), [state.events]);
+  const last = state.events.length > 0 ? state.events[state.events.length - 1] : null;
+
+  const renderCell = (courtTeam: LiveTeam, courtMap: Record<number, CourtPlayer>, zone: number) => {
+    const player = courtMap[zone];
+    if (!player) {
+      return (
+        <View key={zone} style={styles.courtCellEmpty}>
+          <Text style={styles.courtCellEmptyText}>Z{zone}</Text>
+        </View>
+      );
+    }
+    const count = countByPlayer.get(`${courtTeam}:${player.id}`) ?? 0;
+    return (
+      <TouchableOpacity
+        key={zone}
+        style={[styles.courtCell, { borderColor: `${player.color}88`, backgroundColor: `${player.color}1a` }]}
+        onPress={() => setTarget({ team: courtTeam, player })}
+        activeOpacity={0.7}
+      >
+        <Text style={[styles.courtNum, { color: player.color }]}>{player.jersey}</Text>
+        <Text style={styles.courtName} numberOfLines={1}>
+          {courtTeam === 'opp' ? 'Adv.' : player.name.split(' ')[0]}
+        </Text>
+        <Text style={styles.courtCount}>{count > 0 ? `${count} act.` : ' '}</Text>
+        <Text style={styles.courtZoneTag}>Z{zone}</Text>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -110,135 +150,107 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* ── Toggle équipe ── */}
-        <View style={styles.segment}>
-          <TouchableOpacity
-            style={[styles.segmentItem, activeTeam === 'mine' && styles.segmentItemActiveMine]}
-            onPress={() => selectTeam('mine')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.segmentText, activeTeam === 'mine' && styles.segmentTextActive]}>
-              {team.name}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.segmentItem, activeTeam === 'opp' && styles.segmentItemActiveOpp]}
-            onPress={() => selectTeam('opp')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.segmentText, activeTeam === 'opp' && styles.segmentTextActive]}>
-              Adversaire
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* ── Grille joueurs ── */}
-        <Text style={styles.sectionLabel}>JOUEUR</Text>
-        <View style={styles.grid}>
-          {gridPlayers.map(p => {
-            const isSel = selected?.id === p.id;
-            const count = countByPlayer.get(`${activeTeam}:${p.id}`) ?? 0;
-            return (
-              <TouchableOpacity
-                key={`${activeTeam}:${p.id}`}
-                style={[
-                  styles.playerCell,
-                  isSel && { borderColor: p.color, borderWidth: 2, backgroundColor: `${p.color}22` },
-                ]}
-                onPress={() => setSelected(isSel ? null : p)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.playerNum, { color: p.color }]}>{p.jersey}</Text>
-                <Text style={styles.playerName} numberOfLines={1}>
-                  {activeTeam === 'opp' ? 'Adv.' : p.name.split(' ')[0]}
-                </Text>
-                <Text style={styles.playerCount}>{count > 0 ? `${count} act.` : ' '}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* ── Actions ── */}
-        <Text style={styles.hint}>
-          {selected ? `Action pour ${selected.name}` : '↑ Choisis d\'abord un joueur'}
-        </Text>
-
-        {CATEGORY_ORDER.map(cat => (
-          <View key={cat}>
-            <Text style={[styles.actionGroupLabel, { color: CATEGORY_COLOR[cat] }]}>
-              {CATEGORY_LABEL[cat]}
-            </Text>
-            <View style={styles.actionsRow}>
-              {LIVE_ACTIONS.filter(a => a.category === cat).map(a => {
-                const color = CATEGORY_COLOR[cat];
-                return (
-                  <TouchableOpacity
-                    key={a.key}
-                    style={[
-                      styles.actionBtn,
-                      { backgroundColor: `${color}1f`, borderColor: `${color}55` },
-                      !selected && styles.actionBtnDisabled,
-                    ]}
-                    onPress={() => handleAction(a.key)}
-                    disabled={!selected}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.actionBtnText, { color }]}>
-                      {a.label}{a.needsZone ? ' °' : ''}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+      {/* ── Terrain ── */}
+      <View style={styles.court}>
+        {/* Demi-terrain adverse (haut) */}
+        <View style={[styles.half, styles.halfTop]}>
+          <Text style={[styles.halfLabel, { color: COLORS.pink }]}>ADVERSAIRE</Text>
+          {OPP_ROWS.map((row, i) => (
+            <View key={`opp-${i}`} style={styles.courtRow}>
+              {row.map(zone => renderCell('opp', oppCourt, zone))}
             </View>
-          </View>
-        ))}
+          ))}
+        </View>
 
-        {/* ── Undo ── */}
+        <View style={styles.net} />
+
+        {/* Demi-terrain mon équipe (bas) */}
+        <View style={[styles.half, styles.halfBottom]}>
+          {MINE_ROWS.map((row, i) => (
+            <View key={`mine-${i}`} style={styles.courtRow}>
+              {row.map(zone => renderCell('mine', myCourt, zone))}
+            </View>
+          ))}
+          <Text style={[styles.halfLabel, { color: COLORS.blue }]}>{team.name.toUpperCase()}</Text>
+        </View>
+      </View>
+
+      {/* ── Footer : dernière saisie + undo ── */}
+      <View style={styles.footer}>
+        <Text style={styles.footerText} numberOfLines={1}>
+          {last
+            ? `${last.team === 'opp' ? `Adv #${last.jersey}` : last.playerName} — ${LIVE_ACTION_BY_KEY[last.actionKey].label}${last.zone !== null ? ` (Z${last.zone})` : ''}`
+            : 'Tape un joueur pour saisir une action'}
+        </Text>
         <TouchableOpacity
-          style={[styles.undoBtn, state.events.length === 0 && styles.actionBtnDisabled]}
+          style={[styles.undoBtn, state.events.length === 0 && styles.undoBtnDisabled]}
           onPress={actions.undo}
           disabled={state.events.length === 0}
           activeOpacity={0.7}
         >
-          <Text style={styles.undoBtnText}>↩ Annuler la dernière saisie</Text>
+          <Text style={styles.undoBtnText}>↩ Annuler</Text>
         </TouchableOpacity>
+      </View>
 
-        {/* ── Récents ── */}
-        <Text style={styles.sectionLabel}>DERNIÈRES SAISIES</Text>
-        {recent.length === 0 ? (
-          <Text style={styles.hint}>Aucune saisie pour l'instant.</Text>
-        ) : (
-          recent.map(e => (
-            <View key={e.id} style={styles.recentRow}>
-              <Text style={styles.recentText}>
-                {e.team === 'opp' ? `Adv #${e.jersey}` : e.playerName} — {LIVE_ACTION_BY_KEY[e.actionKey].label}
-              </Text>
-              <Text style={styles.recentZone}>{e.zone !== null ? `Z${e.zone}` : ''}</Text>
-            </View>
-          ))
-        )}
+      {/* ── Modal actions (après tap joueur) ── */}
+      {target !== null && pendingAction === null && (
+        <View style={styles.overlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>
+              {target.team === 'opp' ? `Adversaire #${target.player.jersey}` : target.player.name}
+            </Text>
+            {CATEGORY_ORDER.map(cat => (
+              <View key={cat}>
+                <Text style={[styles.actionGroupLabel, { color: CATEGORY_COLOR[cat] }]}>
+                  {CATEGORY_LABEL[cat]}
+                </Text>
+                <View style={styles.actionsRow}>
+                  {LIVE_ACTIONS.filter(a => a.category === cat).map(a => {
+                    const color = CATEGORY_COLOR[cat];
+                    return (
+                      <TouchableOpacity
+                        key={a.key}
+                        style={[styles.actionBtn, { backgroundColor: `${color}1f`, borderColor: `${color}55` }]}
+                        onPress={() => handleAction(a.key)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.actionBtnText, { color }]}>
+                          {a.label}{a.needsZone ? ' °' : ''}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            ))}
+            <TouchableOpacity style={styles.modalCancel} onPress={() => setTarget(null)} activeOpacity={0.7}>
+              <Text style={styles.modalCancelText}>Annuler</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
-        <View style={{ height: 24 }} />
-      </ScrollView>
-
-      {/* ── Overlay zone d'arrivée ── */}
+      {/* ── Zone d'arrivée : demi-terrain adverse ── */}
       {pendingAction !== null && (
         <View style={styles.overlay}>
-          <Text style={styles.overlayTitle}>
+          <Text style={styles.zoneTitle}>
             Zone d'arrivée — {LIVE_ACTION_BY_KEY[pendingAction].label}
           </Text>
-          <View style={styles.zoneNet} />
-          <View style={styles.zoneGrid}>
-            {LIVE_ZONE_DISPLAY_ORDER.map(z => (
-              <TouchableOpacity
-                key={z}
-                style={styles.zoneCell}
-                onPress={() => record(pendingAction, z)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.zoneCellText}>{z}</Text>
-              </TouchableOpacity>
+          <Text style={styles.zoneNetLabel}>FILET</Text>
+          <View style={styles.zoneCourt}>
+            {ZONE_PICKER_ROWS.map((row, i) => (
+              <View key={`zrow-${i}`} style={styles.zoneRow}>
+                {row.map(z => (
+                  <TouchableOpacity
+                    key={z}
+                    style={styles.zoneCell}
+                    onPress={() => record(pendingAction, z)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.zoneCellText}>{z}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             ))}
           </View>
           <TouchableOpacity style={styles.zoneCancel} onPress={() => setPendingAction(null)} activeOpacity={0.7}>
