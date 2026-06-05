@@ -6,6 +6,10 @@ export const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.bgApp,
   },
+  tabRoot: {
+    flex: 1,
+    backgroundColor: COLORS.bgApp,
+  },
 
   // ── Header ──
   header: {

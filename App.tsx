@@ -98,6 +98,15 @@ type TabBarProps = {
   disabledTabs?: Set<TabId>;
 };
 
+// ── Onglets du mode saisie temps réel ──
+type LiveTabId = 'live' | 'position' | 'graph' | 'stats';
+const LIVE_TABS: { id: LiveTabId; label: string; activeColor: string }[] = [
+  { id: 'live',     label: 'Saisie', activeColor: COLORS.green  },
+  { id: 'position', label: '5-1',    activeColor: COLORS.yellow },
+  { id: 'graph',    label: 'Graphe', activeColor: COLORS.blue   },
+  { id: 'stats',    label: 'Stats',  activeColor: COLORS.blue   },
+];
+
 // ── Définition des onglets ──
 const TABS: Tab[] = [
   { id: 'court',    label: 'Terrain',  activeColor: COLORS.blue   },
@@ -178,6 +187,7 @@ const AppContent = () => {
   const [rosterOverlayVisible, setRosterOverlayVisible] = useState(false);
   const [playerMgmtVisible, setPlayerMgmtVisible] = useState(false);
   const [matchMode, setMatchMode] = useState<'classic' | 'live' | null>(null);
+  const [liveTab, setLiveTab] = useState<LiveTabId>('live');
 
   type StatsStep = 'teamSelection' | 'hub' | 'matchList' | 'playerList' | 'matchDetail' | 'playerDetail';
   const [statsStep, setStatsStep] = useState<StatsStep | null>(null);
@@ -391,12 +401,45 @@ const AppContent = () => {
         </SafeAreaView>
       );
     }
-    // Étape C : saisie temps réel sur le terrain composé
+    // Étape C : shell avec bandeau score + onglets (Saisie / 5-1 / Graphe / Stats)
     return (
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCard} />
         <LiveStatsProvider>
-          <LiveStatsScreen team={selectedTeam} onBack={() => setMatchMode(null)} />
+          <ScoreHeader onRosterPress={() => setRosterOverlayVisible(true)} />
+          <SetBanner />
+          {rosterOverlayVisible ? (
+            <View style={styles.screenContainer}>
+              <RosterScreen onClose={() => setRosterOverlayVisible(false)} />
+            </View>
+          ) : (
+            <>
+              <View style={styles.tabBar}>
+                {LIVE_TABS.map(t => {
+                  const isActive = t.id === liveTab;
+                  return (
+                    <TouchableOpacity
+                      key={t.id}
+                      style={styles.tabItem}
+                      onPress={() => setLiveTab(t.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.tabLabel, isActive && { color: t.activeColor, fontWeight: '500' }]}>
+                        {t.label}
+                      </Text>
+                      <View style={[styles.tabIndicator, isActive && { backgroundColor: t.activeColor }]} />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <View style={styles.screenContainer}>
+                {liveTab === 'live'     && <LiveStatsScreen team={selectedTeam} />}
+                {liveTab === 'position' && <PositionScreen />}
+                {liveTab === 'graph'    && <GraphScreen />}
+                {liveTab === 'stats'    && <StatsScreen />}
+              </View>
+            </>
+          )}
         </LiveStatsProvider>
       </SafeAreaView>
     );

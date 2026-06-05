@@ -1,15 +1,30 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Team } from '../../data/teams';
 import { LIVE_ACTIONS, LIVE_ACTION_BY_KEY } from '../../data/liveStats';
 import type { LiveTeam, LiveActionKey, LiveActionCategory } from '../../data/liveStats';
+import type { ActionKey } from '../../data/players';
 import { useLiveStats } from '../../context/LiveStatsContext';
 import { useMatch } from '../../context/MatchContext';
 import { getPositionColor, COLORS } from '../../constants/theme';
 import { styles } from './LiveStatsScreen.styles';
 
-type Props = { team: Team; onBack: () => void };
+type Props = { team: Team };
+
+// Reflet des actions live vers MatchContext (8 clés classiques) pour mon équipe :
+// score, rotation auto et stats joueur. Les actions neutres ne touchent pas le score.
+const MINE_ACTION_MAP: Partial<Record<LiveActionKey, ActionKey>> = {
+  attack_pt:   'atk',
+  ace:         'ace',
+  block_pt:    'block',
+  relance_pt:  'pt',
+  attack_out:  'atk_out',
+  attack_net:  'fault',
+  serve_net:   'srv_out',
+  serve_out:   'srv_out',
+  recv_shank:  'recv',
+  bad_defense: 'fault',
+};
 
 type CourtPlayer = { id: number; jersey: number; name: string; color: string };
 
@@ -51,7 +66,7 @@ const buildCourt = (players: CourtPlayer[]): Record<number, CourtPlayer> => {
   return map;
 };
 
-const LiveStatsScreen = ({ team, onBack }: Props) => {
+const LiveStatsScreen = ({ team }: Props) => {
   const { state, actions } = useLiveStats();
   const { state: matchState, actions: matchActions } = useMatch();
   const { matchPlayers, availableLiberoIds, liberoReplacements, substitutionPairs, subHistory } = matchState;
@@ -162,11 +177,34 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
       zone,
       zoneStart:  zoneStartValue,
     });
+    // Reflet dans MatchContext : score, rotation auto, stats classiques.
+    const def = LIVE_ACTION_BY_KEY[actionKey];
+    if (target.team === 'mine') {
+      const mk = MINE_ACTION_MAP[actionKey];
+      if (mk) matchActions.playerAction({ playerId: target.player.id, actionKey: mk });
+    } else if (def.category === 'point') {
+      matchActions.oppScore();
+    } else if (def.category === 'fault') {
+      matchActions.oppFault();
+    }
     setPendingAction(null);
     setStartZone(null);
     setZoneStage('landing');
     setTarget(null);
-  }, [actions, target]);
+  }, [actions, matchActions, target]);
+
+  // L'action live a-t-elle modifié le score (donc dispatché dans MatchContext) ?
+  const didScore = (evTeam: LiveTeam, actionKey: LiveActionKey): boolean => {
+    if (evTeam === 'mine') return MINE_ACTION_MAP[actionKey] !== undefined;
+    const cat = LIVE_ACTION_BY_KEY[actionKey].category;
+    return cat === 'point' || cat === 'fault';
+  };
+
+  const handleUndo = () => {
+    const lastEv = state.events[state.events.length - 1];
+    actions.undo();
+    if (lastEv && didScore(lastEv.team, lastEv.actionKey)) matchActions.undo();
+  };
 
   const handleAction = (actionKey: LiveActionKey) => {
     if (!target) return;
@@ -224,18 +262,7 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      {/* ── Header ── */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={styles.headerBtn}>‹ Retour</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Saisie temps réel</Text>
-        <TouchableOpacity onPress={actions.reset} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={styles.headerReset}>Reset</Text>
-        </TouchableOpacity>
-      </View>
-
+    <View style={styles.tabRoot}>
       {/* ── Terrain ── */}
       <View style={styles.court}>
         {/* Demi-terrain adverse (haut) */}
@@ -300,7 +327,7 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
         </Text>
         <TouchableOpacity
           style={[styles.undoBtn, state.events.length === 0 && styles.undoBtnDisabled]}
-          onPress={actions.undo}
+          onPress={handleUndo}
           disabled={state.events.length === 0}
           activeOpacity={0.7}
         >
@@ -429,7 +456,7 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
           </View>
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 
