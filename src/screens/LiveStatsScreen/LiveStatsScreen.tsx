@@ -54,7 +54,7 @@ const buildCourt = (players: CourtPlayer[]): Record<number, CourtPlayer> => {
 const LiveStatsScreen = ({ team, onBack }: Props) => {
   const { state, actions } = useLiveStats();
   const { state: matchState, actions: matchActions } = useMatch();
-  const { matchPlayers, availableLiberoIds } = matchState;
+  const { matchPlayers, availableLiberoIds, liberoReplacements } = matchState;
 
   const [target, setTarget] = useState<Target | null>(null);
   const [pendingAction, setPendingAction] = useState<LiveActionKey | null>(null);
@@ -202,6 +202,30 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
           <Text style={[styles.halfLabel, { color: COLORS.blue }]}>{team.name.toUpperCase()}</Text>
         </View>
       </View>
+
+      {/* ── Libéros : faire entrer / sortir un des deux libéros ── */}
+      {availableLiberoIds.length > 0 && (
+        <View style={styles.liberoBar}>
+          {availableLiberoIds.map(lId => {
+            const lPlayer = matchPlayers.find(p => p.id === lId);
+            if (!lPlayer) return null;
+            const onCourt = liberoReplacements[lId] !== undefined;
+            return (
+              <TouchableOpacity
+                key={lId}
+                style={[styles.liberoBtn, onCourt && styles.liberoBtnActive]}
+                onPress={() => matchActions.liberoSwap({ liberoId: lId })}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.liberoIcon}>{onCourt ? '↓' : '↕'}</Text>
+                <Text style={styles.liberoText} numberOfLines={1}>
+                  Libéro {lPlayer.name.split(' ')[0]} {onCourt ? '(sortir)' : '(entrer)'}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
 
       {/* ── Footer : dernière saisie + undo ── */}
       <View style={styles.footer}>

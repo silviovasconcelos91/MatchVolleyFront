@@ -111,6 +111,39 @@ export const styles = StyleSheet.create({
     marginVertical: 2,
   },
 
+  // ── Barre libéros ──
+  liberoBar: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.xs,
+  },
+  liberoBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: `${COLORS.yellow}44`,
+    backgroundColor: `${COLORS.yellow}14`,
+  },
+  liberoBtnActive: {
+    borderColor: `${COLORS.yellow}88`,
+    backgroundColor: `${COLORS.yellow}2a`,
+  },
+  liberoIcon: {
+    fontSize: FONT_SIZE.xl,
+    color: COLORS.yellow,
+  },
+  liberoText: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.yellow,
+    fontWeight: '600',
+  },
+
   // ── Footer (dernière saisie + undo) ──
   footer: {
     flexDirection: 'row',
