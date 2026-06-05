@@ -58,6 +58,8 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
 
   const [target, setTarget] = useState<Target | null>(null);
   const [pendingAction, setPendingAction] = useState<LiveActionKey | null>(null);
+  const [zoneStage, setZoneStage] = useState<'start' | 'landing'>('landing');
+  const [startZone, setStartZone] = useState<number | null>(null);
   const [subFor, setSubFor] = useState<CourtPlayer | null>(null);
 
   // Joueurs sur le terrain : positions réelles issues du roster/SetSetup (MatchContext).
@@ -149,7 +151,7 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
     return map;
   }, [state.events]);
 
-  const record = useCallback((actionKey: LiveActionKey, zone: number | null) => {
+  const record = useCallback((actionKey: LiveActionKey, zone: number | null, zoneStartValue: number | null) => {
     if (!target) return;
     actions.addEvent({
       team:       target.team,
@@ -158,26 +160,40 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
       playerName: target.player.name,
       actionKey,
       zone,
+      zoneStart:  zoneStartValue,
     });
     setPendingAction(null);
+    setStartZone(null);
+    setZoneStage('landing');
     setTarget(null);
   }, [actions, target]);
 
   const handleAction = (actionKey: LiveActionKey) => {
     if (!target) return;
-    if (LIVE_ACTION_BY_KEY[actionKey].needsZone) {
+    const def = LIVE_ACTION_BY_KEY[actionKey];
+    if (def.needsStartZone) {
+      setStartZone(null);
+      setZoneStage('start');
       setPendingAction(actionKey);
       return;
     }
-    record(actionKey, null);
+    if (def.needsZone) {
+      setZoneStage('landing');
+      setPendingAction(actionKey);
+      return;
+    }
+    record(actionKey, null, null);
   };
 
   const last = state.events.length > 0 ? state.events[state.events.length - 1] : null;
 
-  // Adversaire attaque → balle tombe dans mon camp (bas) → filet en haut.
-  // Mon équipe attaque → balle tombe camp adverse (haut) → filet en bas.
-  const zoneNetAtTop = target?.team === 'opp';
-  const zoneRows = zoneNetAtTop ? ZONE_ROWS_NET_TOP : ZONE_ROWS_NET_BOTTOM;
+  // Orientation du terrain pour le picker de zone (vue coach).
+  // Arrivée : adversaire attaque → balle dans mon camp (filet haut) ; mon équipe → camp adverse (filet bas).
+  // Départ (attaque) : terrain inversé → filet du côté opposé à l'arrivée.
+  const landingNetAtTop = target?.team === 'opp';
+  const isStartStage = pendingAction !== null && zoneStage === 'start';
+  const overlayNetAtTop = isStartStage ? !landingNetAtTop : landingNetAtTop;
+  const overlayRows = overlayNetAtTop ? ZONE_ROWS_NET_TOP : ZONE_ROWS_NET_BOTTOM;
 
   const renderCell = (courtTeam: LiveTeam, courtMap: Record<number, CourtPlayer>, zone: number) => {
     const player = courtMap[zone];
@@ -273,7 +289,13 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
       <View style={styles.footer}>
         <Text style={styles.footerText} numberOfLines={1}>
           {last
-            ? `${last.team === 'opp' ? `Adv #${last.jersey}` : last.playerName} — ${LIVE_ACTION_BY_KEY[last.actionKey].label}${last.zone !== null ? ` (Z${last.zone})` : ''}`
+            ? `${last.team === 'opp' ? `Adv #${last.jersey}` : last.playerName} — ${LIVE_ACTION_BY_KEY[last.actionKey].label}${
+                last.zoneStart !== null && last.zone !== null
+                  ? ` (Z${last.zoneStart}→Z${last.zone})`
+                  : last.zone !== null
+                  ? ` (Z${last.zone})`
+                  : ''
+              }`
             : 'Tape un joueur pour saisir une action'}
         </Text>
         <TouchableOpacity
@@ -326,21 +348,31 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
         </View>
       )}
 
-      {/* ── Zone d'arrivée : demi-terrain adverse ── */}
+      {/* ── Zone départ (attaque, terrain inversé) puis arrivée (demi-terrain adverse) ── */}
       {pendingAction !== null && (
         <View style={styles.overlay}>
           <Text style={styles.zoneTitle}>
-            Zone d'arrivée — {LIVE_ACTION_BY_KEY[pendingAction].label}
+            {isStartStage ? 'Zone de départ' : "Zone d'arrivée"} — {LIVE_ACTION_BY_KEY[pendingAction].label}
           </Text>
-          {zoneNetAtTop && <Text style={styles.zoneNetLabel}>FILET</Text>}
+          {startZone !== null && !isStartStage && (
+            <Text style={styles.zoneNetLabel}>Départ : Z{startZone}</Text>
+          )}
+          {overlayNetAtTop && <Text style={styles.zoneNetLabel}>FILET</Text>}
           <View style={styles.zoneCourt}>
-            {zoneRows.map((row, i) => (
+            {overlayRows.map((row, i) => (
               <View key={`zrow-${i}`} style={styles.zoneRow}>
                 {row.map(z => (
                   <TouchableOpacity
                     key={z}
                     style={styles.zoneCell}
-                    onPress={() => record(pendingAction, z)}
+                    onPress={() => {
+                      if (isStartStage) {
+                        setStartZone(z);
+                        setZoneStage('landing');
+                      } else {
+                        record(pendingAction, z, startZone);
+                      }
+                    }}
                     activeOpacity={0.7}
                   >
                     <Text style={styles.zoneCellText}>{z}</Text>
@@ -349,8 +381,12 @@ const LiveStatsScreen = ({ team, onBack }: Props) => {
               </View>
             ))}
           </View>
-          {!zoneNetAtTop && <Text style={styles.zoneNetLabel}>FILET</Text>}
-          <TouchableOpacity style={styles.zoneCancel} onPress={() => setPendingAction(null)} activeOpacity={0.7}>
+          {!overlayNetAtTop && <Text style={styles.zoneNetLabel}>FILET</Text>}
+          <TouchableOpacity
+            style={styles.zoneCancel}
+            onPress={() => { setPendingAction(null); setStartZone(null); setZoneStage('landing'); }}
+            activeOpacity={0.7}
+          >
             <Text style={styles.zoneCancelText}>Annuler</Text>
           </TouchableOpacity>
         </View>

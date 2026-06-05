@@ -37,15 +37,17 @@ export type LiveActionDef = {
   category: LiveActionCategory;
   // true → demande la zone d'arrivée (1-6) : balle qui retombe dans le camp adverse
   needsZone: boolean;
+  // true → demande aussi la zone de départ (trajectoire d'attaque)
+  needsStartZone?: boolean;
 };
 
 // Catalogue ordonné par catégorie (sert au rendu groupé de l'écran).
 export const LIVE_ACTIONS: LiveActionDef[] = [
   // ── Points ──
-  { key: 'attack_pt',   label: 'Attaque',          category: 'point',   needsZone: true  },
+  { key: 'attack_pt',   label: 'Attaque',          category: 'point',   needsZone: true,  needsStartZone: true },
   { key: 'ace',         label: 'Ace',              category: 'point',   needsZone: true  },
   { key: 'block_pt',    label: 'Contre',           category: 'point',   needsZone: false },
-  { key: 'relance_pt',  label: 'Relance',          category: 'point',   needsZone: true  },
+  { key: 'relance_pt',  label: 'Relance',          category: 'point',   needsZone: true,  needsStartZone: true },
   // ── Fautes ──
   { key: 'attack_out',  label: 'Attaque out',      category: 'fault',   needsZone: false },
   { key: 'attack_net',  label: 'Attaque filet',    category: 'fault',   needsZone: false },
@@ -58,7 +60,7 @@ export const LIVE_ACTIONS: LiveActionDef[] = [
   { key: 'bad_recv',    label: 'Mauvaise récept.', category: 'neutral', needsZone: false },
   { key: 'block_touch', label: 'Contre touché',    category: 'neutral', needsZone: false },
   { key: 'serve_in',    label: 'Service réussi',   category: 'neutral', needsZone: true  },
-  { key: 'attack_no_pt',label: 'Attaque (sans pt)',category: 'neutral', needsZone: true  },
+  { key: 'attack_no_pt',label: 'Attaque (sans pt)',category: 'neutral', needsZone: true,  needsStartZone: true },
 ];
 
 export const LIVE_ACTION_BY_KEY: Record<LiveActionKey, LiveActionDef> =
@@ -78,7 +80,8 @@ export type LiveStatEvent = {
   jersey: number;         // numéro affiché
   playerName: string;     // nom (mine) ou "Adv #N" (opp)
   actionKey: LiveActionKey;
-  zone: number | null;    // 1-6 ou null
+  zone: number | null;       // zone d'arrivée 1-6 ou null
+  zoneStart: number | null;  // zone de départ 1-6 ou null (attaques)
   ts: number;
 };
 
