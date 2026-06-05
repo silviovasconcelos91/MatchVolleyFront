@@ -369,8 +369,29 @@ const AppContent = () => {
     );
   }
 
-  // ── Mode saisie temps réel : écran isolé, hors flux match classique ──
+  // ── Mode saisie temps réel : même flux roster + positions que le match classique ──
   if (matchMode === 'live') {
+    // Étape A : composition du roster (titulaires + banc + libero)
+    if (!rosterValidated) {
+      return (
+        <SafeAreaView style={styles.safeArea}>
+          <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCard} />
+          <View style={styles.screenContainer}>
+            <RosterScreen />
+          </View>
+        </SafeAreaView>
+      );
+    }
+    // Étape B : placement sur le terrain + rôles
+    if (setSetupPending) {
+      return (
+        <SafeAreaView style={styles.safeArea}>
+          <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCard} />
+          <SetSetupScreen />
+        </SafeAreaView>
+      );
+    }
+    // Étape C : saisie temps réel sur le terrain composé
     return (
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCard} />

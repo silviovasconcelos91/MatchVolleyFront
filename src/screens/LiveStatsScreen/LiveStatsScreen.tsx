@@ -5,7 +5,8 @@ import type { Team } from '../../data/teams';
 import { LIVE_ACTIONS, LIVE_ACTION_BY_KEY } from '../../data/liveStats';
 import type { LiveTeam, LiveActionKey, LiveActionCategory } from '../../data/liveStats';
 import { useLiveStats } from '../../context/LiveStatsContext';
-import { getPositionColor, getPlayerColor, COLORS } from '../../constants/theme';
+import { useMatch } from '../../context/MatchContext';
+import { getPositionColor, COLORS } from '../../constants/theme';
 import { styles } from './LiveStatsScreen.styles';
 
 type Props = { team: Team; onBack: () => void };
@@ -28,8 +29,7 @@ const CATEGORY_COLOR: Record<LiveActionCategory, string> = {
   neutral: COLORS.textMuted,
 };
 
-// Ordre d'attribution des joueurs aux zones (mock — positions figées pour l'instant).
-// TODO: positions décidées en amont + rotation auto sur les points.
+// Placement adversaire (pas de vraies positions) : jerseys 1-6 répartis sur les zones.
 const ZONE_FILL_ORDER = [4, 3, 2, 5, 6, 1];
 
 // Lignes affichées (haut → bas). Filet au centre du terrain.
@@ -53,20 +53,26 @@ const buildCourt = (players: CourtPlayer[]): Record<number, CourtPlayer> => {
 
 const LiveStatsScreen = ({ team, onBack }: Props) => {
   const { state, actions } = useLiveStats();
+  const { state: matchState } = useMatch();
+  const { matchPlayers } = matchState;
 
   const [target, setTarget] = useState<Target | null>(null);
   const [pendingAction, setPendingAction] = useState<LiveActionKey | null>(null);
 
-  // Joueurs sur le terrain par équipe (dérivés, jamais dupliqués en state).
+  // Joueurs sur le terrain : positions réelles issues du roster/SetSetup (MatchContext).
   const myCourt = useMemo(() => {
-    const players: CourtPlayer[] = team.players.slice(0, 6).map(p => ({
-      id: p.id,
-      jersey: p.numero,
-      name: p.name,
-      color: p.roles[0] ? getPositionColor(p.roles[0]) : getPlayerColor(p.id),
-    }));
-    return buildCourt(players);
-  }, [team.players]);
+    const map: Record<number, CourtPlayer> = {};
+    matchPlayers.forEach(p => {
+      if (!p.onCourt || p.pos === null) return;
+      map[p.pos] = {
+        id: p.id,
+        jersey: p.numero,
+        name: p.name,
+        color: getPositionColor(p.tacticalRole),
+      };
+    });
+    return map;
+  }, [matchPlayers]);
 
   const oppCourt = useMemo(() => {
     const players: CourtPlayer[] = [1, 2, 3, 4, 5, 6].map(j => ({
