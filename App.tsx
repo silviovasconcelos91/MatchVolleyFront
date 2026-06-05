@@ -72,6 +72,9 @@ import TeamMatchListScreen       from './src/screens/TeamMatchListScreen';
 import StatsPlayersScreen        from './src/screens/StatsPlayersScreen';
 import MatchDetailScreen         from './src/screens/MatchDetailScreen';
 import PlayerSeasonStatsScreen  from './src/screens/PlayerSeasonStatsScreen';
+import MatchModeScreen from './src/screens/MatchModeScreen';
+import LiveStatsScreen from './src/screens/LiveStatsScreen';
+import { LiveStatsProvider } from './src/context/LiveStatsContext';
 
 // Thème
 import { COLORS, SPACING, FONT_SIZE } from './src/constants/theme';
@@ -174,6 +177,7 @@ const AppContent = () => {
   const [homeVisible, setHomeVisible] = useState(true);
   const [rosterOverlayVisible, setRosterOverlayVisible] = useState(false);
   const [playerMgmtVisible, setPlayerMgmtVisible] = useState(false);
+  const [matchMode, setMatchMode] = useState<'classic' | 'live' | null>(null);
 
   type StatsStep = 'teamSelection' | 'hub' | 'matchList' | 'playerList' | 'matchDetail' | 'playerDetail';
   const [statsStep, setStatsStep] = useState<StatsStep | null>(null);
@@ -186,6 +190,11 @@ const AppContent = () => {
       setRosterOverlayVisible(false);
     }
   }, [selectedTeam, rosterValidated]);
+
+  // Si l'équipe est désélectionnée, on oublie le mode choisi.
+  useEffect(() => {
+    if (!selectedTeam) setMatchMode(null);
+  }, [selectedTeam]);
 
   // Basculer sur Terrain dès que la configuration du set est validée
   useEffect(() => {
@@ -223,6 +232,10 @@ const AppContent = () => {
       matchActions.clearMatchSetup();
       return true;
     }
+    if (selectedTeam && matchMode !== null) {
+      setMatchMode(null);
+      return true;
+    }
     if (selectedTeam && !rosterValidated) {
       teamActions.clearTeam();
       return true;
@@ -239,7 +252,7 @@ const AppContent = () => {
 
   }, [
     playerMgmtVisible, statsStep, matchName, homeVisible,
-    selectedTeam, rosterValidated, rosterOverlayVisible,
+    selectedTeam, matchMode, rosterValidated, rosterOverlayVisible,
     setSetupPending, setNum, matchActions, teamActions,
   ]);
 
@@ -342,6 +355,30 @@ const AppContent = () => {
   // ── Étape 2 : sélection de l'équipe ──
   if (!selectedTeam) {
     return <TeamSelectionScreen />;
+  }
+
+  // ── Étape 2bis : choix du mode (classique / saisie temps réel) ──
+  if (selectedTeam && matchMode === null) {
+    return (
+      <MatchModeScreen
+        teamName={selectedTeam.name}
+        onSelectClassic={() => setMatchMode('classic')}
+        onSelectLive={() => setMatchMode('live')}
+        onBack={() => teamActions.clearTeam()}
+      />
+    );
+  }
+
+  // ── Mode saisie temps réel : écran isolé, hors flux match classique ──
+  if (matchMode === 'live') {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCard} />
+        <LiveStatsProvider>
+          <LiveStatsScreen team={selectedTeam} onBack={() => setMatchMode(null)} />
+        </LiveStatsProvider>
+      </SafeAreaView>
+    );
   }
 
   // ── Étape 3 : configuration du set (rôles et positions) ──
