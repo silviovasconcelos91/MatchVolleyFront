@@ -34,9 +34,6 @@ export const ACTION_TYPES = {
 
   // Malus
   APPLY_MALUS:        'APPLY_MALUS',        // pénalité de points sur une équipe
-
-  // Banc
-  HYDRATE_BENCH:      'HYDRATE_BENCH',      // ajouter au banc les joueurs de l'effectif absents du roster
 } as const;
 
 // mine: true → +1 mon équipe / mine: false → +1 adversaire
@@ -166,7 +163,6 @@ type MatchAction =
   | { type: typeof ACTION_TYPES.CLOSE_SET_BANNER }
   | { type: typeof ACTION_TYPES.RESET_MATCH }
   | { type: typeof ACTION_TYPES.APPLY_MALUS; payload: { target: 'me' | 'opp'; amount: 1 | 2 } }
-  | { type: typeof ACTION_TYPES.HYDRATE_BENCH; payload: { players: Player[] } }
   | { type: typeof ACTION_TYPES.FORCE_END_SET };
 
 type MatchContextValue = {
@@ -187,7 +183,6 @@ type MatchContextValue = {
     closeSetBanner:  () => void;
     resetMatch:      () => void;
     applyMalus:      (payload: { target: 'me' | 'opp'; amount: 1 | 2 }) => void;
-    hydrateBench:    (payload: { players: Player[] }) => void;
     forceEndSet:     () => void;
   };
 };
@@ -756,25 +751,6 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       };
     }
 
-    case ACTION_TYPES.HYDRATE_BENCH: {
-      // Ajoute au banc (onCourt: false) les joueurs de l'effectif pas encore dans matchPlayers.
-      const existingIds = new Set(state.matchPlayers.map(p => p.id));
-      const additions: MatchPlayer[] = action.payload.players
-        .filter(pl => !existingIds.has(pl.id))
-        .map(pl => ({
-          id:           pl.id,
-          name:         pl.name,
-          tacticalRole: '',
-          numero:       pl.numero,
-          onCourt:      false,
-          pos:          null,
-          stats:        createEmptyStats(),
-          roles:        pl.roles ?? [],
-        }));
-      if (additions.length === 0) return state;
-      return { ...state, matchPlayers: [...state.matchPlayers, ...additions] };
-    }
-
     case ACTION_TYPES.RESET_MATCH:
       return initialState;
 
@@ -840,7 +816,6 @@ export const MatchProvider = ({ children }: { children: React.ReactNode }) => {
     closeSetBanner:  ()        => dispatch({ type: ACTION_TYPES.CLOSE_SET_BANNER }),
     resetMatch:      ()        => dispatch({ type: ACTION_TYPES.RESET_MATCH }),
     applyMalus:      (payload) => dispatch({ type: ACTION_TYPES.APPLY_MALUS, payload }),
-    hydrateBench:    (payload) => dispatch({ type: ACTION_TYPES.HYDRATE_BENCH, payload }),
     forceEndSet:     ()        => dispatch({ type: ACTION_TYPES.FORCE_END_SET }),
   };
 
