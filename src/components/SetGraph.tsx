@@ -4,7 +4,7 @@ import Svg, { Line, Polyline, Circle, Rect, Text as SvgText } from 'react-native
 import { COLORS, SPACING, FONT_SIZE } from '../constants/theme';
 
 type Props = {
-  timeline: { myScore: number; oppScore: number }[];
+  timeline: { myScore?: number; oppScore?: number }[];
   finalMyScore: number;
   finalOppScore: number;
 };
