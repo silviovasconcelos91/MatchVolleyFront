@@ -11,8 +11,10 @@ import type {
   MatchDetailStats,
   MatchDetailPlayerSetStat,
 } from '../data/matchApi';
-import type { ActionStats } from '../data/liveStatsAnalysis';
+import type { ActionStats, LiveMatchAnalysis } from '../data/liveStatsAnalysis';
 import SetGraph from '../components/SetGraph';
+import { getLiveMatchAnalysis } from '../data/matchApi';
+import FIVBCourtDiagram from '../components/FIVBCourtDiagram';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 
 type Props = {
@@ -397,6 +399,157 @@ const PlayersTab = ({ data, playerName }: PlayersTabProps) => {
         );
       })}
     </View>
+  );
+};
+
+// ── Onglet 4 : Live Analysis ───────────────────────────────────
+type LiveTabProps = { matchId: string };
+
+const LiveTab = ({ matchId }: LiveTabProps) => {
+  const [data, setData]       = useState<LiveMatchAnalysis | null>(null);
+  const [status, setStatus]   = useState<'loading' | 'error' | 'not_found' | 'ok'>('loading');
+  const [expandedSet, setExpandedSet]       = useState<number | null>(null);
+  const [expandedPlayer, setExpandedPlayer] = useState<number | null>(null);
+  const [expandedPlayerSet, setExpandedPlayerSet] = useState<number | null>(null);
+
+  const load = useCallback(() => {
+    setStatus('loading');
+    setData(null);
+    getLiveMatchAnalysis(matchId)
+      .then(d => { setData(d); setStatus('ok'); })
+      .catch((err: Error & { status?: number }) => {
+        setStatus(err.status === 404 ? 'not_found' : 'error');
+      });
+  }, [matchId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (status === 'loading') {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator color={COLORS.blue} size="large" />
+      </View>
+    );
+  }
+
+  if (status === 'not_found') {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.errorText}>Pas de stats live pour ce match.</Text>
+      </View>
+    );
+  }
+
+  if (status === 'error' || data === null) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.errorText}>Impossible de charger l'analyse live.</Text>
+        <TouchableOpacity style={styles.retryBtn} onPress={load}>
+          <Text style={styles.retryBtnText}>Réessayer</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <View style={styles.tabContent}>
+
+        {/* ── Résumé global ── */}
+        <Text style={styles.sectionTitle}>RÉSUMÉ GLOBAL</Text>
+        <View style={styles.card}>
+          <ActionsBlock actions={data.globalStats.actions} />
+          <FIVBCourtDiagram mode="attacks" data={data.globalStats.attacks} />
+          <FIVBCourtDiagram mode="aces"    data={data.globalStats.acesByZone} />
+        </View>
+
+        {/* ── Par set ── */}
+        <Text style={styles.sectionTitle}>PAR SET</Text>
+        {data.sets.map(set => {
+          const expanded = expandedSet === set.setNumber;
+          const won = set.wonBy === 'mine';
+          return (
+            <View key={set.setNumber} style={styles.card}>
+              <TouchableOpacity
+                style={styles.setHeader}
+                onPress={() => setExpandedSet(expanded ? null : set.setNumber)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.setLabel}>Set {set.setNumber}</Text>
+                <View style={styles.setScoreRow}>
+                  <Text style={[styles.setScore, won ? styles.setScoreWon : styles.setScoreLost]}>
+                    {set.myScore}
+                  </Text>
+                  <Text style={styles.setScoreSep}> – </Text>
+                  <Text style={[styles.setScore, won ? styles.setScoreLost : styles.setScoreWon]}>
+                    {set.oppScore}
+                  </Text>
+                </View>
+                <Text style={styles.expandChevron}>{expanded ? '▲' : '▼'}</Text>
+              </TouchableOpacity>
+
+              {expanded && (
+                <>
+                  <SetGraph
+                    timeline={set.timeline}
+                    finalMyScore={set.myScore}
+                    finalOppScore={set.oppScore}
+                  />
+                  <ActionsBlock actions={set.stats.actions} />
+                  <FIVBCourtDiagram mode="attacks" data={set.stats.attacks} />
+                  <FIVBCourtDiagram mode="aces"    data={set.stats.acesByZone} />
+                </>
+              )}
+            </View>
+          );
+        })}
+
+        {/* ── Joueurs ── */}
+        <Text style={styles.sectionTitle}>JOUEURS</Text>
+        {data.players.map(player => {
+          const pExpanded = expandedPlayer === player.playerId;
+          return (
+            <View key={player.playerId} style={styles.card}>
+              <TouchableOpacity
+                style={styles.playerHeader}
+                onPress={() => {
+                  setExpandedPlayer(pExpanded ? null : player.playerId);
+                  setExpandedPlayerSet(null);
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.playerNum}>
+                  <Text style={styles.playerNumText}>#{player.jersey}</Text>
+                </View>
+                <Text style={styles.playerName}>{player.name}</Text>
+                <Text style={styles.expandChevron}>{pExpanded ? '▲' : '▼'}</Text>
+              </TouchableOpacity>
+
+              <ActionsBlock actions={player.matchStats.actions} />
+
+              {pExpanded && player.setStats.map(ss => {
+                const ssExpanded = expandedPlayerSet === ss.setNumber;
+                return (
+                  <View key={ss.setNumber} style={styles.setStatBlock}>
+                    <TouchableOpacity
+                      style={styles.setStatHeader}
+                      onPress={() => setExpandedPlayerSet(ssExpanded ? null : ss.setNumber)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.setStatLabel}>SET {ss.setNumber}</Text>
+                      <Text style={styles.expandChevron}>{ssExpanded ? '▲' : '▼'}</Text>
+                    </TouchableOpacity>
+                    {ssExpanded && <ActionsBlock actions={ss.stats.actions} />}
+                  </View>
+                );
+              })}
+            </View>
+          );
+        })}
+
+        <View style={{ height: SPACING.xxl * 2 }} />
+      </View>
+    </ScrollView>
   );
 };
 
