@@ -11,6 +11,7 @@ import type {
   MatchDetailStats,
   MatchDetailPlayerSetStat,
 } from '../data/matchApi';
+import type { ActionStats } from '../data/liveStatsAnalysis';
 import SetGraph from '../components/SetGraph';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 
@@ -74,6 +75,44 @@ const StatCell = ({ label, value, color }: StatCellProps) => (
   <View style={[styles.statCell, { backgroundColor: `${color}18`, borderColor: `${color}40` }]}>
     <Text style={[styles.statCellValue, { color }]}>{value}</Text>
     <Text style={styles.statCellLabel}>{label}</Text>
+  </View>
+);
+
+// ── Bloc actions (nouveau format live) ────────────────────────────
+type ActionsBlockProps = { actions: ActionStats };
+
+const ActionsBlock = ({ actions }: ActionsBlockProps) => (
+  <View style={styles.actionsBlock}>
+    {actions.points.length > 0 && (
+      <View style={styles.actionsSection}>
+        <Text style={styles.actionsSectionLabel}>POINTS</Text>
+        <View style={styles.statCellRow}>
+          {actions.points.map(a => (
+            <StatCell key={a.key} label={a.label} value={a.count} color={COLORS.greenLight} />
+          ))}
+        </View>
+      </View>
+    )}
+    {actions.faults.length > 0 && (
+      <View style={styles.actionsSection}>
+        <Text style={styles.actionsSectionLabel}>FAUTES</Text>
+        <View style={styles.statCellRow}>
+          {actions.faults.map(a => (
+            <StatCell key={a.key} label={a.label} value={a.count} color={COLORS.redLight} />
+          ))}
+        </View>
+      </View>
+    )}
+    {actions.neutral.length > 0 && (
+      <View style={styles.actionsSection}>
+        <Text style={styles.actionsSectionLabel}>NEUTRES</Text>
+        <View style={styles.statCellRow}>
+          {actions.neutral.map(a => (
+            <StatCell key={a.key} label={a.label} value={a.count} color={COLORS.textMuted} />
+          ))}
+        </View>
+      </View>
+    )}
   </View>
 );
 
@@ -716,6 +755,24 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   setStatLabel: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted, letterSpacing: 0.5, fontWeight: '600' },
+  actionsBlock: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
+    overflow: 'hidden',
+  },
+  actionsSection: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs + 2,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  actionsSectionLabel: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textMuted,
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
 });
 
 export default MatchDetailScreen;
