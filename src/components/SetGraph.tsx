@@ -1,11 +1,10 @@
 import React from 'react';
 import { View, Text, Dimensions, StyleSheet } from 'react-native';
 import Svg, { Line, Polyline, Circle, Rect, Text as SvgText } from 'react-native-svg';
-import type { MatchDetailTimelineEntry } from '../data/matchApi';
 import { COLORS, SPACING, FONT_SIZE } from '../constants/theme';
 
 type Props = {
-  timeline: MatchDetailTimelineEntry[];
+  timeline: { myScore: number; oppScore: number }[];
   finalMyScore: number;
   finalOppScore: number;
 };
