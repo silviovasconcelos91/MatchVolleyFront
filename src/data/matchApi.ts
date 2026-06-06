@@ -263,6 +263,9 @@ import type {
   MatchDto,
   PlayerSeasonStatsResponse,
 } from './openapi/types.gen';
+import { client } from './openapi/client.gen';
+import type { MatchLiveStatsPayload } from './liveStatsPayload';
+import type { LiveMatchAnalysis } from './liveStatsAnalysis';
 
 export const getMatchDetail = async (matchId: string): Promise<MatchDetailResponse> => {
   const { data, error } = await getMatchStat({ path: { matchId } });
@@ -304,4 +307,39 @@ export const sendMatchResult = async (payload: MatchStatRequest): Promise<void> 
   if (error !== undefined) {
     throw new Error('Failed to send match result');
   }
+};
+
+export const sendLiveStats = async (
+  matchId: string,
+  payload: MatchLiveStatsPayload,
+): Promise<void> => {
+  const { error } = await client.post({
+    url: '/api/v1/matches/{matchId}/live-stats',
+    path: { matchId },
+    body: payload,
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (error !== undefined) throw new Error('Failed to send live stats');
+};
+
+export const getLiveMatchAnalysis = async (
+  matchId: string,
+): Promise<LiveMatchAnalysis> => {
+  const response = await client.get({
+    url: '/api/v1/matches/{matchId}/live-stats/analysis',
+    path: { matchId },
+  });
+
+  if (response.response?.status === 404) {
+    const err = new Error('No live stats for this match');
+    (err as Error & { status: number }).status = 404;
+    throw err;
+  }
+
+  if (response.error !== undefined || response.data === undefined) {
+    throw new Error('Failed to fetch live match analysis');
+  }
+
+  const body = response.data as { data: LiveMatchAnalysis };
+  return body.data;
 };
