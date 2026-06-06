@@ -23,12 +23,13 @@ type Props = {
   onBack: () => void;
 };
 
-type TabId = 'resume' | 'sets' | 'players';
+type TabId = 'resume' | 'sets' | 'players' | 'live';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'resume',  label: 'Résumé'  },
   { id: 'sets',    label: 'Par set' },
   { id: 'players', label: 'Joueurs' },
+  { id: 'live',    label: 'Live'    },
 ];
 
 const formatDate = (iso: string): string => {
@@ -634,12 +635,16 @@ const MatchDetailScreen = ({ matchId, matchDate, onBack }: Props) => {
             ))}
           </View>
 
-          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-            {activeTab === 'resume'  && <ResumeTab  data={data} />}
-            {activeTab === 'sets'    && <SetsTab    data={data} playerName={playerName} playerInfo={playerInfo} />}
-            {activeTab === 'players' && <PlayersTab data={data} playerName={playerName} />}
-            <View style={{ height: SPACING.xxl * 2 }} />
-          </ScrollView>
+          {activeTab !== 'live' ? (
+            <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+              {activeTab === 'resume'  && <ResumeTab  data={data} />}
+              {activeTab === 'sets'    && <SetsTab    data={data} playerName={playerName} playerInfo={playerInfo} />}
+              {activeTab === 'players' && <PlayersTab data={data} playerName={playerName} />}
+              <View style={{ height: SPACING.xxl * 2 }} />
+            </ScrollView>
+          ) : (
+            <LiveTab matchId={matchId} />
+          )}
         </>
       )}
     </SafeAreaView>
