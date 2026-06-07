@@ -30,8 +30,9 @@ const formatDate = (iso: string): string => {
 
 type ChipProps = { label: string; count: number; color: string };
 const Chip = ({ label, count, color }: ChipProps) => (
-  <View style={[styles.chip, { backgroundColor: `${color}22`, borderColor: `${color}44` }]}>
-    <Text style={[styles.chipText, { color }]}>{label} {count}</Text>
+  <View style={[styles.chip, { backgroundColor: `${color}18`, borderColor: `${color}33` }]}>
+    <Text style={[styles.chipCount, { color }]}>{count}</Text>
+    <Text style={styles.chipLabel}>{label}</Text>
   </View>
 );
 
@@ -144,12 +145,12 @@ const ResumeTab = ({ data }: ResumeTabProps) => {
       {/* Zone 3 : Adversaire */}
       <Text style={styles.cardLabel}>ADVERSAIRE</Text>
       <View style={styles.oppCard}>
-        <View style={[styles.oppTile, { borderColor: `${COLORS.green}33`, backgroundColor: `${COLORS.green}11` }]}>
-          <Text style={[styles.oppTileValue, { color: COLORS.greenLight }]}>{oppActual}</Text>
+        <View style={[styles.oppTile, { borderColor: `${COLORS.yellow}33`, backgroundColor: `${COLORS.yellow}11` }]}>
+          <Text style={[styles.oppTileValue, { color: COLORS.yellow }]}>{oppActual}</Text>
           <Text style={styles.oppTileLabel}>Points marqués</Text>
         </View>
-        <View style={[styles.oppTile, { borderColor: `${COLORS.red}33`, backgroundColor: `${COLORS.red}11` }]}>
-          <Text style={[styles.oppTileValue, { color: COLORS.redLight }]}>{oppFaults}</Text>
+        <View style={[styles.oppTile, { borderColor: `${COLORS.textSecondary}33`, backgroundColor: `${COLORS.textSecondary}11` }]}>
+          <Text style={[styles.oppTileValue, { color: COLORS.textSecondary }]}>{oppFaults}</Text>
           <Text style={styles.oppTileLabel}>Fautes</Text>
         </View>
       </View>
@@ -482,10 +483,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: RADIUS.sm,
     paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
+    paddingVertical: SPACING.sm,
+    alignItems: 'center',
+    minWidth: 60,
   },
-  chipText: {
+  chipCount: {
+    fontSize: FONT_SIZE.xl,
+    fontWeight: '700',
+  },
+  chipLabel: {
     fontSize: FONT_SIZE.xs,
+    color: COLORS.textMuted,
+    marginTop: 2,
+    textAlign: 'center',
   },
   emptySection: {
     fontSize: FONT_SIZE.sm,
