@@ -104,7 +104,8 @@ const ResumeTab = ({ data }: ResumeTabProps) => {
         </View>
       </View>
 
-      {/* Zone 2 : Stats équipe */}
+      {/* Zone 2 : Mon équipe */}
+      <Text style={styles.cardLabel}>MON ÉQUIPE</Text>
       <View style={styles.teamCard}>
 
         <StatBar
@@ -125,21 +126,6 @@ const ResumeTab = ({ data }: ResumeTabProps) => {
           items={globalStats.actions.faults}
         />
 
-        <View style={styles.sectionDivider} />
-
-        {/* Adversaire */}
-        <View style={styles.statSection}>
-          <Text style={styles.statSectionLabel}>ADVERSAIRE</Text>
-          <View style={styles.oppRow}>
-            <Text style={styles.oppLabel}>Points marqués</Text>
-            <Text style={styles.oppValue}>{oppActual}</Text>
-          </View>
-          <View style={styles.oppRow}>
-            <Text style={styles.oppLabel}>Fautes</Text>
-            <Text style={styles.oppValue}>{oppFaults}</Text>
-          </View>
-        </View>
-
         {globalStats.actions.neutral.length > 0 && (
           <>
             <View style={styles.sectionDivider} />
@@ -153,6 +139,19 @@ const ResumeTab = ({ data }: ResumeTabProps) => {
             </View>
           </>
         )}
+      </View>
+
+      {/* Zone 3 : Adversaire */}
+      <Text style={styles.cardLabel}>ADVERSAIRE</Text>
+      <View style={styles.oppCard}>
+        <View style={[styles.oppTile, { borderColor: `${COLORS.green}33`, backgroundColor: `${COLORS.green}11` }]}>
+          <Text style={[styles.oppTileValue, { color: COLORS.greenLight }]}>{oppActual}</Text>
+          <Text style={styles.oppTileLabel}>Points marqués</Text>
+        </View>
+        <View style={[styles.oppTile, { borderColor: `${COLORS.red}33`, backgroundColor: `${COLORS.red}11` }]}>
+          <Text style={[styles.oppTileValue, { color: COLORS.redLight }]}>{oppFaults}</Text>
+          <Text style={styles.oppTileLabel}>Fautes</Text>
+        </View>
       </View>
 
       <View style={{ height: SPACING.xxl }} />
@@ -410,12 +409,40 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     marginLeft: SPACING.xs,
   },
+  cardLabel: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textMuted,
+    letterSpacing: 1.5,
+    marginBottom: SPACING.xs,
+    marginLeft: SPACING.xs,
+  },
   teamCard: {
     backgroundColor: COLORS.bgCard,
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: RADIUS.lg,
     marginBottom: SPACING.md,
+  },
+  oppCard: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  oppTile: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: RADIUS.lg,
+    paddingVertical: SPACING.lg,
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  oppTileValue: {
+    fontSize: 32,
+    fontWeight: '700',
+  },
+  oppTileLabel: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textMuted,
   },
   statSection: {
     padding: SPACING.md,
