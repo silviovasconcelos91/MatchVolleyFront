@@ -74,7 +74,7 @@ import MatchDetailScreen         from './src/screens/MatchDetailScreen';
 import PlayerSeasonStatsScreen  from './src/screens/PlayerSeasonStatsScreen';
 import MatchModeScreen from './src/screens/MatchModeScreen';
 import LiveStatsScreen from './src/screens/LiveStatsScreen';
-import LiveMatchStatsScreen from './src/screens/LiveMatchStatsScreen';
+import LiveStatsSummaryScreen from './src/screens/LiveStatsSummaryScreen';
 import LivePositionSetupTab from './src/screens/LivePositionSetupTab';
 import { LiveStatsProvider } from './src/context/LiveStatsContext';
 
@@ -435,7 +435,7 @@ const AppContent = () => {
                     {liveTab === 'position' && <PositionScreen />}
                     {liveTab === 'setup'    && <LivePositionSetupTab />}
                     {liveTab === 'graph'    && <GraphScreen />}
-                    {liveTab === 'stats'    && <LiveMatchStatsScreen />}
+                    {liveTab === 'stats'    && <LiveStatsSummaryScreen />}
                   </View>
                 </>
               )}
