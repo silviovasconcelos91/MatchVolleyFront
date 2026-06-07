@@ -432,17 +432,18 @@ const styles = StyleSheet.create({
   oppTile: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: RADIUS.lg,
-    paddingVertical: SPACING.lg,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.sm,
     alignItems: 'center',
-    gap: SPACING.xs,
+    gap: 2,
   },
   oppTileValue: {
-    fontSize: 32,
-    fontWeight: '700',
+    fontSize: FONT_SIZE.xxl,
+    fontWeight: '600',
   },
   oppTileLabel: {
-    fontSize: FONT_SIZE.sm,
+    fontSize: FONT_SIZE.xs,
     color: COLORS.textMuted,
   },
   statSection: {
@@ -482,19 +483,19 @@ const styles = StyleSheet.create({
   chip: {
     borderWidth: 1,
     borderRadius: RADIUS.sm,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
     alignItems: 'center',
-    minWidth: 60,
+    minWidth: 72,
   },
   chipCount: {
-    fontSize: FONT_SIZE.xl,
+    fontSize: 28,
     fontWeight: '700',
   },
   chipLabel: {
-    fontSize: FONT_SIZE.xs,
+    fontSize: FONT_SIZE.sm,
     color: COLORS.textMuted,
-    marginTop: 2,
+    marginTop: 3,
     textAlign: 'center',
   },
   emptySection: {
