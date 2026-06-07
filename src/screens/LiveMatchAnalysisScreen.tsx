@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getLiveMatchAnalysis } from '../data/matchApi';
-import type { LiveMatchAnalysis } from '../data/liveStatsAnalysis';
+import type { LiveMatchAnalysis, ActionCount } from '../data/liveStatsAnalysis';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 
 type Props = {
@@ -34,6 +34,37 @@ const Chip = ({ label, count, color }: ChipProps) => (
     <Text style={[styles.chipText, { color }]}>{label} {count}</Text>
   </View>
 );
+
+type StatBarProps = {
+  sectionLabel: string;
+  value: number;
+  total: number;
+  color: string;
+  items: ActionCount[];
+};
+const StatBar = ({ sectionLabel, value, total, color, items }: StatBarProps) => {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+  return (
+    <View style={styles.statSection}>
+      <View style={styles.statHeaderRow}>
+        <Text style={styles.statSectionLabel}>{sectionLabel}</Text>
+        <Text style={[styles.statRatio, { color }]}>{value} / {total}</Text>
+      </View>
+      <View style={styles.progressTrack}>
+        <View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: color }]} />
+      </View>
+      {items.length > 0 ? (
+        <View style={styles.chipsRow}>
+          {items.map(a => (
+            <Chip key={a.key} label={a.label} count={a.count} color={color} />
+          ))}
+        </View>
+      ) : (
+        <Text style={styles.emptySection}>Aucune action enregistrée</Text>
+      )}
+    </View>
+  );
+};
 
 type ResumeTabProps = { data: LiveMatchAnalysis };
 const ResumeTab = ({ data }: ResumeTabProps) => {
@@ -76,45 +107,23 @@ const ResumeTab = ({ data }: ResumeTabProps) => {
       {/* Zone 2 : Stats équipe */}
       <View style={styles.teamCard}>
 
-        {/* Points marqués */}
-        <View style={styles.statSection}>
-          <View style={styles.statHeaderRow}>
-            <Text style={styles.statSectionLabel}>POINTS MARQUÉS</Text>
-            <Text style={[styles.statRatio, { color: COLORS.greenLight }]}>
-              {playerPoints} / {totalMyScore}
-            </Text>
-          </View>
-          {globalStats.actions.points.length > 0 ? (
-            <View style={styles.chipsRow}>
-              {globalStats.actions.points.map(a => (
-                <Chip key={a.key} label={a.label} count={a.count} color={COLORS.greenLight} />
-              ))}
-            </View>
-          ) : (
-            <Text style={styles.emptySection}>Aucun point enregistré</Text>
-          )}
-        </View>
+        <StatBar
+          sectionLabel="POINTS MARQUÉS"
+          value={playerPoints}
+          total={totalMyScore}
+          color={COLORS.greenLight}
+          items={globalStats.actions.points}
+        />
 
         <View style={styles.sectionDivider} />
 
-        {/* Fautes */}
-        <View style={styles.statSection}>
-          <View style={styles.statHeaderRow}>
-            <Text style={styles.statSectionLabel}>FAUTES</Text>
-            <Text style={[styles.statRatio, { color: COLORS.redLight }]}>
-              {teamFaults} / {totalOppScore}
-            </Text>
-          </View>
-          {globalStats.actions.faults.length > 0 ? (
-            <View style={styles.chipsRow}>
-              {globalStats.actions.faults.map(a => (
-                <Chip key={a.key} label={a.label} count={a.count} color={COLORS.redLight} />
-              ))}
-            </View>
-          ) : (
-            <Text style={styles.emptySection}>Aucune faute enregistrée</Text>
-          )}
-        </View>
+        <StatBar
+          sectionLabel="FAUTES"
+          value={teamFaults}
+          total={totalOppScore}
+          color={COLORS.redLight}
+          items={globalStats.actions.faults}
+        />
 
         <View style={styles.sectionDivider} />
 
@@ -130,6 +139,20 @@ const ResumeTab = ({ data }: ResumeTabProps) => {
             <Text style={styles.oppValue}>{oppFaults}</Text>
           </View>
         </View>
+
+        {globalStats.actions.neutral.length > 0 && (
+          <>
+            <View style={styles.sectionDivider} />
+            <View style={styles.statSection}>
+              <Text style={styles.statSectionLabel}>ACTIONS NEUTRES</Text>
+              <View style={[styles.chipsRow, { marginTop: SPACING.sm }]}>
+                {globalStats.actions.neutral.map(a => (
+                  <Chip key={a.key} label={a.label} count={a.count} color={COLORS.textSecondary} />
+                ))}
+              </View>
+            </View>
+          </>
+        )}
       </View>
 
       <View style={{ height: SPACING.xxl }} />
@@ -409,8 +432,19 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   statRatio: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: '600',
+    fontSize: FONT_SIZE.xl,
+    fontWeight: '700',
+  },
+  progressTrack: {
+    height: 6,
+    backgroundColor: COLORS.bgInput,
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: SPACING.sm,
+  },
+  progressFill: {
+    height: 6,
+    borderRadius: 3,
   },
   chipsRow: {
     flexDirection: 'row',
