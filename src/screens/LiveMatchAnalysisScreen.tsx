@@ -454,6 +454,43 @@ const PlayersTab = ({ data }: PlayersTabProps) => {
                   (a, x) => a + x.count, 0,
                 );
 
+                // ── Trajectoires d'attaque ──────────────────────────────
+                // Grouper par position joueur → (from→to) → count total.
+                // Ignorer les AttackZone sans zone (from/to/playerPosition null).
+                const posMap = new Map<
+                  number,
+                  Map<string, { from: number; to: number; count: number }>
+                >();
+                for (const a of ss.stats.attacks) {
+                  if (a.playerPosition === null || a.from === null || a.to === null) continue;
+                  let trajMap = posMap.get(a.playerPosition);
+                  if (!trajMap) {
+                    trajMap = new Map();
+                    posMap.set(a.playerPosition, trajMap);
+                  }
+                  const key = `${a.from}-${a.to}`;
+                  const existing = trajMap.get(key);
+                  if (existing) {
+                    existing.count += a.count;
+                  } else {
+                    trajMap.set(key, { from: a.from, to: a.to, count: a.count });
+                  }
+                }
+                const attackGroups = [...posMap.entries()]
+                  .sort(([a], [b]) => a - b)
+                  .map(([pos, trajMap]) => ({
+                    pos,
+                    trajs: [...trajMap.values()].sort((a, b) => b.count - a.count),
+                  }));
+
+                // ── Aces par zone ───────────────────────────────────────
+                const totalSetAces = ss.stats.acesByZone.reduce(
+                  (a, z) => a + z.count, 0,
+                );
+                const sortedAces = [...ss.stats.acesByZone].sort(
+                  (a, b) => b.count - a.count,
+                );
+
                 return (
                   <View key={ss.setNumber} style={styles.setExpandedSection}>
                     <Text style={styles.setLabel}>SET {ss.setNumber}</Text>
@@ -494,6 +531,67 @@ const PlayersTab = ({ data }: PlayersTabProps) => {
                               />
                             ))}
                           </View>
+                        </View>
+                      </>
+                    )}
+
+                    {/* ── Trajectoires d'attaque ── */}
+                    {attackGroups.length > 0 && (
+                      <>
+                        <View style={styles.sectionDivider} />
+                        <View style={styles.statSection}>
+                          <Text style={styles.statSectionLabel}>
+                            TRAJECTOIRES D'ATTAQUE
+                          </Text>
+                          {attackGroups.map(({ pos, trajs }) => (
+                            <View key={pos} style={styles.attackTrajectoryRow}>
+                              <Text style={styles.attackPosLabel}>P{pos} :</Text>
+                              <Text style={styles.attackTrajList}>
+                                {trajs
+                                  .map(t => `Z${t.from}→Z${t.to} (${t.count})`)
+                                  .join('  ')}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      </>
+                    )}
+
+                    {/* ── Aces par zone ── */}
+                    {sortedAces.length > 0 && (
+                      <>
+                        <View style={styles.sectionDivider} />
+                        <View style={styles.statSection}>
+                          <Text style={styles.statSectionLabel}>
+                            ACES PAR ZONE
+                          </Text>
+                          {sortedAces.map(az => {
+                            const pct =
+                              totalSetAces > 0
+                                ? Math.round((az.count / totalSetAces) * 100)
+                                : 0;
+                            return (
+                              <View key={az.zone} style={styles.trajRow}>
+                                <Text style={styles.trajRowLabel}>
+                                  Zone {az.zone}
+                                </Text>
+                                <View style={styles.bar}>
+                                  <View
+                                    style={[
+                                      styles.barFill,
+                                      {
+                                        width: `${pct}%`,
+                                        backgroundColor: COLORS.yellow,
+                                      },
+                                    ]}
+                                  />
+                                </View>
+                                <Text style={styles.trajRowVal}>
+                                  {pct}% ({az.count})
+                                </Text>
+                              </View>
+                            );
+                          })}
                         </View>
                       </>
                     )}
@@ -1005,6 +1103,51 @@ const styles = StyleSheet.create({
   placeholderText: {
     fontSize: FONT_SIZE.lg,
     color: COLORS.textMuted,
+  },
+  trajRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: 3,
+  },
+  trajRowLabel: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textSecondary,
+    width: 52,
+  },
+  bar: {
+    flex: 1,
+    height: 6,
+    backgroundColor: COLORS.border,
+    borderRadius: RADIUS.sm,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+    borderRadius: RADIUS.sm,
+  },
+  trajRowVal: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textPrimary,
+    width: 72,
+    textAlign: 'right',
+  },
+  attackTrajectoryRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+    paddingVertical: 3,
+  },
+  attackPosLabel: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+    width: 32,
+  },
+  attackTrajList: {
+    flex: 1,
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textPrimary,
   },
 });
 
