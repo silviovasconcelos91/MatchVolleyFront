@@ -74,7 +74,8 @@ import MatchDetailScreen         from './src/screens/MatchDetailScreen';
 import PlayerSeasonStatsScreen  from './src/screens/PlayerSeasonStatsScreen';
 import MatchModeScreen from './src/screens/MatchModeScreen';
 import LiveStatsScreen from './src/screens/LiveStatsScreen';
-import LiveStatsSummaryScreen from './src/screens/LiveStatsSummaryScreen';
+import LiveMatchStatsScreen from './src/screens/LiveMatchStatsScreen';
+import LivePositionSetupTab from './src/screens/LivePositionSetupTab';
 import { LiveStatsProvider } from './src/context/LiveStatsContext';
 
 // Thème
@@ -100,12 +101,13 @@ type TabBarProps = {
 };
 
 // ── Onglets du mode saisie temps réel ──
-type LiveTabId = 'live' | 'position' | 'graph' | 'stats';
+type LiveTabId = 'live' | 'position' | 'setup' | 'graph' | 'stats';
 const LIVE_TABS: { id: LiveTabId; label: string; activeColor: string }[] = [
-  { id: 'live',     label: 'Saisie', activeColor: COLORS.green  },
-  { id: 'position', label: '5-1',    activeColor: COLORS.yellow },
-  { id: 'graph',    label: 'Graphe', activeColor: COLORS.blue   },
-  { id: 'stats',    label: 'Stats',  activeColor: COLORS.blue   },
+  { id: 'live',     label: 'Saisie',    activeColor: COLORS.green  },
+  { id: 'position', label: '5-1',       activeColor: COLORS.yellow },
+  { id: 'setup',    label: 'Positions', activeColor: COLORS.yellow },
+  { id: 'graph',    label: 'Graphe',    activeColor: COLORS.blue   },
+  { id: 'stats',    label: 'Stats',     activeColor: COLORS.blue   },
 ];
 
 // ── Définition des onglets ──
@@ -393,52 +395,50 @@ const AppContent = () => {
         </SafeAreaView>
       );
     }
-    // Étape B : placement sur le terrain + rôles
-    if (setSetupPending) {
-      return (
-        <SafeAreaView style={styles.safeArea}>
-          <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCard} />
-          <SetSetupScreen />
-        </SafeAreaView>
-      );
-    }
-    // Étape C : shell avec bandeau score + onglets (Saisie / 5-1 / Graphe / Stats)
+    // Étapes B + C sous le même LiveStatsProvider pour préserver l'état entre les sets.
     return (
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCard} />
         <LiveStatsProvider>
-          <ScoreHeader onRosterPress={() => setRosterOverlayVisible(true)} />
-          <SetBanner />
-          {rosterOverlayVisible ? (
-            <View style={styles.screenContainer}>
-              <RosterScreen onClose={() => setRosterOverlayVisible(false)} />
-            </View>
+          {setSetupPending ? (
+            <SetSetupScreen />
           ) : (
             <>
-              <View style={styles.tabBar}>
-                {LIVE_TABS.map(t => {
-                  const isActive = t.id === liveTab;
-                  return (
-                    <TouchableOpacity
-                      key={t.id}
-                      style={styles.tabItem}
-                      onPress={() => setLiveTab(t.id)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.tabLabel, isActive && { color: t.activeColor, fontWeight: '500' }]}>
-                        {t.label}
-                      </Text>
-                      <View style={[styles.tabIndicator, isActive && { backgroundColor: t.activeColor }]} />
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-              <View style={styles.screenContainer}>
-                {liveTab === 'live'     && <LiveStatsScreen team={selectedTeam} />}
-                {liveTab === 'position' && <PositionScreen />}
-                {liveTab === 'graph'    && <GraphScreen />}
-                {liveTab === 'stats'    && <LiveStatsSummaryScreen />}
-              </View>
+              <ScoreHeader onRosterPress={() => setRosterOverlayVisible(true)} />
+              <SetBanner />
+              {rosterOverlayVisible ? (
+                <View style={styles.screenContainer}>
+                  <RosterScreen onClose={() => setRosterOverlayVisible(false)} />
+                </View>
+              ) : (
+                <>
+                  <View style={styles.tabBar}>
+                    {LIVE_TABS.map(t => {
+                      const isActive = t.id === liveTab;
+                      return (
+                        <TouchableOpacity
+                          key={t.id}
+                          style={styles.tabItem}
+                          onPress={() => setLiveTab(t.id)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={[styles.tabLabel, isActive && { color: t.activeColor, fontWeight: '500' }]}>
+                            {t.label}
+                          </Text>
+                          <View style={[styles.tabIndicator, isActive && { backgroundColor: t.activeColor }]} />
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  <View style={styles.screenContainer}>
+                    {liveTab === 'live'     && <LiveStatsScreen team={selectedTeam} />}
+                    {liveTab === 'position' && <PositionScreen />}
+                    {liveTab === 'setup'    && <LivePositionSetupTab />}
+                    {liveTab === 'graph'    && <GraphScreen />}
+                    {liveTab === 'stats'    && <LiveMatchStatsScreen />}
+                  </View>
+                </>
+              )}
             </>
           )}
         </LiveStatsProvider>
