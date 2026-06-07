@@ -75,6 +75,7 @@ import PlayerSeasonStatsScreen  from './src/screens/PlayerSeasonStatsScreen';
 import MatchModeScreen from './src/screens/MatchModeScreen';
 import LiveStatsScreen from './src/screens/LiveStatsScreen';
 import LiveStatsSummaryScreen from './src/screens/LiveStatsSummaryScreen';
+import LiveMatchAnalysisScreen from './src/screens/LiveMatchAnalysisScreen';
 import LivePositionSetupTab from './src/screens/LivePositionSetupTab';
 import { LiveStatsProvider } from './src/context/LiveStatsContext';
 
@@ -192,7 +193,7 @@ const AppContent = () => {
   const [matchMode, setMatchMode] = useState<'classic' | 'live' | null>(null);
   const [liveTab, setLiveTab] = useState<LiveTabId>('live');
 
-  type StatsStep = 'teamSelection' | 'hub' | 'matchList' | 'playerList' | 'matchDetail' | 'playerDetail';
+  type StatsStep = 'teamSelection' | 'hub' | 'matchList' | 'playerList' | 'matchDetail' | 'playerDetail' | 'liveMatchList' | 'liveMatchDetail';
   const [statsStep, setStatsStep] = useState<StatsStep | null>(null);
   const [statsTeam, setStatsTeam] = useState<{ id: number; name: string } | null>(null);
   const [statsMatch, setStatsMatch] = useState<{ id: string; date: string } | null>(null);
@@ -234,6 +235,8 @@ const AppContent = () => {
       if (statsStep === 'hub')            { setStatsStep('teamSelection'); return true; }
       if (statsStep === 'matchList')      { setStatsStep('hub');           return true; }
       if (statsStep === 'matchDetail')    { setStatsStep('matchList');     return true; }
+      if (statsStep === 'liveMatchList')  { setStatsStep('hub');           return true; }
+      if (statsStep === 'liveMatchDetail'){ setStatsStep('liveMatchList'); return true; }
       if (statsStep === 'playerList')     { setStatsStep('hub');           return true; }
       if (statsStep === 'playerDetail')   { setStatsStep('playerList');    return true; }
     }
@@ -301,6 +304,7 @@ const AppContent = () => {
           onBack={() => setStatsStep('teamSelection')}
           onMatchStats={() => setStatsStep('matchList')}
           onPlayerStats={() => setStatsStep('playerList')}
+          onLiveStats={() => setStatsStep('liveMatchList')}
         />
       );
     }
@@ -320,6 +324,25 @@ const AppContent = () => {
           matchId={statsMatch.id}
           matchDate={statsMatch.date}
           onBack={() => setStatsStep('matchList')}
+        />
+      );
+    }
+    if (statsStep === 'liveMatchList' && statsTeam !== null) {
+      return (
+        <TeamMatchListScreen
+          teamId={statsTeam.id}
+          teamName={statsTeam.name}
+          onBack={() => setStatsStep('hub')}
+          onSelectMatch={(id, date) => { setStatsMatch({ id, date }); setStatsStep('liveMatchDetail'); }}
+        />
+      );
+    }
+    if (statsStep === 'liveMatchDetail' && statsMatch !== null) {
+      return (
+        <LiveMatchAnalysisScreen
+          matchId={statsMatch.id}
+          matchDate={statsMatch.date}
+          onBack={() => setStatsStep('liveMatchList')}
         />
       );
     }
