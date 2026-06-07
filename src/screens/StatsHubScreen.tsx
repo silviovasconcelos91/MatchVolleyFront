@@ -11,9 +11,10 @@ type Props = {
   onBack: () => void;
   onMatchStats: () => void;
   onPlayerStats: () => void;
+  onLiveStats: () => void;
 };
 
-const StatsHubScreen = ({ teamName, onBack, onMatchStats, onPlayerStats }: Props) => (
+const StatsHubScreen = ({ teamName, onBack, onMatchStats, onPlayerStats, onLiveStats }: Props) => (
   <SafeAreaView style={styles.safeArea}>
     <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCard} />
 
@@ -40,6 +41,15 @@ const StatsHubScreen = ({ teamName, onBack, onMatchStats, onPlayerStats }: Props
         <View style={styles.cardText}>
           <Text style={styles.cardTitle}>Stats joueurs</Text>
           <Text style={styles.cardDesc}>Performances individuelles</Text>
+        </View>
+        <Text style={styles.chevron}>›</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.card} onPress={onLiveStats} activeOpacity={0.7}>
+        <Text style={styles.cardIcon}>📊</Text>
+        <View style={styles.cardText}>
+          <Text style={styles.cardTitle}>Stats live</Text>
+          <Text style={styles.cardDesc}>Analyse des matchs saisie en live</Text>
         </View>
         <Text style={styles.chevron}>›</Text>
       </TouchableOpacity>
