@@ -578,11 +578,8 @@ const PlayersTab = ({ data }: PlayersTabProps) => {
                                 <View style={styles.bar}>
                                   <View
                                     style={[
-                                      styles.barFill,
-                                      {
-                                        width: `${pct}%`,
-                                        backgroundColor: COLORS.yellow,
-                                      },
+                                      styles.barFillYellow,
+                                      { width: `${pct}%` },
                                     ]}
                                   />
                                 </View>
@@ -1125,6 +1122,11 @@ const styles = StyleSheet.create({
   barFill: {
     height: '100%',
     borderRadius: RADIUS.sm,
+  },
+  barFillYellow: {
+    height: 6,
+    borderRadius: 4,
+    backgroundColor: COLORS.yellow,
   },
   trajRowVal: {
     fontSize: FONT_SIZE.sm,
