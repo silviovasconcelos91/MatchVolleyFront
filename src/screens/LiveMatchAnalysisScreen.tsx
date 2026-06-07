@@ -247,7 +247,10 @@ const SetsTab = ({ data }: SetsTabProps) => {
                 )}
 
                 {/* Adversaire par set */}
-                <View style={[styles.oppCard, { marginTop: SPACING.md, paddingHorizontal: SPACING.md }]}>
+                <View style={styles.setAdversaireHeader}>
+                  <Text style={styles.timelineLabel}>ADVERSAIRE</Text>
+                </View>
+                <View style={[styles.oppCard, { paddingHorizontal: SPACING.md }]}>
                   <View style={[styles.oppTile, { borderColor: `${COLORS.yellow}33`, backgroundColor: `${COLORS.yellow}11` }]}>
                     <Text style={[styles.oppTileValue, { color: COLORS.yellow }]}>{oppActual}</Text>
                     <Text style={styles.oppTileLabel}>Points marqués</Text>
@@ -692,6 +695,13 @@ const styles = StyleSheet.create({
   setContent: {
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
+  },
+  setAdversaireHeader: {
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    marginBottom: SPACING.xs,
   },
   timelineSection: {
     padding: SPACING.md,
