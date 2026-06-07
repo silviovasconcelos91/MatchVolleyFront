@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, ActivityIndicator, StatusBar,
@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getLiveMatchAnalysis } from '../data/matchApi';
 import type { LiveMatchAnalysis, ActionCount } from '../data/liveStatsAnalysis';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
+import SetGraph from '../components/SetGraph';
 
 type Props = {
   matchId: string;
@@ -160,6 +161,142 @@ const ResumeTab = ({ data }: ResumeTabProps) => {
   );
 };
 
+const LIVE_ACTION_LABELS: Record<string, string> = {
+  attack_pt:    'Attaque',
+  ace:          'Ace',
+  block_pt:     'Contre',
+  relance_pt:   'Relance',
+  attack_fault: 'Faute attaque',
+  serve_fault:  'Faute service',
+  recv_fault:   'Err. réception',
+  fault:        'Faute',
+  good_recv:    'Bonne récept.',
+  bad_recv:     'Mauvaise récept.',
+  block_touch:  'Contre touché',
+  serve_in:     'Service réussi',
+  attack_no_pt: 'Attaque (sans pt)',
+};
+
+type SetsTabProps = { data: LiveMatchAnalysis };
+const SetsTab = ({ data }: SetsTabProps) => {
+  const [expandedSet, setExpandedSet] = useState<number | null>(null);
+
+  const playerMap = useMemo(() => {
+    const m = new Map<number, string>();
+    data.players.forEach(p => m.set(p.playerId, p.name));
+    return m;
+  }, [data.players]);
+
+  return (
+    <ScrollView style={styles.tabScroll} showsVerticalScrollIndicator={false}>
+      {data.sets.map(set => {
+        const expanded  = expandedSet === set.setNumber;
+        const won       = set.wonBy === 'mine';
+        const scoreColor = won ? COLORS.greenLight : COLORS.redLight;
+
+        const playerPoints = set.stats.actions.points.reduce((a, x) => a + x.count, 0);
+        const teamFaults   = set.stats.actions.faults.reduce((a, x) => a + x.count, 0);
+        const oppActual    = Math.max(0, set.oppScore - teamFaults);
+        const oppFaults    = Math.max(0, set.myScore - playerPoints);
+
+        return (
+          <View key={set.setNumber} style={styles.setAccordion}>
+            <TouchableOpacity
+              style={styles.setHeader}
+              onPress={() => setExpandedSet(expanded ? null : set.setNumber)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.setTitle}>Set {set.setNumber}</Text>
+              <Text style={[styles.setScore, { color: scoreColor }]}>
+                {set.myScore} – {set.oppScore}
+              </Text>
+              <Text style={styles.setChevron}>{expanded ? '▲' : '▼'}</Text>
+            </TouchableOpacity>
+
+            {expanded && (
+              <View style={styles.setContent}>
+
+                {/* Stats par set */}
+                <StatBar
+                  sectionLabel="POINTS MARQUÉS"
+                  value={playerPoints}
+                  total={set.myScore}
+                  color={COLORS.greenLight}
+                  items={set.stats.actions.points}
+                />
+                <View style={styles.sectionDivider} />
+                <StatBar
+                  sectionLabel="FAUTES"
+                  value={teamFaults}
+                  total={set.oppScore}
+                  color={COLORS.redLight}
+                  items={set.stats.actions.faults}
+                />
+                {set.stats.actions.neutral.length > 0 && (
+                  <>
+                    <View style={styles.sectionDivider} />
+                    <View style={styles.statSection}>
+                      <Text style={styles.statSectionLabel}>ACTIONS NEUTRES</Text>
+                      <View style={[styles.chipsRow, { marginTop: SPACING.sm }]}>
+                        {set.stats.actions.neutral.map(a => (
+                          <Chip key={a.key} label={a.label} count={a.count} color={COLORS.textSecondary} />
+                        ))}
+                      </View>
+                    </View>
+                  </>
+                )}
+
+                {/* Adversaire par set */}
+                <View style={[styles.oppCard, { marginTop: SPACING.md, paddingHorizontal: SPACING.md }]}>
+                  <View style={[styles.oppTile, { borderColor: `${COLORS.yellow}33`, backgroundColor: `${COLORS.yellow}11` }]}>
+                    <Text style={[styles.oppTileValue, { color: COLORS.yellow }]}>{oppActual}</Text>
+                    <Text style={styles.oppTileLabel}>Points marqués</Text>
+                  </View>
+                  <View style={[styles.oppTile, { borderColor: `${COLORS.textSecondary}33`, backgroundColor: `${COLORS.textSecondary}11` }]}>
+                    <Text style={[styles.oppTileValue, { color: COLORS.textSecondary }]}>{oppFaults}</Text>
+                    <Text style={styles.oppTileLabel}>Fautes</Text>
+                  </View>
+                </View>
+
+                {/* Timeline */}
+                {set.timeline.length > 0 && (
+                  <View style={styles.timelineSection}>
+                    <Text style={styles.timelineLabel}>ÉVOLUTION DU SCORE</Text>
+                    <SetGraph
+                      timeline={set.timeline}
+                      finalMyScore={set.myScore}
+                      finalOppScore={set.oppScore}
+                    />
+
+                    <Text style={[styles.timelineLabel, { marginTop: SPACING.md }]}>JOURNAL DU SET</Text>
+                    {set.timeline.map((entry, i) => {
+                      const isMine     = entry.playerId !== null;
+                      const playerName = entry.playerId !== null
+                        ? (playerMap.get(entry.playerId) ?? `#${entry.playerId}`)
+                        : 'Adversaire';
+                      const actionLabel = LIVE_ACTION_LABELS[entry.action] ?? entry.action;
+                      return (
+                        <View key={i} style={[styles.journalRow, isMine ? styles.journalRowMine : styles.journalRowOpp]}>
+                          <Text style={styles.journalScore}>{entry.myScore}–{entry.oppScore}</Text>
+                          <Text style={[styles.journalAction, { color: isMine ? COLORS.textPrimary : COLORS.textMuted }]}>
+                            {actionLabel}
+                          </Text>
+                          <Text style={styles.journalPlayer} numberOfLines={1}>{playerName}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+        );
+      })}
+      <View style={{ height: SPACING.xxl }} />
+    </ScrollView>
+  );
+};
+
 const PlaceholderTab = () => (
   <View style={styles.placeholder}>
     <Text style={styles.placeholderText}>À venir</Text>
@@ -239,7 +376,7 @@ const LiveMatchAnalysisScreen = ({ matchId, matchDate, onBack }: Props) => {
 
           <View style={styles.screenContainer}>
             {activeTab === 'resume'  && <ResumeTab data={data} />}
-            {activeTab === 'sets'    && <PlaceholderTab />}
+            {activeTab === 'sets'    && <SetsTab data={data} />}
             {activeTab === 'players' && <PlaceholderTab />}
             {activeTab === 'opp'     && <PlaceholderTab />}
           </View>
@@ -522,6 +659,80 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.sm,
     fontWeight: '500',
     color: COLORS.textPrimary,
+  },
+  setAccordion: {
+    backgroundColor: COLORS.bgCard,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.lg,
+    marginBottom: SPACING.sm,
+    overflow: 'hidden',
+  },
+  setHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.md,
+    gap: SPACING.sm,
+  },
+  setTitle: {
+    fontSize: FONT_SIZE.lg,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    flex: 1,
+  },
+  setScore: {
+    fontSize: FONT_SIZE.lg,
+    fontWeight: '700',
+  },
+  setChevron: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textMuted,
+    marginLeft: SPACING.xs,
+  },
+  setContent: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  timelineSection: {
+    padding: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  timelineLabel: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textMuted,
+    letterSpacing: 1,
+    marginBottom: SPACING.sm,
+  },
+  journalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    gap: SPACING.sm,
+  },
+  journalRowMine: {
+    backgroundColor: 'transparent',
+  },
+  journalRowOpp: {
+    backgroundColor: `${COLORS.bgInput}66`,
+  },
+  journalScore: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textMuted,
+    fontVariant: ['tabular-nums'],
+    width: 42,
+  },
+  journalAction: {
+    fontSize: FONT_SIZE.sm,
+    flex: 1,
+  },
+  journalPlayer: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textSecondary,
+    maxWidth: 120,
+    textAlign: 'right',
   },
   placeholder: {
     flex: 1,
