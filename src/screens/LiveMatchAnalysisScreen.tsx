@@ -181,10 +181,14 @@ type SetsTabProps = { data: LiveMatchAnalysis };
 const SetsTab = ({ data }: SetsTabProps) => {
   const [expandedSet, setExpandedSet] = useState<number | null>(null);
 
-  const playerMap = useMemo(() => {
-    const m = new Map<number, string>();
-    data.players.forEach(p => m.set(p.playerId, p.name));
-    return m;
+  const { playerNameMap, jerseyMap } = useMemo(() => {
+    const playerNameMap = new Map<number, string>();
+    const jerseyMap     = new Map<number, number>();
+    data.players.forEach(p => {
+      playerNameMap.set(p.playerId, p.name);
+      jerseyMap.set(p.playerId, p.jersey);
+    });
+    return { playerNameMap, jerseyMap };
   }, [data.players]);
 
   return (
@@ -273,15 +277,38 @@ const SetsTab = ({ data }: SetsTabProps) => {
 
                     <Text style={[styles.timelineLabel, { marginTop: SPACING.md }]}>JOURNAL DU SET</Text>
                     {set.timeline.map((entry, i) => {
-                      const isMine     = entry.playerId !== null;
-                      const playerName = entry.playerId !== null
-                        ? (playerMap.get(entry.playerId) ?? `#${entry.playerId}`)
+                      const isMine      = entry.playerId !== null;
+                      const scored      = i === 0
+                        ? entry.myScore > 0
+                        : entry.myScore > set.timeline[i - 1].myScore;
+                      const playerName  = entry.playerId !== null
+                        ? (playerNameMap.get(entry.playerId) ?? `#${entry.playerId}`)
                         : 'Adversaire';
+                      const jersey      = entry.playerId !== null
+                        ? jerseyMap.get(entry.playerId)
+                        : undefined;
                       const actionLabel = LIVE_ACTION_LABELS[entry.action] ?? entry.action;
+                      const borderColor = scored ? COLORS.green : COLORS.red;
                       return (
-                        <View key={i} style={[styles.journalRow, isMine ? styles.journalRowMine : styles.journalRowOpp]}>
+                        <View
+                          key={i}
+                          style={[
+                            styles.journalRow,
+                            isMine ? styles.journalRowMine : styles.journalRowOpp,
+                            { borderLeftWidth: 3, borderLeftColor: borderColor },
+                          ]}
+                        >
+                          <View style={[
+                            styles.jerseyBadge,
+                            { borderColor: isMine ? `${COLORS.blue}55` : `${COLORS.textMuted}44`,
+                              backgroundColor: isMine ? `${COLORS.blue}18` : `${COLORS.bgInput}` },
+                          ]}>
+                            <Text style={[styles.jerseyBadgeText, { color: isMine ? COLORS.blue : COLORS.textMuted }]}>
+                              {jersey !== undefined ? `#${jersey}` : 'Adv'}
+                            </Text>
+                          </View>
                           <Text style={styles.journalScore}>{entry.myScore}–{entry.oppScore}</Text>
-                          <Text style={[styles.journalAction, { color: isMine ? COLORS.textPrimary : COLORS.textMuted }]}>
+                          <Text style={[styles.journalAction, { color: scored ? COLORS.textPrimary : COLORS.textMuted }]}>
                             {actionLabel}
                           </Text>
                           <Text style={styles.journalPlayer} numberOfLines={1}>{playerName}</Text>
@@ -727,6 +754,18 @@ const styles = StyleSheet.create({
   },
   journalRowOpp: {
     backgroundColor: `${COLORS.bgInput}66`,
+  },
+  jerseyBadge: {
+    borderWidth: 1,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    minWidth: 36,
+    alignItems: 'center',
+  },
+  jerseyBadgeText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '700',
   },
   journalScore: {
     fontSize: FONT_SIZE.xs,
