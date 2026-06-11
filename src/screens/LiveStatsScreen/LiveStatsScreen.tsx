@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Switch } from 'react-native';
+import CourtGestureLayer from './CourtGestureLayer';
 import type { Team } from '../../data/teams';
 import { LIVE_ACTIONS, LIVE_ACTION_BY_KEY } from '../../data/liveStats';
 import type { LiveTeam, LiveActionKey, LiveActionCategory } from '../../data/liveStats';
@@ -18,17 +19,15 @@ const MINE_ACTION_MAP: Partial<Record<LiveActionKey, ActionKey>> = {
   ace:         'ace',
   block_pt:    'block',
   relance_pt:  'pt',
-  attack_out:  'atk_out',
-  attack_net:  'fault',
-  serve_net:   'srv_out',
-  serve_out:   'srv_out',
-  recv_shank:  'recv',
-  bad_defense: 'fault',
+  attack_fault: 'atk_out',
+  serve_fault:  'srv_out',
+  recv_fault:   'recv',
+  fault:        'fault',
 };
 
-type CourtPlayer = { id: number; jersey: number; name: string; color: string };
+type CourtPlayer = { id: number; jersey: number; name: string; color: string; role: string };
 
-type Target = { team: LiveTeam; player: CourtPlayer };
+type Target = { team: LiveTeam; player: CourtPlayer; pos: number };
 
 const CATEGORY_ORDER: LiveActionCategory[] = ['point', 'fault', 'neutral'];
 
@@ -49,13 +48,9 @@ const ZONE_FILL_ORDER = [4, 3, 2, 5, 6, 1];
 
 // Lignes affichées (haut → bas). Filet au centre du terrain.
 const MINE_ROWS = [[4, 3, 2], [5, 6, 1]]; // avant (près filet) en haut, arrière en bas
-const OPP_ROWS  = [[5, 6, 1], [4, 3, 2]]; // arrière en haut, avant (près filet) en bas
+// OPP : miroir horizontal (zone 1 adversaire = gauche coach, zone 5 = droite coach)
+const OPP_ROWS  = [[1, 6, 5], [2, 3, 4]]; // arrière en haut, avant (près filet) en bas
 
-// Demi-terrain pour la zone d'arrivée. L'orientation suit la vue du coach :
-// le filet est du côté du centre du terrain selon qui réalise l'action.
-// Filet en haut → avant 4-3-2 en haut ; filet en bas → avant 4-3-2 en bas.
-const ZONE_ROWS_NET_TOP    = [[4, 3, 2], [5, 6, 1]];
-const ZONE_ROWS_NET_BOTTOM = [[5, 6, 1], [4, 3, 2]];
 
 const buildCourt = (players: CourtPlayer[]): Record<number, CourtPlayer> => {
   const map: Record<number, CourtPlayer> = {};
@@ -73,8 +68,6 @@ const LiveStatsScreen = ({ team }: Props) => {
 
   const [target, setTarget] = useState<Target | null>(null);
   const [pendingAction, setPendingAction] = useState<LiveActionKey | null>(null);
-  const [zoneStage, setZoneStage] = useState<'start' | 'landing'>('landing');
-  const [startZone, setStartZone] = useState<number | null>(null);
   const [subFor, setSubFor] = useState<CourtPlayer | null>(null);
 
   // Joueurs sur le terrain : positions réelles issues du roster/SetSetup (MatchContext).
@@ -87,6 +80,7 @@ const LiveStatsScreen = ({ team }: Props) => {
         jersey: p.numero,
         name: p.name,
         color: getPositionColor(p.tacticalRole),
+        role: p.tacticalRole,
       };
     });
     return map;
@@ -98,6 +92,7 @@ const LiveStatsScreen = ({ team }: Props) => {
       jersey: j,
       name: `Adv #${j}`,
       color: COLORS.pink,
+      role: '',
     }));
     return buildCourt(players);
   }, []);
@@ -156,16 +151,6 @@ const LiveStatsScreen = ({ team }: Props) => {
     setSubFor(null);
   };
 
-  // Nb d'événements par joueur (team:id) pour le compteur sur la case.
-  const countByPlayer = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const e of state.events) {
-      const k = `${e.team}:${e.playerId}`;
-      map.set(k, (map.get(k) ?? 0) + 1);
-    }
-    return map;
-  }, [state.events]);
-
   const record = useCallback((actionKey: LiveActionKey, zone: number | null, zoneStartValue: number | null) => {
     if (!target) return;
     actions.addEvent({
@@ -176,6 +161,7 @@ const LiveStatsScreen = ({ team }: Props) => {
       actionKey,
       zone,
       zoneStart:  zoneStartValue,
+      playerPos:  target.pos,
     });
     // Reflet dans MatchContext : score, rotation auto, stats classiques.
     const def = LIVE_ACTION_BY_KEY[actionKey];
@@ -188,8 +174,6 @@ const LiveStatsScreen = ({ team }: Props) => {
       matchActions.oppFault();
     }
     setPendingAction(null);
-    setStartZone(null);
-    setZoneStage('landing');
     setTarget(null);
   }, [actions, matchActions, target]);
 
@@ -201,7 +185,8 @@ const LiveStatsScreen = ({ team }: Props) => {
   };
 
   const handleUndo = () => {
-    const lastEv = state.events[state.events.length - 1];
+    const curSetEvents = state.sets[state.currentSet] ?? [];
+    const lastEv = curSetEvents[curSetEvents.length - 1];
     actions.undo();
     if (lastEv && didScore(lastEv.team, lastEv.actionKey)) matchActions.undo();
   };
@@ -209,31 +194,43 @@ const LiveStatsScreen = ({ team }: Props) => {
   const handleAction = (actionKey: LiveActionKey) => {
     if (!target) return;
     const def = LIVE_ACTION_BY_KEY[actionKey];
-    if (def.needsStartZone) {
-      setStartZone(null);
-      setZoneStage('start');
-      setPendingAction(actionKey);
-      return;
-    }
-    if (def.needsZone) {
-      setZoneStage('landing');
+    if (def.needsZone || def.needsStartZone) {
       setPendingAction(actionKey);
       return;
     }
     record(actionKey, null, null);
   };
 
-  const last = state.events.length > 0 ? state.events[state.events.length - 1] : null;
-
-  // Orientation du terrain pour le picker de zone (vue coach).
-  // Arrivée : adversaire attaque → balle dans mon camp (filet haut) ; mon équipe → camp adverse (filet bas).
-  // Départ (attaque) : terrain inversé → filet du côté opposé à l'arrivée.
-  const landingNetAtTop = target?.team === 'opp';
-  const isStartStage = pendingAction !== null && zoneStage === 'start';
-  const overlayNetAtTop = isStartStage ? !landingNetAtTop : landingNetAtTop;
-  const overlayRows = overlayNetAtTop ? ZONE_ROWS_NET_TOP : ZONE_ROWS_NET_BOTTOM;
+  const curSetEvents = state.sets[state.currentSet] ?? [];
+  const last = curSetEvents.length > 0 ? curSetEvents[curSetEvents.length - 1] : null;
 
   const renderCell = (courtTeam: LiveTeam, courtMap: Record<number, CourtPlayer>, zone: number) => {
+    // Gesture mode: show only zone numbers, no player info
+    if (pendingAction !== null) {
+      const def = LIVE_ACTION_BY_KEY[pendingAction];
+      const actingTeam = target?.team ?? 'mine';
+      // Landing half is opposite to acting team; departure is acting team's half.
+      const isLanding   = actingTeam === 'mine' ? courtTeam === 'opp' : courtTeam === 'mine';
+      const isDeparture = (actingTeam === 'mine' ? courtTeam === 'mine' : courtTeam === 'opp') && !!def.needsStartZone;
+      const isActive = isLanding || isDeparture;
+      const color = isLanding ? COLORS.pink : COLORS.blue;
+      return (
+        <View
+          key={zone}
+          style={[
+            styles.gestureCell,
+            isActive
+              ? { borderColor: `${color}66`, backgroundColor: `${color}18` }
+              : { borderColor: COLORS.border, opacity: 0.3 },
+          ]}
+        >
+          <Text style={[styles.gestureZoneNum, { color: isActive ? color : COLORS.textDark }]}>
+            {zone}
+          </Text>
+        </View>
+      );
+    }
+
     const player = courtMap[zone];
     if (!player) {
       return (
@@ -242,21 +239,21 @@ const LiveStatsScreen = ({ team }: Props) => {
         </View>
       );
     }
-    const count = countByPlayer.get(`${courtTeam}:${player.id}`) ?? 0;
     return (
       <TouchableOpacity
         key={zone}
         style={[styles.courtCell, { borderColor: `${player.color}88`, backgroundColor: `${player.color}1a` }]}
-        onPress={() => setTarget({ team: courtTeam, player })}
+        onPress={() => setTarget({ team: courtTeam, player, pos: zone })}
         onLongPress={courtTeam === 'mine' && !availableLiberoIds.includes(player.id) ? () => setSubFor(player) : undefined}
         activeOpacity={0.7}
       >
-        <Text style={[styles.courtNum, { color: player.color }]}>{player.jersey}</Text>
-        <Text style={styles.courtName} numberOfLines={1}>
-          {courtTeam === 'opp' ? 'Adv.' : player.name.split(' ')[0]}
+        <Text style={[styles.courtName, { color: player.color }]} numberOfLines={1} adjustsFontSizeToFit>
+          {courtTeam === 'opp' ? `Adv.` : player.name.split(' ')[0]}
         </Text>
-        <Text style={styles.courtCount}>{count > 0 ? `${count} act.` : ' '}</Text>
-        <Text style={styles.courtZoneTag}>Z{zone}</Text>
+        <Text style={styles.courtNum}>#{player.jersey}</Text>
+        {courtTeam === 'mine' && player.role ? (
+          <Text style={[styles.courtRole, { color: player.color }]}>{player.role}</Text>
+        ) : null}
       </TouchableOpacity>
     );
   };
@@ -264,7 +261,14 @@ const LiveStatsScreen = ({ team }: Props) => {
   return (
     <View style={styles.tabRoot}>
       {/* ── Terrain ── */}
-      <View style={styles.court}>
+      <CourtGestureLayer
+        style={styles.court}
+        pendingAction={pendingAction}
+        targetTeam={target?.team ?? null}
+        onRecord={(zone, zoneStart) => {
+          if (pendingAction) record(pendingAction, zone, zoneStart);
+        }}
+      >
         {/* Demi-terrain adverse (haut) */}
         <View style={[styles.half, styles.halfTop]}>
           <Text style={[styles.halfLabel, { color: COLORS.pink }]}>ADVERSAIRE</Text>
@@ -286,7 +290,25 @@ const LiveStatsScreen = ({ team }: Props) => {
           ))}
           <Text style={[styles.halfLabel, { color: COLORS.blue }]}>{team.name.toUpperCase()}</Text>
         </View>
-      </View>
+      </CourtGestureLayer>
+
+      {/* ── Bannière instruction geste ── */}
+      {pendingAction !== null && (
+        <View style={styles.gestureInstructionBar}>
+          <Text style={styles.gestureInstructionText}>
+            {LIVE_ACTION_BY_KEY[pendingAction].needsStartZone
+              ? `${LIVE_ACTION_BY_KEY[pendingAction].label} — glissez depuis votre camp vers l'adversaire`
+              : `${LIVE_ACTION_BY_KEY[pendingAction].label} — touchez la zone d'arrivée`}
+          </Text>
+          <TouchableOpacity
+            style={styles.gestureCancelBtn}
+            onPress={() => setPendingAction(null)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.gestureCancelText}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* ── Libéros : faire entrer / sortir un des deux libéros ── */}
       {availableLiberoIds.length > 0 && (
@@ -312,7 +334,7 @@ const LiveStatsScreen = ({ team }: Props) => {
         </View>
       )}
 
-      {/* ── Footer : dernière saisie + undo ── */}
+      {/* ── Footer : dernière saisie + rotation + undo ── */}
       <View style={styles.footer}>
         <Text style={styles.footerText} numberOfLines={1}>
           {last
@@ -325,10 +347,24 @@ const LiveStatsScreen = ({ team }: Props) => {
               }`
             : 'Tape un joueur pour saisir une action'}
         </Text>
+        <View style={styles.autoRotateToggle}>
+          <Text style={styles.autoRotateLabel}>Rotation auto</Text>
+          <Switch
+            value={matchState.autoRotateEnabled}
+            onValueChange={matchActions.toggleAutoRotate}
+          />
+        </View>
         <TouchableOpacity
-          style={[styles.undoBtn, state.events.length === 0 && styles.undoBtnDisabled]}
+          style={styles.rotateBtn}
+          onPress={() => matchActions.rotate()}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.rotateBtnText}>↻</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.undoBtn, curSetEvents.length === 0 && styles.undoBtnDisabled]}
           onPress={handleUndo}
-          disabled={state.events.length === 0}
+          disabled={curSetEvents.length === 0}
           activeOpacity={0.7}
         >
           <Text style={styles.undoBtnText}>↩ Annuler</Text>
@@ -337,87 +373,48 @@ const LiveStatsScreen = ({ team }: Props) => {
 
       {/* ── Modal actions (après tap joueur) ── */}
       {target !== null && pendingAction === null && (
-        <View style={styles.overlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>
-              {target.team === 'opp' ? `Adversaire #${target.player.jersey}` : target.player.name}
-            </Text>
-            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-              {CATEGORY_ORDER.map(cat => (
-                <View key={cat}>
-                  <Text style={[styles.actionGroupLabel, { color: CATEGORY_COLOR[cat] }]}>
-                    {CATEGORY_LABEL[cat]}
-                  </Text>
-                  <View style={styles.actionsRow}>
-                    {LIVE_ACTIONS.filter(a => a.category === cat).map(a => {
-                      const color = CATEGORY_COLOR[cat];
-                      return (
-                        <TouchableOpacity
-                          key={a.key}
-                          style={[styles.actionBtn, { backgroundColor: `${color}1f`, borderColor: `${color}55` }]}
-                          onPress={() => handleAction(a.key)}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={[styles.actionBtnText, { color }]}>
-                            {a.label}{a.needsZone ? ' °' : ''}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
+        <View style={styles.actionOverlay}>
+          <Text style={styles.modalTitle}>
+            {target.team === 'opp' ? `Adversaire #${target.player.jersey}` : target.player.name}
+          </Text>
+          <View style={styles.actionGroups}>
+            {CATEGORY_ORDER.map(cat => {
+              const catActions = LIVE_ACTIONS.filter(a => a.category === cat);
+              const rows: typeof catActions[] = [];
+              for (let i = 0; i < catActions.length; i += 2) rows.push(catActions.slice(i, i + 2));
+              const color = CATEGORY_COLOR[cat];
+              return (
+                <View key={cat} style={[styles.actionGroup, { flex: catActions.length }]}>
+                  <Text style={[styles.actionGroupLabel, { color }]}>{CATEGORY_LABEL[cat]}</Text>
+                  <View style={styles.actionGroupGrid}>
+                    {rows.map((row, ri) => (
+                      <View key={ri} style={styles.actionGridRow}>
+                        {row.map(a => (
+                          <TouchableOpacity
+                            key={a.key}
+                            style={[styles.actionBtn, { backgroundColor: `${color}1f`, borderColor: `${color}55` }]}
+                            onPress={() => handleAction(a.key)}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={[styles.actionBtnText, { color }]}>
+                              {a.label}{a.needsZone ? ' °' : ''}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                        {row.length < 2 && <View style={{ flex: 1 }} />}
+                      </View>
+                    ))}
                   </View>
                 </View>
-              ))}
-            </ScrollView>
-            <TouchableOpacity style={styles.modalCancel} onPress={() => setTarget(null)} activeOpacity={0.7}>
-              <Text style={styles.modalCancelText}>Annuler</Text>
-            </TouchableOpacity>
+              );
+            })}
           </View>
-        </View>
-      )}
-
-      {/* ── Zone départ (attaque, terrain inversé) puis arrivée (demi-terrain adverse) ── */}
-      {pendingAction !== null && (
-        <View style={styles.overlay}>
-          <Text style={styles.zoneTitle}>
-            {isStartStage ? 'Zone de départ' : "Zone d'arrivée"} — {LIVE_ACTION_BY_KEY[pendingAction].label}
-          </Text>
-          {startZone !== null && !isStartStage && (
-            <Text style={styles.zoneNetLabel}>Départ : Z{startZone}</Text>
-          )}
-          {overlayNetAtTop && <Text style={styles.zoneNetLabel}>FILET</Text>}
-          <View style={styles.zoneCourt}>
-            {overlayRows.map((row, i) => (
-              <View key={`zrow-${i}`} style={styles.zoneRow}>
-                {row.map(z => (
-                  <TouchableOpacity
-                    key={z}
-                    style={styles.zoneCell}
-                    onPress={() => {
-                      if (isStartStage) {
-                        setStartZone(z);
-                        setZoneStage('landing');
-                      } else {
-                        record(pendingAction, z, startZone);
-                      }
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.zoneCellText}>{z}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ))}
-          </View>
-          {!overlayNetAtTop && <Text style={styles.zoneNetLabel}>FILET</Text>}
-          <TouchableOpacity
-            style={styles.zoneCancel}
-            onPress={() => { setPendingAction(null); setStartZone(null); setZoneStage('landing'); }}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.zoneCancelText}>Annuler</Text>
+          <TouchableOpacity style={styles.modalCancel} onPress={() => setTarget(null)} activeOpacity={0.7}>
+            <Text style={styles.modalCancelText}>Annuler</Text>
           </TouchableOpacity>
         </View>
       )}
+
 
       {/* ── Remplacement (appui long sur un joueur) ── */}
       {subFor !== null && (

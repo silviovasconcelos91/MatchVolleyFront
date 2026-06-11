@@ -89,22 +89,19 @@ export const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xs,
     color: COLORS.textDark,
   },
-  courtNum: {
-    fontSize: FONT_SIZE.xxl,
-    fontWeight: '700',
-  },
   courtName: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textSecondary,
+    fontSize: FONT_SIZE.xl,
+    fontWeight: '700',
     maxWidth: '95%',
   },
-  courtCount: {
-    fontSize: 9,
-    color: COLORS.textDark,
+  courtNum: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textSecondary,
   },
-  courtZoneTag: {
-    fontSize: 8,
-    color: COLORS.textDark,
+  courtRole: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
 
   // Filet au centre du terrain
@@ -161,6 +158,27 @@ export const styles = StyleSheet.create({
     fontSize: FONT_SIZE.md,
     color: COLORS.textMuted,
   },
+  autoRotateToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  autoRotateLabel: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textSecondary,
+  },
+  rotateBtn: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: `${COLORS.blue}22`,
+    borderWidth: 1,
+    borderColor: `${COLORS.blue}55`,
+    borderRadius: RADIUS.md,
+  },
+  rotateBtnText: {
+    fontSize: FONT_SIZE.xxl,
+    color: COLORS.blue,
+  },
   undoBtn: {
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.lg,
@@ -188,18 +206,42 @@ export const styles = StyleSheet.create({
     padding: SPACING.md,
   },
 
-  // ── Modal actions (quasi plein écran pour faciliter la saisie) ──
+  // ── Modal actions plein écran ──
+  actionOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: COLORS.bgApp,
+    padding: SPACING.lg,
+    paddingTop: SPACING.xl,
+  },
+  actionGroups: {
+    flex: 1,
+    gap: SPACING.xs,
+  },
+  actionGroup: {
+    gap: 2,
+  },
+  actionGroupGrid: {
+    flex: 1,
+    gap: SPACING.xs,
+  },
+  actionGridRow: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  // Kept for substitution modal scroll
+  modalScroll: {
+    flex: 1,
+  },
   modalCard: {
     width: '100%',
-    height: '94%',
+    height: '80%',
     backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
     padding: SPACING.lg,
-  },
-  modalScroll: {
-    flex: 1,
   },
   modalTitle: {
     fontSize: FONT_SIZE.xxl,
@@ -209,26 +251,18 @@ export const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   actionGroupLabel: {
-    fontSize: FONT_SIZE.lg,
+    fontSize: FONT_SIZE.sm,
     letterSpacing: 1,
     fontWeight: '600',
-    marginTop: SPACING.md,
-    marginBottom: SPACING.xs,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
+    marginBottom: 2,
   },
   actionBtn: {
-    flexGrow: 1,
-    flexBasis: '46%',
-    minHeight: 72,
+    flex: 1,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: SPACING.sm,
+    paddingHorizontal: SPACING.xs,
   },
   actionBtnText: {
     fontSize: FONT_SIZE.xl,
@@ -298,55 +332,39 @@ export const styles = StyleSheet.create({
     paddingVertical: SPACING.xl,
   },
 
-  // ── Zone : demi-terrain adverse ──
-  zoneTitle: {
-    fontSize: FONT_SIZE.xxl,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.md,
-    textAlign: 'center',
-  },
-  zoneNetLabel: {
-    fontSize: FONT_SIZE.xs,
-    color: COLORS.textMuted,
-    letterSpacing: 1,
-    marginBottom: 2,
-  },
-  zoneCourt: {
-    width: '90%',
-    aspectRatio: 1.1,
-    backgroundColor: `${COLORS.pink}14`,
-    borderWidth: 1,
-    borderColor: `${COLORS.pink}55`,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.sm,
-    gap: SPACING.sm,
-  },
-  zoneRow: {
-    flex: 1,
-    flexDirection: 'row',
-    gap: SPACING.sm,
-  },
-  zoneCell: {
+  // ── Cellule terrain mode geste (sélection trajectoire) ──
+  gestureCell: {
     flex: 1,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    backgroundColor: COLORS.bgCard,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  zoneCellText: {
-    fontSize: FONT_SIZE.score,
+  gestureZoneNum: {
+    fontSize: FONT_SIZE.xxl,
     fontWeight: '700',
-    color: COLORS.textPrimary,
   },
-  zoneCancel: {
-    marginTop: SPACING.xl,
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.xxl,
+
+  // ── Bannière instruction geste ──
+  gestureInstructionBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    backgroundColor: `${COLORS.yellow}18`,
+    borderTopWidth: 1,
+    borderTopColor: `${COLORS.yellow}44`,
   },
-  zoneCancelText: {
+  gestureInstructionText: {
+    flex: 1,
+    fontSize: FONT_SIZE.md,
+    color: COLORS.yellow,
+  },
+  gestureCancelBtn: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+  },
+  gestureCancelText: {
     fontSize: FONT_SIZE.xl,
     color: COLORS.redLight,
   },
