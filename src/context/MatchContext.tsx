@@ -439,12 +439,14 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       let newOpponentServing = state.opponentServing;
 
       if (playerAction.mine && state.opponentServing) {
-        const rotatedPlayers = applyRotation(updatedPlayers);
-        const result = applyAutoLiberoSwap(state.liberoReplacements, rotatedPlayers);
-        finalPlayers = result.players;
-        newLiberoReplacements = result.newLiberoReplacements;
-        rotated = true;
-        liberoAutoSwapped = result.swapInfo;
+        if (state.autoRotateEnabled) {
+          const rotatedPlayers = applyRotation(updatedPlayers);
+          const result = applyAutoLiberoSwap(state.liberoReplacements, rotatedPlayers);
+          finalPlayers = result.players;
+          newLiberoReplacements = result.newLiberoReplacements;
+          rotated = true;
+          liberoAutoSwapped = result.swapInfo;
+        }
         newOpponentServing = false;
       } else if (!playerAction.mine) {
         newOpponentServing = true;
@@ -527,12 +529,14 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       let newOpponentServing = state.opponentServing;
 
       if (state.opponentServing) {
-        const rotatedPlayers = applyRotation(state.matchPlayers);
-        const result = applyAutoLiberoSwap(state.liberoReplacements, rotatedPlayers);
-        finalPlayers = result.players;
-        newLiberoReplacements = result.newLiberoReplacements;
-        rotated = true;
-        liberoAutoSwapped = result.swapInfo;
+        if (state.autoRotateEnabled) {
+          const rotatedPlayers = applyRotation(state.matchPlayers);
+          const result = applyAutoLiberoSwap(state.liberoReplacements, rotatedPlayers);
+          finalPlayers = result.players;
+          newLiberoReplacements = result.newLiberoReplacements;
+          rotated = true;
+          liberoAutoSwapped = result.swapInfo;
+        }
         newOpponentServing = false;
       }
 
