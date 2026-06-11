@@ -21,6 +21,7 @@ export const ACTION_TYPES = {
   // Terrain
   ROTATE:             'ROTATE',             // effectuer une rotation
   LIBERO_SWAP:        'LIBERO_SWAP',        // faire entrer/sortir le libero
+  TOGGLE_AUTO_ROTATE: 'TOGGLE_AUTO_ROTATE', // activer/désactiver la rotation auto au side-out
 
   // Substitution
   CONFIRM_SUB:        'CONFIRM_SUB',        // confirmer un remplacement
@@ -112,6 +113,7 @@ export type MatchState = {
   liberoId: number | null;          // ID du libero actif pour le set en cours (null = désactivé)
   liberoReplacements: Record<number, number>; // liberoId → replacedPlayerId (présent = libero sur terrain)
   opponentServing: boolean;                   // true = adversaire au service
+  autoRotateEnabled: boolean;                 // true = rotation auto au side-out (sinon 100% manuelle)
   myScore: number;
   oppScore: number;
   mySets: number;
@@ -158,6 +160,7 @@ type MatchAction =
   | { type: typeof ACTION_TYPES.OPP_FAULT }
   | { type: typeof ACTION_TYPES.UNDO }
   | { type: typeof ACTION_TYPES.ROTATE }
+  | { type: typeof ACTION_TYPES.TOGGLE_AUTO_ROTATE }
   | { type: typeof ACTION_TYPES.LIBERO_SWAP; payload: { liberoId: number } }
   | { type: typeof ACTION_TYPES.CONFIRM_SUB; payload: { outId: number; inId: number } }
   | { type: typeof ACTION_TYPES.CLOSE_SET_BANNER }
@@ -178,6 +181,7 @@ type MatchContextValue = {
     oppFault:        () => void;
     undo:            () => void;
     rotate:          () => void;
+    toggleAutoRotate: () => void;
     liberoSwap:      (payload: { liberoId: number }) => void;
     confirmSub:      (payload: { outId: number; inId: number }) => void;
     closeSetBanner:  () => void;
@@ -199,6 +203,7 @@ const initialState: MatchState = {
   liberoId:            null,
   liberoReplacements:  {},
   opponentServing:     false,
+  autoRotateEnabled:   true,
   myScore:             0,
   oppScore:            0,
   mySets:              0,
@@ -642,6 +647,9 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         }),
       };
 
+    case ACTION_TYPES.TOGGLE_AUTO_ROTATE:
+      return { ...state, autoRotateEnabled: !state.autoRotateEnabled };
+
     case ACTION_TYPES.LIBERO_SWAP: {
       const { liberoId } = action.payload;
       const libero = state.matchPlayers.find(p => p.id === liberoId);
@@ -811,6 +819,7 @@ export const MatchProvider = ({ children }: { children: React.ReactNode }) => {
     oppFault:        ()        => dispatch({ type: ACTION_TYPES.OPP_FAULT }),
     undo:            ()        => dispatch({ type: ACTION_TYPES.UNDO }),
     rotate:          ()        => dispatch({ type: ACTION_TYPES.ROTATE }),
+    toggleAutoRotate: ()       => dispatch({ type: ACTION_TYPES.TOGGLE_AUTO_ROTATE }),
     liberoSwap:      (payload) => dispatch({ type: ACTION_TYPES.LIBERO_SWAP, payload }),
     confirmSub:      (payload) => dispatch({ type: ACTION_TYPES.CONFIRM_SUB,      payload }),
     closeSetBanner:  ()        => dispatch({ type: ACTION_TYPES.CLOSE_SET_BANNER }),
