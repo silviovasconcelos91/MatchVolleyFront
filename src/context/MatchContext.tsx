@@ -641,15 +641,17 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       };
     }
 
-    case ACTION_TYPES.ROTATE:
+    case ACTION_TYPES.ROTATE: {
+      // Règle officielle : chaque poste -1, poste 1 revient à 6.
+      // On applique aussi le swap libéro auto pour la parité avec la rotation auto.
+      const rotatedPlayers = applyRotation(state.matchPlayers);
+      const result = applyAutoLiberoSwap(state.liberoReplacements, rotatedPlayers);
       return {
         ...state,
-        // Règle officielle : chaque poste -1, poste 1 revient à 6
-        matchPlayers: state.matchPlayers.map(p => {
-          if (!p.onCourt || p.pos === null) return p;
-          return { ...p, pos: p.pos === 1 ? 6 : p.pos - 1 };
-        }),
+        matchPlayers:       result.players,
+        liberoReplacements: result.newLiberoReplacements,
       };
+    }
 
     case ACTION_TYPES.TOGGLE_AUTO_ROTATE:
       return { ...state, autoRotateEnabled: !state.autoRotateEnabled };
