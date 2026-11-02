@@ -288,36 +288,6 @@
         }
       }
     },
-    "/api/v1/match-stats": {
-      "post": {
-        "tags": [
-          "match-stat-controller"
-        ],
-        "operationId": "saveMatchStat",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MatchStatRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponseMatchStatResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/auth:register": {
       "post": {
         "tags": [
@@ -533,36 +503,6 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponsePlayerSeasonStatsResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/match-stats/{matchId}": {
-      "get": {
-        "tags": [
-          "match-stat-controller"
-        ],
-        "operationId": "getMatchStat",
-        "parameters": [
-          {
-            "name": "matchId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponseMatchDetailResponse"
                 }
               }
             }
@@ -832,17 +772,6 @@
             "type": "integer",
             "format": "int64"
           },
-          "opponentId": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "seasonId": {
-            "type": "string"
-          },
-          "competitionId": {
-            "type": "integer",
-            "format": "int64"
-          },
           "title": {
             "type": "string"
           },
@@ -863,146 +792,6 @@
           "oppSets": {
             "type": "integer",
             "format": "int32"
-          }
-        }
-      },
-      "MatchStatRequest": {
-        "type": "object",
-        "properties": {
-          "match": {
-            "$ref": "#/components/schemas/MatchDto"
-          },
-          "sets": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/SetStatDto"
-            }
-          },
-          "players": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PlayerStatDto"
-            }
-          },
-          "teamMatchStats": {
-            "$ref": "#/components/schemas/StatsDto"
-          },
-          "meta": {
-            "$ref": "#/components/schemas/MetaDto"
-          }
-        }
-      },
-      "MetaDto": {
-        "type": "object",
-        "properties": {
-          "clientGeneratedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "appVersion": {
-            "type": "string"
-          }
-        }
-      },
-      "PlayerSetStatDto": {
-        "type": "object",
-        "properties": {
-          "set": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "position": {
-            "type": "string"
-          },
-          "points": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "attackPoints": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "blockPoints": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "acePoints": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "attackErrors": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "serviceErrors": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "receptions": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "faults": {
-            "type": "integer",
-            "format": "int32"
-          }
-        }
-      },
-      "PlayerStatDto": {
-        "type": "object",
-        "properties": {
-          "playerId": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "number": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "R4",
-              "Central",
-              "Passeur",
-              "Pointu",
-              "Libero"
-            ]
-          },
-          "matchStats": {
-            "$ref": "#/components/schemas/StatsDto"
-          },
-          "setStats": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PlayerSetStatDto"
-            }
-          }
-        }
-      },
-      "SetStatDto": {
-        "type": "object",
-        "properties": {
-          "set": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "myScore": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "oppScore": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "teamStats": {
-            "$ref": "#/components/schemas/StatsDto"
-          },
-          "timeline": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/TimelineEntryDto"
-            }
           }
         }
       },
@@ -1040,53 +829,6 @@
           "faults": {
             "type": "integer",
             "format": "int32"
-          }
-        }
-      },
-      "TimelineEntryDto": {
-        "type": "object",
-        "properties": {
-          "myScore": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "oppScore": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "playerId": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "action": {
-            "type": "string"
-          },
-          "occurredAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
-      },
-      "ApiResponseMatchStatResponse": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/MatchStatResponse"
-          },
-          "message": {
-            "type": "string"
-          },
-          "status": {
-            "type": "integer",
-            "format": "int32"
-          }
-        }
-      },
-      "MatchStatResponse": {
-        "type": "object",
-        "properties": {
-          "matchId": {
-            "type": "string"
           }
         }
       },
@@ -1171,9 +913,7 @@
       "ApiResponseVoid": {
         "type": "object",
         "properties": {
-          "data": {
-
-          },
+          "data": {},
           "message": {
             "type": "string"
           },
@@ -1302,80 +1042,6 @@
           },
           "stats": {
             "$ref": "#/components/schemas/StatsDto"
-          }
-        }
-      },
-      "ApiResponseMatchDetailResponse": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/MatchDetailResponse"
-          },
-          "message": {
-            "type": "string"
-          },
-          "status": {
-            "type": "integer",
-            "format": "int32"
-          }
-        }
-      },
-      "MatchDetailResponse": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "teamId": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "opponentId": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "seasonId": {
-            "type": "string"
-          },
-          "competitionId": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "title": {
-            "type": "string"
-          },
-          "home": {
-            "type": "boolean"
-          },
-          "date": {
-            "type": "string",
-            "format": "date"
-          },
-          "result": {
-            "type": "string"
-          },
-          "mySets": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "oppSets": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "teamMatchStats": {
-            "$ref": "#/components/schemas/StatsDto"
-          },
-          "sets": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/SetStatDto"
-            }
-          },
-          "players": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PlayerStatDto"
-            }
           }
         }
       }

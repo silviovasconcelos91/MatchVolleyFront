@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AssignPlayersData, AssignPlayersResponses, CreatePlayerData, CreatePlayerResponses, CreateTeamData, CreateTeamResponses, DeletePlayerData, DeletePlayerResponses, GetAllPlayersData, GetAllPlayersResponses, GetAllTeamsData, GetAllTeamsResponses, GetMatchStatData, GetMatchStatResponses, GetPlayerData, GetPlayerResponses, GetPlayerSeasonStatsData, GetPlayerSeasonStatsResponses, GetTeamData, GetTeamMatchesData, GetTeamMatchesResponses, GetTeamResponses, LoginData, LoginResponses, LogoutData, LogoutResponses, RefreshData, RefreshResponses, RegisterData, RegisterResponses, RemovePlayersData, RemovePlayersResponses, SaveMatchStatData, SaveMatchStatResponses, UpdatePlayerData, UpdatePlayerResponses } from './types.gen';
+import type { AssignPlayersData, AssignPlayersResponses, CreatePlayerData, CreatePlayerResponses, CreateTeamData, CreateTeamResponses, DeletePlayerData, DeletePlayerResponses, GetAllPlayersData, GetAllPlayersResponses, GetAllTeamsData, GetAllTeamsResponses, GetPlayerData, GetPlayerResponses, GetPlayerSeasonStatsData, GetPlayerSeasonStatsResponses, GetTeamData, GetTeamMatchesData, GetTeamMatchesResponses, GetTeamResponses, LoginData, LoginResponses, LogoutData, LogoutResponses, RefreshData, RefreshResponses, RegisterData, RegisterResponses, RemovePlayersData, RemovePlayersResponses, UpdatePlayerData, UpdatePlayerResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -71,15 +71,6 @@ export const createPlayer = <ThrowOnError extends boolean = false>(options: Opti
     }
 });
 
-export const saveMatchStat = <ThrowOnError extends boolean = false>(options: Options<SaveMatchStatData, ThrowOnError>) => (options.client ?? client).post<SaveMatchStatResponses, unknown, ThrowOnError>({
-    url: '/api/v1/match-stats',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
 export const register = <ThrowOnError extends boolean = false>(options: Options<RegisterData, ThrowOnError>) => (options.client ?? client).post<RegisterResponses, unknown, ThrowOnError>({
     url: '/api/v1/auth:register',
     ...options,
@@ -121,5 +112,3 @@ export const getTeam = <ThrowOnError extends boolean = false>(options: Options<G
 export const getTeamMatches = <ThrowOnError extends boolean = false>(options: Options<GetTeamMatchesData, ThrowOnError>) => (options.client ?? client).get<GetTeamMatchesResponses, unknown, ThrowOnError>({ url: '/api/v1/teams/{id}/matches', ...options });
 
 export const getPlayerSeasonStats = <ThrowOnError extends boolean = false>(options: Options<GetPlayerSeasonStatsData, ThrowOnError>) => (options.client ?? client).get<GetPlayerSeasonStatsResponses, unknown, ThrowOnError>({ url: '/api/v1/players/{id}/season-stats', ...options });
-
-export const getMatchStat = <ThrowOnError extends boolean = false>(options: Options<GetMatchStatData, ThrowOnError>) => (options.client ?? client).get<GetMatchStatResponses, unknown, ThrowOnError>({ url: '/api/v1/match-stats/{matchId}', ...options });

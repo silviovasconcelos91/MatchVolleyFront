@@ -5,18 +5,16 @@
  *  - response interceptor: on 401 → refresh token → retry;
  *                          on refresh failure → triggerUnauthenticated()
  *
- * NOTE: This file is named apiClient.ts (not client.ts) to avoid a TypeScript
- * module resolution collision with the generated client/ directory barrel
- * (src/data/openapi/client/index.ts). The generated files import './client'
- * which resolves to that directory; naming ours 'client.ts' would shadow it.
+ * NOTE: Lives outside src/data/openapi/ on purpose — `npm run generate-api`
+ * wipes that output folder and would delete this hand-written file.
  *
  * Import this file before any SDK call — the side effects register the interceptors.
  */
 
-import { API_URL, doRefresh } from '../api';
-import { tokenStore } from '../tokenStore';
-import { client } from './client.gen';
-import type { ResolvedRequestOptions } from './client/types.gen';
+import { API_URL, doRefresh } from './api';
+import { tokenStore } from './tokenStore';
+import { client } from './openapi/client.gen';
+import type { ResolvedRequestOptions } from './openapi/client/types.gen';
 
 // ── 1. Override baseUrl (client.gen.ts hardcodes localhost:8080) ──────────────
 client.setConfig({ baseUrl: API_URL });

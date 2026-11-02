@@ -78,57 +78,12 @@ export type CreatePlayerRequest = {
 export type MatchDto = {
     id?: string;
     teamId?: number;
-    opponentId?: number;
-    seasonId?: string;
-    competitionId?: number;
     title?: string;
     home?: boolean;
     date?: string;
     result?: string;
     mySets?: number;
     oppSets?: number;
-};
-
-export type MatchStatRequest = {
-    match?: MatchDto;
-    sets?: Array<SetStatDto>;
-    players?: Array<PlayerStatDto>;
-    teamMatchStats?: StatsDto;
-    meta?: MetaDto;
-};
-
-export type MetaDto = {
-    clientGeneratedAt?: string;
-    appVersion?: string;
-};
-
-export type PlayerSetStatDto = {
-    set?: number;
-    position?: string;
-    points?: number;
-    attackPoints?: number;
-    blockPoints?: number;
-    acePoints?: number;
-    attackErrors?: number;
-    serviceErrors?: number;
-    receptions?: number;
-    faults?: number;
-};
-
-export type PlayerStatDto = {
-    playerId?: number;
-    number?: number;
-    role?: 'R4' | 'Central' | 'Passeur' | 'Pointu' | 'Libero';
-    matchStats?: StatsDto;
-    setStats?: Array<PlayerSetStatDto>;
-};
-
-export type SetStatDto = {
-    set?: number;
-    myScore?: number;
-    oppScore?: number;
-    teamStats?: StatsDto;
-    timeline?: Array<TimelineEntryDto>;
 };
 
 export type StatsDto = {
@@ -140,24 +95,6 @@ export type StatsDto = {
     serviceErrors?: number;
     receptions?: number;
     faults?: number;
-};
-
-export type TimelineEntryDto = {
-    myScore?: number;
-    oppScore?: number;
-    playerId?: number;
-    action?: string;
-    occurredAt?: string;
-};
-
-export type ApiResponseMatchStatResponse = {
-    data?: MatchStatResponse;
-    message?: string;
-    status?: number;
-};
-
-export type MatchStatResponse = {
-    matchId?: string;
 };
 
 export type RegisterRequest = {
@@ -242,29 +179,6 @@ export type PositionStatsDto = {
     matchCount?: number;
     setCount?: number;
     stats?: StatsDto;
-};
-
-export type ApiResponseMatchDetailResponse = {
-    data?: MatchDetailResponse;
-    message?: string;
-    status?: number;
-};
-
-export type MatchDetailResponse = {
-    id?: string;
-    teamId?: number;
-    opponentId?: number;
-    seasonId?: string;
-    competitionId?: number;
-    title?: string;
-    home?: boolean;
-    date?: string;
-    result?: string;
-    mySets?: number;
-    oppSets?: number;
-    teamMatchStats?: StatsDto;
-    sets?: Array<SetStatDto>;
-    players?: Array<PlayerStatDto>;
 };
 
 export type DeletePlayerData = {
@@ -421,22 +335,6 @@ export type CreatePlayerResponses = {
 
 export type CreatePlayerResponse = CreatePlayerResponses[keyof CreatePlayerResponses];
 
-export type SaveMatchStatData = {
-    body: MatchStatRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/match-stats';
-};
-
-export type SaveMatchStatResponses = {
-    /**
-     * OK
-     */
-    200: ApiResponseMatchStatResponse;
-};
-
-export type SaveMatchStatResponse = SaveMatchStatResponses[keyof SaveMatchStatResponses];
-
 export type RegisterData = {
     body: RegisterRequest;
     path?: never;
@@ -556,21 +454,3 @@ export type GetPlayerSeasonStatsResponses = {
 };
 
 export type GetPlayerSeasonStatsResponse = GetPlayerSeasonStatsResponses[keyof GetPlayerSeasonStatsResponses];
-
-export type GetMatchStatData = {
-    body?: never;
-    path: {
-        matchId: string;
-    };
-    query?: never;
-    url: '/api/v1/match-stats/{matchId}';
-};
-
-export type GetMatchStatResponses = {
-    /**
-     * OK
-     */
-    200: ApiResponseMatchDetailResponse;
-};
-
-export type GetMatchStatResponse = GetMatchStatResponses[keyof GetMatchStatResponses];

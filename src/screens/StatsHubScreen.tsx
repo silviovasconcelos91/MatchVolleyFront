@@ -6,15 +6,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 
+// Stats joueurs désactivées pour le moment — passer à true pour réactiver.
+const PLAYER_STATS_ENABLED = false;
+
 type Props = {
   teamName: string;
   onBack: () => void;
   onMatchStats: () => void;
   onPlayerStats: () => void;
-  onLiveStats: () => void;
 };
 
-const StatsHubScreen = ({ teamName, onBack, onMatchStats, onPlayerStats, onLiveStats }: Props) => (
+const StatsHubScreen = ({ teamName, onBack, onMatchStats, onPlayerStats }: Props) => (
   <SafeAreaView style={styles.safeArea}>
     <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCard} />
 
@@ -28,30 +30,28 @@ const StatsHubScreen = ({ teamName, onBack, onMatchStats, onPlayerStats, onLiveS
 
     <View style={styles.content}>
       <TouchableOpacity style={styles.card} onPress={onMatchStats} activeOpacity={0.7}>
-        <Text style={styles.cardIcon}>📋</Text>
+        <Text style={styles.cardIcon}>📊</Text>
         <View style={styles.cardText}>
-          <Text style={styles.cardTitle}>Stats matchs</Text>
-          <Text style={styles.cardDesc}>Historique et résultats des matchs</Text>
+          <Text style={styles.cardTitle}>Stats match</Text>
+          <Text style={styles.cardDesc}>Analyse des matchs saisis en temps réel</Text>
         </View>
         <Text style={styles.chevron}>›</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.card} onPress={onPlayerStats} activeOpacity={0.7}>
+      <TouchableOpacity
+        style={[styles.card, !PLAYER_STATS_ENABLED && styles.cardDisabled]}
+        onPress={onPlayerStats}
+        disabled={!PLAYER_STATS_ENABLED}
+        activeOpacity={0.7}
+      >
         <Text style={styles.cardIcon}>👤</Text>
         <View style={styles.cardText}>
           <Text style={styles.cardTitle}>Stats joueurs</Text>
-          <Text style={styles.cardDesc}>Performances individuelles</Text>
+          <Text style={styles.cardDesc}>
+            {PLAYER_STATS_ENABLED ? 'Performances individuelles' : 'Bientôt disponible'}
+          </Text>
         </View>
-        <Text style={styles.chevron}>›</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.card} onPress={onLiveStats} activeOpacity={0.7}>
-        <Text style={styles.cardIcon}>📊</Text>
-        <View style={styles.cardText}>
-          <Text style={styles.cardTitle}>Stats live</Text>
-          <Text style={styles.cardDesc}>Analyse des matchs saisie en live</Text>
-        </View>
-        <Text style={styles.chevron}>›</Text>
+        {PLAYER_STATS_ENABLED && <Text style={styles.chevron}>›</Text>}
       </TouchableOpacity>
     </View>
   </SafeAreaView>
@@ -102,6 +102,10 @@ const styles = StyleSheet.create({
     borderColor: `${COLORS.blue}44`,
     borderRadius: RADIUS.lg,
     padding: SPACING.lg,
+  },
+  cardDisabled: {
+    opacity: 0.4,
+    borderColor: COLORS.border,
   },
   cardIcon: {
     fontSize: 28,

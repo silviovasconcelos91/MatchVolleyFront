@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useReducer } from 'react';
-import { createEmptyStats, Player, ActionKey, PlayerStats, BACK_ROW_POSITIONS } from '../data/players';
-import type { PlayerRole } from '../data/players';
+import { BACK_ROW_POSITIONS } from '../data/players';
+import type { Player, ActionKey, PlayerRole } from '../data/players';
 
-export const ACTION_TYPES = {
+const ACTION_TYPES = {
   // Configuration du match
   SETUP_MATCH:        'SETUP_MATCH',        // définir nom et lieu du match
   CLEAR_MATCH_SETUP:  'CLEAR_MATCH_SETUP',  // effacer le nom/lieu (retour arrière)
@@ -37,16 +37,10 @@ export const ACTION_TYPES = {
   APPLY_MALUS:        'APPLY_MALUS',        // pénalité de points sur une équipe
 } as const;
 
-// mine: true → +1 mon équipe / mine: false → +1 adversaire
-export const PLAYER_ACTIONS: Record<ActionKey, { label: string; mine: boolean; section: 'points' | 'fautes' }> = {
-  pt:      { label: 'Point marqué',    mine: true,  section: 'points' },
-  atk:     { label: 'Attaque point',   mine: true,  section: 'points' },
-  block:   { label: 'Contre point',    mine: true,  section: 'points' },
-  ace:     { label: 'Service ace',     mine: true,  section: 'points' },
-  atk_out: { label: 'Attaque out',     mine: false, section: 'fautes' },
-  srv_out: { label: 'Service out',     mine: false, section: 'fautes' },
-  recv:    { label: 'Réception ratée', mine: false, section: 'fautes' },
-  fault:   { label: 'Faute',           mine: false, section: 'fautes' },
+// true → +1 mon équipe (point) / false → +1 adversaire (faute)
+const ACTION_IS_MINE: Record<ActionKey, boolean> = {
+  pt: true, atk: true, block: true, ace: true,
+  atk_out: false, srv_out: false, recv: false, fault: false,
 };
 
 export type MatchPlayer = {
@@ -56,45 +50,35 @@ export type MatchPlayer = {
   numero: number;
   onCourt: boolean;
   pos: number | null;
-  stats: PlayerStats;
   roles: PlayerRole[];   // rôles du profil joueur (depuis l'API)
 };
 
-export type TrajectoryPoint = {
+type TrajectoryPoint = {
   x: number;
   y: number;
 };
 
-export type SubEntry = {
+type SubEntry = {
   outName: string;
   inName: string;
   score: string;
 };
 
-export type SetWinner = 'me' | 'opp' | null;
+type SetWinner = 'me' | 'opp' | null;
 
 type LiberoSwapInfo = { liberoId: number; centralId: number; liberoPos: number };
 
-type HistoryEntry =
-  | { source: 'player'; playerId: number; actionKey: ActionKey; mine: boolean; rotated?: true; liberoAutoSwapped?: LiberoSwapInfo }
-  | { source: 'opp'; mine: false; rotated?: true; liberoAutoSwapped?: LiberoSwapInfo }
-  | { source: 'opp_fault'; mine: true; rotated?: true; liberoAutoSwapped?: LiberoSwapInfo };
+// Point annulable du set en cours (UNDO).
+type HistoryEntry = { mine: boolean; rotated?: true; liberoAutoSwapped?: LiberoSwapInfo };
 
-// history est vidé entre les sets ; matchHistory accumule tout le match.
+// history est vidé entre les sets ; matchHistory accumule tout le match (graphe des sets passés).
 export type MatchHistoryEvent = {
   index: number;
   setNum: number;
-  source: 'player' | 'opp' | 'opp_fault' | 'malus';
-  playerId?: number;
-  actionKey?: ActionKey;
-  playerRole?: string;
-  mine: boolean;
   scoreAfter: { my: number; opp: number };
-  malusTarget?: 'me' | 'opp';
-  malusAmount?: 1 | 2;
 };
 
-export type SetResult = {
+type SetResult = {
   setNum: number;
   myScore: number;
   oppScore: number;
@@ -126,12 +110,9 @@ export type MatchState = {
   subHistory: SubEntry[];
   // outId → inId : joueur sorti → joueur qui l'a remplacé (reset à chaque set)
   substitutionPairs: Record<number, number>;
-  // playerId → setNums joués (jamais vidé, accumulé sur tout le match)
-  playerSetPresence: Record<number, number[]>;
   matchHistory: MatchHistoryEvent[]; // historique complet inter-sets (jamais vidé)
   setResults: SetResult[];           // résultats des sets terminés
   lastSetStartPositionMap: Record<number, number>; // positionMap du dernier SetSetupScreen confirmé
-  setRoles: Record<number, Record<number, string>>; // setNum → playerId → tacticalRole
 };
 
 type ValidateRosterPayload = {
@@ -155,7 +136,7 @@ type MatchAction =
   | { type: typeof ACTION_TYPES.VALIDATE_ROSTER; payload: ValidateRosterPayload }
   | { type: typeof ACTION_TYPES.ASSIGN_SET_ROLES; payload: AssignSetRolesPayload }
   | { type: typeof ACTION_TYPES.RESET_ROSTER }
-  | { type: typeof ACTION_TYPES.PLAYER_ACTION; payload: { playerId: number; actionKey: ActionKey } }
+  | { type: typeof ACTION_TYPES.PLAYER_ACTION; payload: { actionKey: ActionKey } }
   | { type: typeof ACTION_TYPES.OPP_SCORE }
   | { type: typeof ACTION_TYPES.OPP_FAULT }
   | { type: typeof ACTION_TYPES.UNDO }
@@ -176,7 +157,7 @@ type MatchContextValue = {
     validateRoster:  (payload: ValidateRosterPayload) => void;
     assignSetRoles:  (payload: AssignSetRolesPayload) => void;
     resetRoster:     () => void;
-    playerAction:    (payload: { playerId: number; actionKey: ActionKey }) => void;
+    playerAction:    (payload: { actionKey: ActionKey }) => void;
     oppScore:        () => void;
     oppFault:        () => void;
     undo:            () => void;
@@ -215,12 +196,20 @@ const initialState: MatchState = {
   trajectory:          [{ x: 0, y: 0 }],
   subHistory:          [],
   substitutionPairs:   {},
-  playerSetPresence:   {},
   matchHistory:        [],
   setResults:          [],
   lastSetStartPositionMap: {},
-  setRoles:            {},
 };
+
+const toMatchPlayer = (player: Player, tacticalRole: string): MatchPlayer => ({
+  id:      player.id,
+  name:    player.name,
+  tacticalRole,
+  numero:  player.numero,
+  onCourt: false,
+  pos:     null,
+  roles:   player.roles ?? [],
+});
 
 // Règle officielle : 25 pts (15 au set décisif), 2 pts d'écart
 const checkSetEnd = (myScore: number, oppScore: number, isDecidingSet: boolean): SetWinner => {
@@ -294,52 +283,11 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       const { starterIds, benchIds, liberoIds, allPlayers } = action.payload;
       const primaryLiberoId = liberoIds[0] ?? null;
 
-      const fieldPlayers: MatchPlayer[] = starterIds.map((id): MatchPlayer | null => {
-        const player = allPlayers.find(p => p.id === id);
-        if (!player) return null;
-        return {
-          id:           player.id,
-          name:         player.name,
-          tacticalRole: '',
-          numero:       player.numero,
-          onCourt:      false,
-          pos:          null,
-          stats:        createEmptyStats(),
-          roles:        player.roles ?? [],
-        };
-      }).filter((p): p is MatchPlayer => p !== null);
-
-      const liberoPlayers: MatchPlayer[] = liberoIds
-        .map((id): MatchPlayer | null => {
+      const build = (ids: number[], tacticalRole: string): MatchPlayer[] =>
+        ids.flatMap(id => {
           const player = allPlayers.find(p => p.id === id);
-          if (!player) return null;
-          return {
-            id:           player.id,
-            name:         player.name,
-            tacticalRole: 'Libero',
-            numero:       player.numero,
-            onCourt:      false,
-            pos:          null,
-            stats:        createEmptyStats(),
-            roles:        player.roles ?? [],
-          };
-        })
-        .filter((p): p is MatchPlayer => p !== null);
-
-      const benchPlayers: MatchPlayer[] = benchIds.map((id): MatchPlayer | null => {
-        const player = allPlayers.find(p => p.id === id);
-        if (!player) return null;
-        return {
-          id:           player.id,
-          name:         player.name,
-          tacticalRole: '',
-          numero:       player.numero,
-          onCourt:      false,
-          pos:          null,
-          stats:        createEmptyStats(),
-          roles:        player.roles ?? [],
-        };
-      }).filter((p): p is MatchPlayer => p !== null);
+          return player ? [toMatchPlayer(player, tacticalRole)] : [];
+        });
 
       return {
         ...state,
@@ -350,7 +298,7 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         availableLiberoIds:  liberoIds,
         liberoReplacements:  {},
         originalStarterIds: starterIds,
-        matchPlayers:       [...fieldPlayers, ...liberoPlayers, ...benchPlayers],
+        matchPlayers:       [...build(starterIds, ''), ...build(liberoIds, 'Libero'), ...build(benchIds, '')],
       };
     }
 
@@ -377,16 +325,6 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         return { ...p, onCourt: false, pos: null, tacticalRole: tacticalRoles[p.id] ?? '' };
       });
 
-      const sn = state.setNum;
-      const onCourtIds = Object.values(positionMap)
-        .concat(effectiveLiberoId !== null ? [effectiveLiberoId] : []);
-
-      const playerSetPresence = { ...state.playerSetPresence };
-      for (const id of onCourtIds) {
-        if (!playerSetPresence[id]) playerSetPresence[id] = [];
-        if (!playerSetPresence[id].includes(sn)) playerSetPresence[id] = [...playerSetPresence[id], sn];
-      }
-
       return {
         ...state,
         setSetupPending:          false,
@@ -395,12 +333,7 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         originalLiberoId:         resolvedOriginalLiberoId,
         matchPlayers:             updatedPlayers,
         lastSetStartPositionMap:  positionMap,
-        playerSetPresence,
         opponentServing:          action.payload.opponentServesFirst,
-        setRoles: {
-          ...state.setRoles,
-          [state.setNum]: tacticalRoles,
-        },
       };
     }
 
@@ -411,36 +344,23 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         setSetupPending:    false,
         matchPlayers:       [],
         originalStarterIds: [],
-        playerSetPresence:  {},
       };
 
     case ACTION_TYPES.PLAYER_ACTION: {
-      const { playerId, actionKey } = action.payload;
-      const playerAction = PLAYER_ACTIONS[actionKey];
+      const mine = ACTION_IS_MINE[action.payload.actionKey];
 
-      const updatedPlayers = state.matchPlayers.map(p => {
-        if (p.id !== playerId) return p;
-        return {
-          ...p,
-          stats: {
-            ...p.stats,
-            [actionKey]: p.stats[actionKey] + 1,
-          },
-        };
-      });
+      const newMyScore  = mine ? state.myScore + 1  : state.myScore;
+      const newOppScore = mine ? state.oppScore     : state.oppScore + 1;
 
-      const newMyScore  = playerAction.mine ? state.myScore + 1  : state.myScore;
-      const newOppScore = playerAction.mine ? state.oppScore     : state.oppScore + 1;
-
-      let finalPlayers = updatedPlayers;
+      let finalPlayers = state.matchPlayers;
       let newLiberoReplacements = state.liberoReplacements;
       let rotated: true | undefined;
       let liberoAutoSwapped: LiberoSwapInfo | undefined;
       let newOpponentServing = state.opponentServing;
 
-      if (playerAction.mine && state.opponentServing) {
+      if (mine && state.opponentServing) {
         if (state.autoRotateEnabled) {
-          const rotatedPlayers = applyRotation(updatedPlayers);
+          const rotatedPlayers = applyRotation(state.matchPlayers);
           const result = applyAutoLiberoSwap(state.liberoReplacements, rotatedPlayers);
           finalPlayers = result.players;
           newLiberoReplacements = result.newLiberoReplacements;
@@ -448,30 +368,21 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
           liberoAutoSwapped = result.swapInfo;
         }
         newOpponentServing = false;
-      } else if (!playerAction.mine) {
+      } else if (!mine) {
         newOpponentServing = true;
       }
 
       const historyEntry: HistoryEntry = {
-        source: 'player',
-        playerId,
-        actionKey,
-        mine: playerAction.mine,
+        mine,
         ...(rotated ? { rotated } : {}),
         ...(liberoAutoSwapped ? { liberoAutoSwapped } : {}),
       };
 
       const newTrajectory = [...state.trajectory, { x: newMyScore, y: newOppScore }];
 
-      const player = state.matchPlayers.find(p => p.id === playerId);
       const matchEvent: MatchHistoryEvent = {
         index:      state.matchHistory.length,
         setNum:     state.setNum,
-        source:     'player',
-        playerId,
-        actionKey,
-        playerRole: player?.tacticalRole,
-        mine:       playerAction.mine,
         scoreAfter: { my: newMyScore, opp: newOppScore },
       };
 
@@ -500,15 +411,13 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       const matchEvent: MatchHistoryEvent = {
         index:      state.matchHistory.length,
         setNum:     state.setNum,
-        source:     'opp',
-        mine:       false,
         scoreAfter: { my: state.myScore, opp: newOppScore },
       };
       return {
         ...state,
         oppScore:           newOppScore,
         opponentServing:    true,
-        history:            [...state.history, { source: 'opp', mine: false }],
+        history:            [...state.history, { mine: false }],
         matchHistory:       [...state.matchHistory, matchEvent],
         trajectory:         [...state.trajectory, { x: state.myScore, y: newOppScore }],
         setBannerVisible:   !!winner && !state.setBannerVisible,
@@ -541,7 +450,6 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       }
 
       const historyEntry: HistoryEntry = {
-        source: 'opp_fault',
         mine: true,
         ...(rotated ? { rotated } : {}),
         ...(liberoAutoSwapped ? { liberoAutoSwapped } : {}),
@@ -550,8 +458,6 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       const matchEvent: MatchHistoryEvent = {
         index:      state.matchHistory.length,
         setNum:     state.setNum,
-        source:     'opp_fault',
-        mine:       true,
         scoreAfter: { my: newMyScore, opp: state.oppScore },
       };
 
@@ -587,19 +493,6 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       else           newOppScore = Math.max(0, newOppScore - 1);
 
       let updatedPlayers = state.matchPlayers;
-      if (last.source === 'player') {
-        updatedPlayers = state.matchPlayers.map(p => {
-          if (p.id !== last.playerId) return p;
-          return {
-            ...p,
-            stats: {
-              ...p.stats,
-              [last.actionKey]: Math.max(0, p.stats[last.actionKey] - 1),
-            },
-          };
-        });
-      }
-
       let restoredLiberoReplacements = state.liberoReplacements;
       let newOpponentServing = state.opponentServing;
 
@@ -718,18 +611,11 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         score:   `${state.myScore} – ${state.oppScore}`,
       };
 
-      const subSn = state.setNum;
-      const prevSets = state.playerSetPresence[inId] ?? [];
-      const updatedPresence = prevSets.includes(subSn)
-        ? state.playerSetPresence
-        : { ...state.playerSetPresence, [inId]: [...prevSets, subSn] };
-
       return {
         ...state,
         matchPlayers:      updatedPlayers,
         subHistory:        [...state.subHistory, subEntry],
         substitutionPairs: { ...state.substitutionPairs, [outId]: inId },
-        playerSetPresence: updatedPresence,
       };
     }
 
@@ -776,10 +662,6 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       const matchEvent: MatchHistoryEvent = {
         index:       state.matchHistory.length,
         setNum:      state.setNum,
-        source:      'malus',
-        mine:        target === 'opp',
-        malusTarget: target,
-        malusAmount: amount,
         scoreAfter:  { my: newMyScore, opp: newOppScore },
       };
       return {
