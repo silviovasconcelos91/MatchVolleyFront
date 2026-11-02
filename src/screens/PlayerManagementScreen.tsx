@@ -2,8 +2,9 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   ScrollView, StyleSheet, ActivityIndicator,
-  KeyboardAvoidingView, Platform, Alert,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { confirmAction } from '../components/confirmAction';
 import { useTeam } from '../context/TeamContext';
 import type { Player, PlayerRole } from '../data/players';
 import { PLAYER_ROLES } from '../data/players';
@@ -16,13 +17,13 @@ import { getPlayerColor } from '../constants/theme';
 type Tab = 'players' | 'teams';
 type TeamRef = { id: number; name: string; color: string };
 type PlayerWithTeam = Player & { teamId: number; teamName: string; teamColor: string; allTeams: TeamRef[] };
-type PlayerForm = { name: string; numero: string; age: string; taille: string; teamIds: number[]; roles: PlayerRole[] };
+type PlayerForm = { name: string; numero: string; teamIds: number[]; roles: PlayerRole[] };
 type TeamForm   = { name: string; city: string; logoColor: string };
 
 const PRESET_COLORS = ['#4fc3f7','#81c784','#ffb74d','#f06292','#ce93d8','#4db6ac','#ff8a65','#fff176'];
 
 const emptyPlayerForm = (): PlayerForm =>
-  ({ name: '', numero: '', age: '', taille: '', teamIds: [], roles: [] });
+  ({ name: '', numero: '', teamIds: [], roles: [] });
 const emptyTeamForm = (): TeamForm => ({ name: '', city: '', logoColor: PRESET_COLORS[0] });
 
 type Props = { onClose: () => void };
@@ -121,7 +122,7 @@ const PlayerManagementScreen = ({ onClose }: Props) => {
   const openEditPlayer = (p: PlayerWithTeam) => {
     setEditingPlayerId(p.id);
     const playerTeamIds = teams.filter(t => t.players.some(tp => tp.id === p.id)).map(t => t.id);
-    setPlayerForm({ name: p.name, numero: String(p.numero), age: p.age ? String(p.age) : '', taille: p.taille ?? '', teamIds: playerTeamIds, roles: p.roles ?? [] });
+    setPlayerForm({ name: p.name, numero: String(p.numero), teamIds: playerTeamIds, roles: p.roles ?? [] });
     setError(null);
     setPlayerFormOpen(true);
   };
@@ -141,8 +142,6 @@ const PlayerManagementScreen = ({ onClose }: Props) => {
           teamIds: playerForm.teamIds,
           name:    playerForm.name.trim(),
           numero:  Number(playerForm.numero),
-          age:     playerForm.age    ? Number(playerForm.age)   : null,
-          taille:  playerForm.taille ? playerForm.taille.trim() : null,
           roles:   playerForm.roles,
         }),
       });
@@ -165,9 +164,11 @@ const PlayerManagementScreen = ({ onClose }: Props) => {
   };
 
   const handleDeletePlayer = (p: PlayerWithTeam) => {
-    Alert.alert('Supprimer', `Supprimer ${p.name} ?`, [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Supprimer', style: 'destructive', onPress: async () => {
+    confirmAction({
+      title: 'Supprimer',
+      message: `Supprimer ${p.name} ?`,
+      confirmLabel: 'Supprimer',
+      onConfirm: async () => {
         const deletedId = p.id;
         setLoading(true);
         try {
@@ -181,8 +182,8 @@ const PlayerManagementScreen = ({ onClose }: Props) => {
           teamActions.reload(); // met à jour teams.players
         } catch { setError('Impossible de supprimer.'); }
         finally  { setLoading(false); }
-      }},
-    ]);
+      },
+    });
   };
 
   // ══════════════════════════════════════════
@@ -270,9 +271,11 @@ const PlayerManagementScreen = ({ onClose }: Props) => {
   };
 
   const handleDeleteTeam = (teamId: number, teamName: string) => {
-    Alert.alert('Supprimer l\'équipe', `Supprimer ${teamName} ?`, [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Supprimer', style: 'destructive', onPress: async () => {
+    confirmAction({
+      title: 'Supprimer l\'équipe',
+      message: `Supprimer ${teamName} ?`,
+      confirmLabel: 'Supprimer',
+      onConfirm: async () => {
         setLoading(true);
         try {
           const res = await apiFetch(`${API_URL}/api/v1/teams/${teamId}`, { method: 'DELETE' });
@@ -284,8 +287,8 @@ const PlayerManagementScreen = ({ onClose }: Props) => {
           teamActions.reload();
         } catch { setError('Impossible de supprimer.'); }
         finally  { setLoading(false); }
-      }},
-    ]);
+      },
+    });
   };
 
   const canSavePlayer = playerForm.name.trim().length > 0 && playerForm.numero.trim().length > 0 && playerForm.teamIds.length > 0;
@@ -439,25 +442,10 @@ const PlayerManagementScreen = ({ onClose }: Props) => {
                   onChangeText={v => setPlayerForm(f => ({ ...f, name: v }))}
                   placeholder="ex: Léa Martin" placeholderTextColor={COLORS.textDark} autoCapitalize="words" />
 
-                <View style={styles.fieldRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.fieldLabel}>Numéro *</Text>
-                    <TextInput style={styles.input} value={playerForm.numero}
-                      onChangeText={v => setPlayerForm(f => ({ ...f, numero: v }))}
-                      placeholder="7" placeholderTextColor={COLORS.textDark} keyboardType="number-pad" maxLength={3} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.fieldLabel}>Âge</Text>
-                    <TextInput style={styles.input} value={playerForm.age}
-                      onChangeText={v => setPlayerForm(f => ({ ...f, age: v }))}
-                      placeholder="23" placeholderTextColor={COLORS.textDark} keyboardType="number-pad" maxLength={3} />
-                  </View>
-                </View>
-
-                <Text style={styles.fieldLabel}>Taille</Text>
-                <TextInput style={styles.input} value={playerForm.taille}
-                  onChangeText={v => setPlayerForm(f => ({ ...f, taille: v }))}
-                  placeholder="1m75" placeholderTextColor={COLORS.textDark} autoCapitalize="none" />
+                <Text style={styles.fieldLabel}>Numéro *</Text>
+                <TextInput style={styles.input} value={playerForm.numero}
+                  onChangeText={v => setPlayerForm(f => ({ ...f, numero: v }))}
+                  placeholder="7" placeholderTextColor={COLORS.textDark} keyboardType="number-pad" maxLength={3} />
 
                 <Text style={styles.fieldLabel}>Rôles</Text>
                 <View style={styles.roleChips}>
@@ -701,7 +689,6 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm + 2,
     fontSize: FONT_SIZE.md, color: COLORS.textPrimary,
   },
-  fieldRow: { flexDirection: 'row', gap: SPACING.md },
   roleChips: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs, marginTop: SPACING.xs },
   roleChip: {
     paddingHorizontal: SPACING.sm + 2,

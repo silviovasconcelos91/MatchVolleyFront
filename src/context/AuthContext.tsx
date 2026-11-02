@@ -1,7 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useReducer } from 'react';
-import * as SecureStore from 'expo-secure-store';
 import { apiLogin, apiLogout, apiRefreshTokens, apiRegister } from '../data/authApi';
-import { tokenStore, SECURE_ACCESS_KEY, SECURE_REFRESH_KEY } from '../data/tokenStore';
+import { tokenStore } from '../data/tokenStore';
 
 type AuthState = {
   isAuthenticated: boolean;
@@ -42,9 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (refreshToken) {
       apiLogout(refreshToken);
     }
-    tokenStore.clearTokens();
-    await SecureStore.deleteItemAsync(SECURE_ACCESS_KEY).catch(() => {});
-    await SecureStore.deleteItemAsync(SECURE_REFRESH_KEY).catch(() => {});
+    await tokenStore.clearPersisted();
     dispatch({ type: 'UNAUTHENTICATED' });
   }, []);
 
@@ -52,8 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     tokenStore.setOnUnauthenticated(() => dispatch({ type: 'UNAUTHENTICATED' }));
 
     async function restoreSession(): Promise<void> {
-      const access = await SecureStore.getItemAsync(SECURE_ACCESS_KEY);
-      const refresh = await SecureStore.getItemAsync(SECURE_REFRESH_KEY);
+      const { accessToken: access, refreshToken: refresh } = await tokenStore.loadPersisted();
 
       if (!access || !refresh) {
         dispatch({ type: 'UNAUTHENTICATED' });
@@ -62,13 +58,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       try {
         const tokens = await apiRefreshTokens(refresh);
-        tokenStore.setTokens(tokens.accessToken, tokens.refreshToken);
-        await SecureStore.setItemAsync(SECURE_ACCESS_KEY, tokens.accessToken);
-        await SecureStore.setItemAsync(SECURE_REFRESH_KEY, tokens.refreshToken);
+        await tokenStore.persistTokens(tokens.accessToken, tokens.refreshToken);
         dispatch({ type: 'AUTHENTICATED' });
       } catch {
-        await SecureStore.deleteItemAsync(SECURE_ACCESS_KEY).catch(() => {});
-        await SecureStore.deleteItemAsync(SECURE_REFRESH_KEY).catch(() => {});
+        await tokenStore.clearPersisted();
         dispatch({ type: 'UNAUTHENTICATED' });
       }
     }
@@ -78,9 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, password: string): Promise<void> => {
     const tokens = await apiLogin(email, password);
-    tokenStore.setTokens(tokens.accessToken, tokens.refreshToken);
-    await SecureStore.setItemAsync(SECURE_ACCESS_KEY, tokens.accessToken);
-    await SecureStore.setItemAsync(SECURE_REFRESH_KEY, tokens.refreshToken);
+    await tokenStore.persistTokens(tokens.accessToken, tokens.refreshToken);
     dispatch({ type: 'AUTHENTICATED' });
   }, []);
 

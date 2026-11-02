@@ -26,6 +26,7 @@ const config: ExpoConfig = {
   },
   web: {
     favicon: './assets/favicon.png',
+    output: 'single',
   },
   plugins: ['expo-secure-store'],
   extra: {

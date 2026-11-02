@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, Dimensions, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Line, Polyline, Circle, Rect, Text as SvgText } from 'react-native-svg';
 import { COLORS, SPACING, FONT_SIZE } from '../constants/theme';
+import { useContentWidth } from '../hooks/useContentWidth';
 
 type Props = {
   timeline: { myScore?: number; oppScore?: number }[];
@@ -9,12 +10,12 @@ type Props = {
   finalOppScore: number;
 };
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const GRAPH_WIDTH  = SCREEN_WIDTH - SPACING.xl * 2 - SPACING.md * 2 - 2;
 const GRAPH_HEIGHT = 220;
 const PAD = 28;
 
 const SetGraph = ({ timeline, finalMyScore, finalOppScore }: Props) => {
+  const contentWidth = useContentWidth();
+  const GRAPH_WIDTH  = contentWidth - SPACING.xl * 2 - SPACING.md * 2 - 2;
   const points = [{ x: 0, y: 0 }, ...timeline.map(e => ({ x: e.myScore ?? 0, y: e.oppScore ?? 0 }))];
 
   const maxVal = Math.max(25, finalMyScore + 3, finalOppScore + 3);

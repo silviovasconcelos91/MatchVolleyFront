@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, Dimensions } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text } from 'react-native';
 import Svg, {
   Rect, Line, Circle, Text as SvgText, Polygon,
 } from 'react-native-svg';
@@ -7,20 +7,35 @@ import { COLORS } from '../../constants/theme';
 import { styles } from './FIVBCourtDiagram.styles';
 import type { FIVBCourtDiagramProps } from './FIVBCourtDiagram.types';
 import type { AttackZone, AceZone } from '../../data/liveStatsAnalysis';
+import { useContentWidth } from '../../hooks/useContentWidth';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const COURT_WIDTH  = SCREEN_WIDTH - 80;
-const CELL_W = COURT_WIDTH / 3;
-const CELL_H = CELL_W * 0.75;
-const COURT_HEIGHT = CELL_H * 2;
+type CourtGeometry = {
+  COURT_WIDTH: number;
+  COURT_HEIGHT: number;
+  CELL_W: number;
+  CELL_H: number;
+  ZONE_POSITIONS: Record<number, { x: number; y: number }>;
+};
 
-const ZONE_POSITIONS: Record<number, { x: number; y: number }> = {
-  1: { x: CELL_W * 2.5, y: CELL_H * 1.5 },
-  2: { x: CELL_W * 2.5, y: CELL_H * 0.5 },
-  3: { x: CELL_W * 1.5, y: CELL_H * 0.5 },
-  4: { x: CELL_W * 0.5, y: CELL_H * 0.5 },
-  5: { x: CELL_W * 0.5, y: CELL_H * 1.5 },
-  6: { x: CELL_W * 1.5, y: CELL_H * 1.5 },
+// Court dimensions derived from the (reactive) content width.
+const buildGeometry = (contentWidth: number): CourtGeometry => {
+  const COURT_WIDTH = contentWidth - 80;
+  const CELL_W = COURT_WIDTH / 3;
+  const CELL_H = CELL_W * 0.75;
+  return {
+    COURT_WIDTH,
+    COURT_HEIGHT: CELL_H * 2,
+    CELL_W,
+    CELL_H,
+    ZONE_POSITIONS: {
+      1: { x: CELL_W * 2.5, y: CELL_H * 1.5 },
+      2: { x: CELL_W * 2.5, y: CELL_H * 0.5 },
+      3: { x: CELL_W * 1.5, y: CELL_H * 0.5 },
+      4: { x: CELL_W * 0.5, y: CELL_H * 0.5 },
+      5: { x: CELL_W * 0.5, y: CELL_H * 1.5 },
+      6: { x: CELL_W * 1.5, y: CELL_H * 1.5 },
+    },
+  };
 };
 
 const ZONE_LABELS = [
@@ -57,7 +72,8 @@ const arrowHead = (
   );
 };
 
-const AttacksDiagram = ({ data }: { data: AttackZone[] }) => {
+const AttacksDiagram = ({ data, geo }: { data: AttackZone[]; geo: CourtGeometry }) => {
+  const { COURT_WIDTH, COURT_HEIGHT, CELL_W, CELL_H, ZONE_POSITIONS } = geo;
   const maxCount = Math.max(1, ...data.map(a => a.count));
 
   return (
@@ -128,7 +144,8 @@ const AttacksDiagram = ({ data }: { data: AttackZone[] }) => {
   );
 };
 
-const AcesDiagram = ({ data }: { data: AceZone[] }) => {
+const AcesDiagram = ({ data, geo }: { data: AceZone[]; geo: CourtGeometry }) => {
+  const { COURT_WIDTH, COURT_HEIGHT, CELL_W, CELL_H } = geo;
   const maxCount = Math.max(1, ...data.map(a => a.count));
   const aceMap: Record<number, number> = {};
   for (const a of data) aceMap[a.zone] = a.count;
@@ -196,16 +213,21 @@ const AcesDiagram = ({ data }: { data: AceZone[] }) => {
   );
 };
 
-const FIVBCourtDiagram = (props: FIVBCourtDiagramProps) => (
-  <View style={styles.wrapper}>
-    <Text style={styles.label}>
-      {props.mode === 'attacks' ? 'TRAJECTOIRES ATTAQUES' : 'ACES PAR ZONE'}
-    </Text>
-    {props.mode === 'attacks'
-      ? <AttacksDiagram data={props.data} />
-      : <AcesDiagram    data={props.data} />
-    }
-  </View>
-);
+const FIVBCourtDiagram = (props: FIVBCourtDiagramProps) => {
+  const contentWidth = useContentWidth();
+  const geo = useMemo(() => buildGeometry(contentWidth), [contentWidth]);
+
+  return (
+    <View style={styles.wrapper}>
+      <Text style={styles.label}>
+        {props.mode === 'attacks' ? 'TRAJECTOIRES ATTAQUES' : 'ACES PAR ZONE'}
+      </Text>
+      {props.mode === 'attacks'
+        ? <AttacksDiagram data={props.data} geo={geo} />
+        : <AcesDiagram    data={props.data} geo={geo} />
+      }
+    </View>
+  );
+};
 
 export default FIVBCourtDiagram;

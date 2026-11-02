@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import Svg, { Line, Polyline, Circle, Text as SvgText, Rect } from 'react-native-svg';
 import { useMatch } from '../context/MatchContext';
 import type { MatchHistoryEvent } from '../context/MatchContext';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
+import { useContentWidth } from '../hooks/useContentWidth';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const GRAPH_SIZE  = SCREEN_WIDTH - SPACING.xl * 2 - SPACING.md * 2;
 const PAD = 30;
 
 type Point = { x: number; y: number };
@@ -26,6 +25,8 @@ function buildTrajectory(matchHistory: MatchHistoryEvent[], setNum: number): Poi
 const GraphScreen = () => {
   const { state } = useMatch();
   const { trajectory, myScore, oppScore, setNum, matchHistory, setResults } = state;
+  const contentWidth = useContentWidth();
+  const GRAPH_SIZE = contentWidth - SPACING.xl * 2 - SPACING.md * 2;
 
   const [viewedSet, setViewedSet] = useState(setNum);
 

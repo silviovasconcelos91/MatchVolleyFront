@@ -1,6 +1,5 @@
 import Constants from 'expo-constants';
-import * as SecureStore from 'expo-secure-store';
-import { tokenStore, SECURE_ACCESS_KEY, SECURE_REFRESH_KEY } from './tokenStore';
+import { tokenStore } from './tokenStore';
 
 function resolveApiUrl(): string {
   const configured: string | undefined = Constants.expoConfig?.extra?.apiUrl;
@@ -31,9 +30,7 @@ async function doRefreshInner(): Promise<boolean> {
     });
     if (!res.ok) return false;
     const body = await res.json() as RefreshBody;
-    tokenStore.setTokens(body.data.accessToken, body.data.refreshToken);
-    await SecureStore.setItemAsync(SECURE_ACCESS_KEY, body.data.accessToken).catch(() => {});
-    await SecureStore.setItemAsync(SECURE_REFRESH_KEY, body.data.refreshToken).catch(() => {});
+    await tokenStore.persistTokens(body.data.accessToken, body.data.refreshToken);
     return true;
   } catch {
     return false;
@@ -70,9 +67,7 @@ export const apiFetch = async (url: string, options?: RequestInit): Promise<Resp
     return fetch(url, { ...options, headers: retryHeaders });
   }
 
-  tokenStore.clearTokens();
-  await SecureStore.deleteItemAsync(SECURE_ACCESS_KEY).catch(() => {});
-  await SecureStore.deleteItemAsync(SECURE_REFRESH_KEY).catch(() => {});
+  await tokenStore.clearPersisted();
   tokenStore.triggerUnauthenticated();
   return res;
 };
