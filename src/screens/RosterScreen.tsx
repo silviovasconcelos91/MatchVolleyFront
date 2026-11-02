@@ -50,7 +50,6 @@ const PlayerRow = memo(({ player, state, canAddTerrain, canAddLibero, liberoLock
           {player.name}{' '}
           <Text style={styles.playerNumero}>#{player.numero}</Text>
         </Text>
-        <Text style={styles.playerDetails}>{player.taille} · {player.age} ans</Text>
       </View>
 
       <View style={styles.btnGroup}>
@@ -291,11 +290,6 @@ const styles = StyleSheet.create({
   playerNumero: {
     fontSize: FONT_SIZE.sm,
     color: COLORS.textDark,
-  },
-  playerDetails: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textMuted,
-    marginTop: 1,
   },
 
   btnGroup: {

@@ -30,7 +30,7 @@ const PlayerRow = memo(({ player, onPress }: PlayerRowProps) => (
     <PlayerAvatar name={player.name} color={getPlayerColor(player.id)} size={40} />
     <View style={styles.playerInfo}>
       <Text style={styles.playerName}>{player.name}</Text>
-      <Text style={styles.playerMeta}>#{player.numero}{player.taille ? ` · ${player.taille}` : ''}</Text>
+      <Text style={styles.playerMeta}>#{player.numero}</Text>
     </View>
     <Text style={styles.chevron}>›</Text>
   </TouchableOpacity>

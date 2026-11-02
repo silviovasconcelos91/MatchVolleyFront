@@ -13,8 +13,6 @@ export type Team = {
     name: string;
     roles: Array<'R4' | 'Central' | 'Passeur' | 'Pointu' | 'Libero'>;
     numero: number;
-    age: number;
-    taille: string;
   }>;
 };
 
@@ -35,8 +33,6 @@ export async function fetchTeams(): Promise<Team[]> {
       name: p.name ?? '',
       roles: p.roles ?? [],
       numero: p.numero ?? 0,
-      age: p.age ?? 0,
-      taille: p.taille ?? '',
     })),
   }));
 }
