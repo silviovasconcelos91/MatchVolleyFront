@@ -1,4 +1,5 @@
 
+
 # LiveStats — Saisie temps réel des actions (écran de test)
 
 **Date:** 2026-06-05
@@ -58,12 +59,10 @@ type LiveStatEvent = {
 - Relance (`relance_pt`) — zone
 
 **Fautes** (`fault`, point pour l'autre équipe)
-- Attaque out (`attack_out`)
-- Attaque filet (`attack_net`)
-- Service filet (`serve_net`)
-- Service out (`serve_out`)
-- Réception zippée (`recv_shank`)
-- Mauvaise défense (`bad_defense`)
+- Attaque faute (`attack_fault`)
+- Service faute (`serve_fault`)
+- Réception faute (`recv_fault`)
+- Faute (`fault`)
 
 **Neutres** (`neutral`, sans incidence sur le score)
 - Bonne réception (`good_recv`)

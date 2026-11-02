@@ -288,6 +288,74 @@
         }
       }
     },
+    "/api/v1/matches/{matchId}/live-stats": {
+      "get": {
+        "tags": [
+          "match-stat-controller"
+        ],
+        "operationId": "getLiveStats",
+        "parameters": [
+          {
+            "name": "matchId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseLiveStatsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "match-stat-controller"
+        ],
+        "operationId": "saveLiveStats",
+        "parameters": [
+          {
+            "name": "matchId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveStatsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseLiveStatsSavedResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/match-stats": {
       "post": {
         "tags": [
@@ -311,6 +379,36 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponseMatchStatResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth:resend-verification": {
+      "post": {
+        "tags": [
+          "auth-controller"
+        ],
+        "operationId": "resendVerification",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResendVerificationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
                 }
               }
             }
@@ -540,6 +638,36 @@
         }
       }
     },
+    "/api/v1/matches/{matchId}/live-stats/analysis": {
+      "get": {
+        "tags": [
+          "match-stat-controller"
+        ],
+        "operationId": "getLiveStatsAnalysis",
+        "parameters": [
+          {
+            "name": "matchId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseLiveMatchAnalysisResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/match-stats/{matchId}": {
       "get": {
         "tags": [
@@ -563,6 +691,37 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponseMatchDetailResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth:verify": {
+      "get": {
+        "tags": [
+          "auth-controller"
+        ],
+        "operationId": "verify",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
                 }
               }
             }
@@ -595,13 +754,6 @@
           "numero": {
             "type": "integer",
             "format": "int32"
-          },
-          "age": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "taille": {
-            "type": "string"
           },
           "teamIds": {
             "type": "array",
@@ -653,13 +805,6 @@
           "numero": {
             "type": "integer",
             "format": "int32"
-          },
-          "age": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "taille": {
-            "type": "string"
           },
           "teamIds": {
             "type": "array",
@@ -806,19 +951,183 @@
             "type": "integer",
             "format": "int32"
           },
-          "age": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "taille": {
-            "type": "string"
-          },
           "teamIds": {
             "type": "array",
             "items": {
               "type": "integer",
               "format": "int64"
             }
+          }
+        }
+      },
+      "LiveActionDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          }
+        }
+      },
+      "LiveEventDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "sequence": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ts": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "team": {
+            "type": "string"
+          },
+          "player": {
+            "$ref": "#/components/schemas/LivePlayerDto"
+          },
+          "action": {
+            "$ref": "#/components/schemas/LiveActionDto"
+          },
+          "trajectory": {
+            "$ref": "#/components/schemas/LiveTrajectoryDto"
+          },
+          "scoredFor": {
+            "type": "string"
+          }
+        }
+      },
+      "LivePlayerDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "jersey": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "LiveSetDto": {
+        "type": "object",
+        "properties": {
+          "setNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "scoreTeam": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "scoreOpp": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "wonBy": {
+            "type": "string"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LiveEventDto"
+            }
+          }
+        }
+      },
+      "LiveStatsRequest": {
+        "type": "object",
+        "properties": {
+          "matchId": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "teamName": {
+            "type": "string"
+          },
+          "venue": {
+            "type": "string"
+          },
+          "recordedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "setsWon": {
+            "$ref": "#/components/schemas/SetsWonDto"
+          },
+          "sets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LiveSetDto"
+            }
+          }
+        }
+      },
+      "LiveTrajectoryDto": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "to": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "SetsWonDto": {
+        "type": "object",
+        "properties": {
+          "mine": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "opp": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ApiResponseLiveStatsSavedResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/LiveStatsSavedResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "LiveStatsSavedResponse": {
+        "type": "object",
+        "properties": {
+          "matchId": {
+            "type": "string"
           }
         }
       },
@@ -1090,6 +1399,29 @@
           }
         }
       },
+      "ResendVerificationRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiResponseVoid": {
+        "type": "object",
+        "properties": {
+          "data": {
+
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "RegisterRequest": {
         "type": "object",
         "properties": {
@@ -1165,21 +1497,6 @@
           },
           "refreshToken": {
             "type": "string"
-          }
-        }
-      },
-      "ApiResponseVoid": {
-        "type": "object",
-        "properties": {
-          "data": {
-
-          },
-          "message": {
-            "type": "string"
-          },
-          "status": {
-            "type": "integer",
-            "format": "int32"
           }
         }
       },
@@ -1302,6 +1619,251 @@
           },
           "stats": {
             "$ref": "#/components/schemas/StatsDto"
+          }
+        }
+      },
+      "ApiResponseLiveStatsResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/LiveStatsResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "LiveStatsResponse": {
+        "type": "object",
+        "properties": {
+          "matchId": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "teamName": {
+            "type": "string"
+          },
+          "venue": {
+            "type": "string"
+          },
+          "recordedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "setsWon": {
+            "$ref": "#/components/schemas/SetsWonDto"
+          },
+          "sets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LiveSetDto"
+            }
+          }
+        }
+      },
+      "ApiResponseLiveMatchAnalysisResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/LiveMatchAnalysisResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "LiveAceZoneDto": {
+        "type": "object",
+        "properties": {
+          "zone": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "LiveActionCountDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "LiveActionStatsDto": {
+        "type": "object",
+        "properties": {
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LiveActionCountDto"
+            }
+          },
+          "faults": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LiveActionCountDto"
+            }
+          },
+          "neutral": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LiveActionCountDto"
+            }
+          }
+        }
+      },
+      "LiveAttackZoneDto": {
+        "type": "object",
+        "properties": {
+          "playerPosition": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "from": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "to": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "result": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "LiveMatchAnalysisResponse": {
+        "type": "object",
+        "properties": {
+          "matchId": {
+            "type": "string"
+          },
+          "globalStats": {
+            "$ref": "#/components/schemas/LiveScopeStatsDto"
+          },
+          "sets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LiveSetAnalysisDto"
+            }
+          },
+          "players": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LivePlayerAnalysisDto"
+            }
+          }
+        }
+      },
+      "LivePlayerAnalysisDto": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "jersey": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "matchStats": {
+            "$ref": "#/components/schemas/LiveScopeStatsDto"
+          },
+          "setStats": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LivePlayerSetAnalysisDto"
+            }
+          }
+        }
+      },
+      "LivePlayerSetAnalysisDto": {
+        "type": "object",
+        "properties": {
+          "setNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/LiveScopeStatsDto"
+          }
+        }
+      },
+      "LiveScopeStatsDto": {
+        "type": "object",
+        "properties": {
+          "actions": {
+            "$ref": "#/components/schemas/LiveActionStatsDto"
+          },
+          "acesByZone": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LiveAceZoneDto"
+            }
+          },
+          "attacks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LiveAttackZoneDto"
+            }
+          }
+        }
+      },
+      "LiveSetAnalysisDto": {
+        "type": "object",
+        "properties": {
+          "setNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "myScore": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "oppScore": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "wonBy": {
+            "type": "string"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/LiveScopeStatsDto"
+          },
+          "timeline": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimelineEntryDto"
+            }
           }
         }
       },
