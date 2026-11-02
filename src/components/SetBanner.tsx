@@ -10,14 +10,21 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useMatch } from '../context/MatchContext';
+import { useLiveStats } from '../context/LiveStatsContext';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 import EndMatchModal from './EndMatchModal';
 
 const SetBanner = () => {
   const { state, actions } = useMatch();
   const { setBannerVisible, setWinner, setNum, myScore, oppScore, mySets, oppSets } = state;
+  const { actions: liveActions } = useLiveStats();
 
   const [endModalVisible, setEndModalVisible] = useState(false);
+
+  const handleNextSet = () => {
+    actions.closeSetBanner();
+    liveActions.nextSet();
+  };
 
   // Ne rien rendre si la bannière n'est pas visible
   if (!setBannerVisible) return null;
@@ -40,7 +47,7 @@ const SetBanner = () => {
           <Text style={styles.btnText}>Terminer le match</Text>
         </TouchableOpacity>
       ) : (
-        <TouchableOpacity style={styles.btn} onPress={actions.closeSetBanner}>
+        <TouchableOpacity style={styles.btn} onPress={handleNextSet}>
           <Text style={styles.btnText}>Démarrer le set suivant</Text>
         </TouchableOpacity>
       )}

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useLiveStats } from '../context/LiveStatsContext';
 import { useMatch } from '../context/MatchContext';
-import { LIVE_ACTION_BY_KEY } from '../data/liveStats';
+import { scoreForEvents, flattenSets } from '../data/liveStats';
 import type { LiveStatEvent } from '../data/liveStats';
 import { getPositionColor, COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 import { getTotalPoints, getTotalFaults, createEmptyStats } from '../data/players';
@@ -34,16 +34,6 @@ function computeSetStatsFromLive(
     if (s) s[actionKey]++;
   }
   return result;
-}
-
-function computeScoreFromLive(events: LiveStatEvent[]): { mine: number; opp: number } {
-  let mine = 0, opp = 0;
-  for (const e of events) {
-    const cat = LIVE_ACTION_BY_KEY[e.actionKey].category;
-    if (cat === 'point') { if (e.team === 'mine') mine++; else opp++; }
-    else if (cat === 'fault') { if (e.team === 'mine') opp++; else mine++; }
-  }
-  return { mine, opp };
 }
 
 function sumStats(statsList: PlayerStats[]): PlayerStats {
@@ -213,7 +203,7 @@ const LiveMatchStatsScreen = () => {
 
   const currentSetEvents = sets[currentSet] ?? [];
   const setStatsMap      = computeSetStatsFromLive(currentSetEvents, playerIds);
-  const setScore         = computeScoreFromLive(currentSetEvents);
+  const setScore         = scoreForEvents(currentSetEvents);
 
   const sortedBySetPts = [...matchPlayers].sort(
     (a, b) =>
@@ -221,11 +211,9 @@ const LiveMatchStatsScreen = () => {
       getTotalPoints(setStatsMap[a.id] ?? createEmptyStats()),
   );
 
-  const allEvents     = Object.values(sets).flat();
+  const allEvents     = flattenSets(sets);
   const matchStatsMap = computeSetStatsFromLive(allEvents, playerIds);
-  const matchScore    = Object.values(sets)
-    .map(computeScoreFromLive)
-    .reduce((acc, s) => ({ mine: acc.mine + s.mine, opp: acc.opp + s.opp }), { mine: 0, opp: 0 });
+  const matchScore    = scoreForEvents(allEvents);
 
   const sortedByMatchPts = [...matchPlayers].sort(
     (a, b) =>

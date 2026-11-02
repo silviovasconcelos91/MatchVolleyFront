@@ -1,3 +1,5 @@
+import type { PlayerRole } from './players';
+
 export type ActionCount = {
   key: string;
   label: string;
@@ -48,6 +50,7 @@ export type SetAnalysis = {
 
 export type PlayerSetStats = {
   setNumber: number;
+  poste: PlayerRole | null; // poste tenu pendant ce set (null si non renseigné)
   stats: ScopeStats;
 };
 

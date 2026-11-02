@@ -1,19 +1,24 @@
-import React, { createContext, useContext, useReducer } from 'react';
+import React, { createContext, useContext, useMemo, useReducer } from 'react';
 import type { LiveStatEvent } from '../data/liveStats';
 
-type LiveStatsState = { events: LiveStatEvent[] };
+type LiveStatsState = {
+  sets:       Record<number, LiveStatEvent[]>;
+  currentSet: number;
+};
 
 const LIVE_ACTION_TYPES = {
   ADD_EVENT: 'ADD_EVENT',
   UNDO:      'UNDO',
+  NEXT_SET:  'NEXT_SET',
   RESET:     'RESET',
 } as const;
 
-type AddEventPayload = Omit<LiveStatEvent, 'id' | 'ts'>;
+type AddEventPayload = Omit<LiveStatEvent, 'id' | 'ts' | 'setNumber'>;
 
 type LiveStatsAction =
   | { type: typeof LIVE_ACTION_TYPES.ADD_EVENT; payload: AddEventPayload }
   | { type: typeof LIVE_ACTION_TYPES.UNDO }
+  | { type: typeof LIVE_ACTION_TYPES.NEXT_SET }
   | { type: typeof LIVE_ACTION_TYPES.RESET };
 
 type LiveStatsContextValue = {
@@ -21,13 +26,16 @@ type LiveStatsContextValue = {
   actions: {
     addEvent: (payload: AddEventPayload) => void;
     undo:     () => void;
+    nextSet:  () => void;
     reset:    () => void;
   };
 };
 
-const initialState: LiveStatsState = { events: [] };
+const initialState: LiveStatsState = {
+  sets:       { 1: [] },
+  currentSet: 1,
+};
 
-// Compteur monotone pour garantir des ids uniques même à la même ms.
 let eventCounter = 0;
 const makeEventId = (): string => {
   eventCounter += 1;
@@ -39,14 +47,28 @@ function liveStatsReducer(state: LiveStatsState, action: LiveStatsAction): LiveS
     case LIVE_ACTION_TYPES.ADD_EVENT: {
       const event: LiveStatEvent = {
         ...action.payload,
+        setNumber: state.currentSet,
         id: makeEventId(),
         ts: Date.now(),
       };
-      return { events: [...state.events, event] };
+      const cur = state.sets[state.currentSet] ?? [];
+      return {
+        ...state,
+        sets: { ...state.sets, [state.currentSet]: [...cur, event] },
+      };
     }
-    case LIVE_ACTION_TYPES.UNDO:
-      if (state.events.length === 0) return state;
-      return { events: state.events.slice(0, -1) };
+    case LIVE_ACTION_TYPES.UNDO: {
+      const cur = state.sets[state.currentSet] ?? [];
+      if (cur.length === 0) return state;
+      return {
+        ...state,
+        sets: { ...state.sets, [state.currentSet]: cur.slice(0, -1) },
+      };
+    }
+    case LIVE_ACTION_TYPES.NEXT_SET: {
+      const next = state.currentSet + 1;
+      return { currentSet: next, sets: { ...state.sets, [next]: [] } };
+    }
     case LIVE_ACTION_TYPES.RESET:
       return initialState;
     default:
@@ -59,14 +81,18 @@ const LiveStatsContext = createContext<LiveStatsContextValue | null>(null);
 export const LiveStatsProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, dispatch] = useReducer(liveStatsReducer, initialState);
 
-  const actions: LiveStatsContextValue['actions'] = {
+  // dispatch is stable → actions never change identity.
+  const actions = useMemo<LiveStatsContextValue['actions']>(() => ({
     addEvent: (payload) => dispatch({ type: LIVE_ACTION_TYPES.ADD_EVENT, payload }),
     undo:     ()        => dispatch({ type: LIVE_ACTION_TYPES.UNDO }),
+    nextSet:  ()        => dispatch({ type: LIVE_ACTION_TYPES.NEXT_SET }),
     reset:    ()        => dispatch({ type: LIVE_ACTION_TYPES.RESET }),
-  };
+  }), []);
+
+  const value = useMemo(() => ({ state, actions }), [state, actions]);
 
   return (
-    <LiveStatsContext.Provider value={{ state, actions }}>
+    <LiveStatsContext.Provider value={value}>
       {children}
     </LiveStatsContext.Provider>
   );

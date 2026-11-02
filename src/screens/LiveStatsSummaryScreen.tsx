@@ -24,8 +24,8 @@ const LiveStatsSummaryScreen = () => {
   const [expandedPlayer, setExpandedPlayer] = useState<number | null>(null);
 
   const teamEvents = useMemo(
-    () => state.events.filter(e => e.team === activeTeam),
-    [state.events, activeTeam],
+    () => Object.values(state.sets).flat().filter(e => e.team === activeTeam),
+    [state.sets, activeTeam],
   );
 
   // Agrégat par joueur.
@@ -46,27 +46,44 @@ const LiveStatsSummaryScreen = () => {
     return [...map.values()].sort((a, b) => b.points - a.points || b.total - a.total || a.jersey - b.jersey);
   }, [teamEvents]);
 
-  // Trajectoires d'attaque d'un joueur précis (zone départ → arrivée).
+  // Attaques d'un joueur groupées par position du joueur → trajectoire (zoneStart→zone arrivée).
   const playerAttackGroups = (playerId: number) => {
     const groups = new Map<number, {
-      start: number; total: number; points: number;
-      lands: Map<number, { land: number; total: number; points: number }>;
+      pos: number; total: number; points: number;
+      trajs: Map<string, { zoneStart: number; land: number; total: number; points: number }>;
     }>();
     for (const e of teamEvents) {
       if (e.playerId !== playerId) continue;
-      if (e.zoneStart === null || e.zone === null) continue;
+      if (e.zone === null || e.zoneStart === null) continue;
       if (e.actionKey !== 'attack_pt' && e.actionKey !== 'attack_no_pt') continue;
+      const pos = e.playerPos;
+      if (pos === null) continue;
       const isPoint = e.actionKey === 'attack_pt';
-      let g = groups.get(e.zoneStart);
-      if (!g) { g = { start: e.zoneStart, total: 0, points: 0, lands: new Map() }; groups.set(e.zoneStart, g); }
+      let g = groups.get(pos);
+      if (!g) { g = { pos, total: 0, points: 0, trajs: new Map() }; groups.set(pos, g); }
       g.total += 1; if (isPoint) g.points += 1;
-      let l = g.lands.get(e.zone);
-      if (!l) { l = { land: e.zone, total: 0, points: 0 }; g.lands.set(e.zone, l); }
-      l.total += 1; if (isPoint) l.points += 1;
+      const trajKey = `${e.zoneStart}-${e.zone}`;
+      let t = g.trajs.get(trajKey);
+      if (!t) { t = { zoneStart: e.zoneStart, land: e.zone, total: 0, points: 0 }; g.trajs.set(trajKey, t); }
+      t.total += 1; if (isPoint) t.points += 1;
     }
     return [...groups.values()]
-      .map(g => ({ ...g, lands: [...g.lands.values()].sort((a, b) => b.total - a.total || a.land - b.land) }))
-      .sort((a, b) => a.start - b.start);
+      .map(g => ({ ...g, trajs: [...g.trajs.values()].sort((a, b) => b.total - a.total || a.zoneStart - b.zoneStart || a.land - b.land) }))
+      .sort((a, b) => a.pos - b.pos);
+  };
+
+  // Services d'un joueur groupés par zone d'arrivée → % ace.
+  const playerServiceZones = (playerId: number) => {
+    const m = new Map<number, { land: number; total: number; points: number }>();
+    for (const e of teamEvents) {
+      if (e.playerId !== playerId) continue;
+      if (e.zone === null) continue;
+      if (e.actionKey !== 'ace' && e.actionKey !== 'serve_in') continue;
+      let r = m.get(e.zone);
+      if (!r) { r = { land: e.zone, total: 0, points: 0 }; m.set(e.zone, r); }
+      r.total += 1; if (e.actionKey === 'ace') r.points += 1;
+    }
+    return [...m.values()].sort((a, b) => b.total - a.total || a.land - b.land);
   };
 
   const accent = activeTeam === 'mine' ? COLORS.blue : COLORS.pink;
@@ -102,6 +119,7 @@ const LiveStatsSummaryScreen = () => {
           {players.map(p => {
             const expanded = expandedPlayer === p.playerId;
             const groups = expanded ? playerAttackGroups(p.playerId) : [];
+            const services = expanded ? playerServiceZones(p.playerId) : [];
             return (
               <View key={p.playerId}>
                 <TouchableOpacity
@@ -134,29 +152,46 @@ const LiveStatsSummaryScreen = () => {
 
                 {expanded && (
                   <View style={styles.playerDetail}>
-                    <Text style={styles.playerDetailLabel}>ATTAQUE — % POINT PAR TRAJECTOIRE</Text>
+                    <Text style={styles.playerDetailLabel}>ATTAQUE — % POINT PAR ZONE</Text>
                     {groups.length === 0 ? (
                       <Text style={styles.smallEmpty}>Aucune attaque avec trajectoire saisie.</Text>
                     ) : (
                       groups.map(g => (
-                        <View key={`pa-${g.start}`} style={styles.trajGroup}>
+                        <View key={`pa-${g.pos}`} style={styles.trajGroup}>
                           <View style={styles.trajHeader}>
-                            <Text style={styles.trajTitle}>Départ · Zone {g.start}</Text>
+                            <Text style={styles.trajTitle}>P{g.pos}</Text>
                             <Text style={[styles.trajPct, { color: COLORS.green }]}>
                               {pct(g.points, g.total)} · {g.points}/{g.total}
                             </Text>
                           </View>
-                          {g.lands.map(l => (
-                            <View key={`pa-${g.start}-${l.land}`} style={styles.trajRow}>
-                              <Text style={styles.trajRowLabel}>Z{g.start}→Z{l.land}</Text>
+                          {g.trajs.map(t => (
+                            <View key={`pa-${g.pos}-${t.zoneStart}-${t.land}`} style={styles.trajRow}>
+                              <Text style={styles.trajRowLabel}>Z{t.zoneStart}→Z{t.land}</Text>
                               <View style={styles.bar}>
-                                <View style={[styles.barFill, { width: `${pctNum(l.points, l.total)}%`, backgroundColor: COLORS.green }]} />
+                                <View style={[styles.barFill, { width: `${pctNum(t.points, t.total)}%`, backgroundColor: COLORS.green }]} />
                               </View>
-                              <Text style={styles.trajRowVal}>{pct(l.points, l.total)} ({l.points}/{l.total})</Text>
+                              <Text style={styles.trajRowVal}>{pct(t.points, t.total)} ({t.points}/{t.total})</Text>
                             </View>
                           ))}
                         </View>
                       ))
+                    )}
+
+                    <Text style={[styles.playerDetailLabel, styles.serviceLabel]}>SERVICE — ACE PAR ZONE</Text>
+                    {services.length === 0 ? (
+                      <Text style={styles.smallEmpty}>Aucun service avec zone saisie.</Text>
+                    ) : (
+                      <View style={styles.trajGroup}>
+                        {services.map(s => (
+                          <View key={`srv-${s.land}`} style={styles.trajRow}>
+                            <Text style={styles.trajRowLabel}>Zone {s.land}</Text>
+                            <View style={styles.bar}>
+                              <View style={[styles.barFill, { width: `${pctNum(s.points, s.total)}%`, backgroundColor: COLORS.yellow }]} />
+                            </View>
+                            <Text style={styles.trajRowVal}>{pct(s.points, s.total)} ace ({s.points}/{s.total})</Text>
+                          </View>
+                        ))}
+                      </View>
                     )}
                   </View>
                 )}
@@ -334,6 +369,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: RADIUS.md,
     borderBottomRightRadius: RADIUS.md,
   },
+  serviceLabel: { marginTop: SPACING.sm },
   playerDetailLabel: {
     fontSize: FONT_SIZE.xs,
     color: COLORS.textSecondary,

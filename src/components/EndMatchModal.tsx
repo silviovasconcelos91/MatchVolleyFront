@@ -1,8 +1,10 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useMatch } from '../context/MatchContext';
 import { useTeam } from '../context/TeamContext';
-import { buildMatchResult, sendMatchResult } from '../data/matchApi';
+import { useLiveStats } from '../context/LiveStatsContext';
+import { submitMatch } from '../data/matchApi';
+import { flattenSets } from '../data/liveStats';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 import ModalBase, { modalSharedStyles } from './ModalBase';
 
@@ -14,21 +16,27 @@ type Props = {
 const EndMatchModal = ({ visible, onClose }: Props) => {
   const { state: matchState, actions: matchActions } = useMatch();
   const { state: teamState, actions: teamActions }   = useTeam();
+  const liveSets = useLiveStats().state.sets;
 
   const [sending, setSending] = useState(false);
   const [error, setError]     = useState<string | null>(null);
 
-  const { mySets, oppSets, matchHistory } = matchState;
+  const { mySets, oppSets } = matchState;
   const selectedTeam = teamState.selectedTeam;
+
+  const summaryDetail = useMemo(() => {
+    const count = flattenSets(liveSets).length;
+    const s = count !== 1 ? 's' : '';
+    return `${count} action${s} saisie${s}`;
+  }, [liveSets]);
 
   const handleConfirm = useCallback(() => {
     if (!selectedTeam) return;
 
-    const payload = buildMatchResult(matchState, selectedTeam);
     setSending(true);
     setError(null);
 
-    sendMatchResult(payload)
+    submitMatch(matchState, selectedTeam, liveSets)
       .then(() => {
         matchActions.resetMatch();
         teamActions.clearTeam();
@@ -37,7 +45,7 @@ const EndMatchModal = ({ visible, onClose }: Props) => {
         setSending(false);
         setError('Échec de l\'envoi. Vérifier la connexion et réessayer.');
       });
-  }, [selectedTeam, matchState, matchActions, teamActions]);
+  }, [liveSets, selectedTeam, matchState, matchActions, teamActions]);
 
   const handleClose = useCallback(() => {
     if (sending) return;
@@ -55,9 +63,7 @@ const EndMatchModal = ({ visible, onClose }: Props) => {
           <Text style={styles.dash}> – </Text>
           <Text style={styles.oppSets}>{oppSets}</Text>
         </Text>
-        <Text style={styles.summaryDetail}>
-          {matchHistory.length} point{matchHistory.length !== 1 ? 's' : ''} joué{matchHistory.length !== 1 ? 's' : ''}
-        </Text>
+        <Text style={styles.summaryDetail}>{summaryDetail}</Text>
       </View>
 
       {error !== null && (

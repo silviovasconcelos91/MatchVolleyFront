@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Switch } from 'react-native';
 import CourtGestureLayer from './CourtGestureLayer';
 import type { Team } from '../../data/teams';
-import { LIVE_ACTIONS, LIVE_ACTION_BY_KEY } from '../../data/liveStats';
+import { LIVE_ACTIONS, LIVE_ACTION_BY_KEY, MINE_ROWS, OPP_ROWS, toPoste } from '../../data/liveStats';
 import type { LiveTeam, LiveActionKey, LiveActionCategory } from '../../data/liveStats';
 import type { ActionKey } from '../../data/players';
 import { useLiveStats } from '../../context/LiveStatsContext';
@@ -47,9 +47,7 @@ const CATEGORY_COLOR: Record<LiveActionCategory, string> = {
 const ZONE_FILL_ORDER = [4, 3, 2, 5, 6, 1];
 
 // Lignes affichées (haut → bas). Filet au centre du terrain.
-const MINE_ROWS = [[4, 3, 2], [5, 6, 1]]; // avant (près filet) en haut, arrière en bas
-// OPP : miroir horizontal (zone 1 adversaire = gauche coach, zone 5 = droite coach)
-const OPP_ROWS  = [[1, 6, 5], [2, 3, 4]]; // arrière en haut, avant (près filet) en bas
+// MINE_ROWS / OPP_ROWS : voir data/liveStats.ts (OPP = miroir horizontal).
 
 
 const buildCourt = (players: CourtPlayer[]): Record<number, CourtPlayer> => {
@@ -162,12 +160,14 @@ const LiveStatsScreen = ({ team }: Props) => {
       zone,
       zoneStart:  zoneStartValue,
       playerPos:  target.pos,
+      // Rôle tactique courant (choisi en config de set, hérité en cas de remplacement).
+      poste:      target.team === 'mine' ? toPoste(target.player.role) : null,
     });
-    // Reflet dans MatchContext : score, rotation auto, stats classiques.
+    // Reflet dans MatchContext : score + rotation auto.
     const def = LIVE_ACTION_BY_KEY[actionKey];
     if (target.team === 'mine') {
       const mk = MINE_ACTION_MAP[actionKey];
-      if (mk) matchActions.playerAction({ playerId: target.player.id, actionKey: mk });
+      if (mk) matchActions.playerAction({ actionKey: mk });
     } else if (def.category === 'point') {
       matchActions.oppScore();
     } else if (def.category === 'fault') {
