@@ -10,17 +10,16 @@ type Props = {
   finalOppScore: number;
 };
 
-const GRAPH_HEIGHT = 220;
 const PAD = 28;
 
 const SetGraph = ({ timeline, finalMyScore, finalOppScore }: Props) => {
   const contentWidth = useContentWidth();
-  const GRAPH_WIDTH  = contentWidth - SPACING.xl * 2 - SPACING.md * 2 - 2;
+  const GRAPH_SIZE = contentWidth - SPACING.xl * 2 - SPACING.md * 2 - 2;
   const points = [{ x: 0, y: 0 }, ...timeline.map(e => ({ x: e.myScore ?? 0, y: e.oppScore ?? 0 }))];
 
   const maxVal = Math.max(25, finalMyScore + 3, finalOppScore + 3);
-  const toX = (v: number) => PAD + (v / maxVal) * (GRAPH_WIDTH - PAD * 2);
-  const toY = (v: number) => GRAPH_HEIGHT - PAD - (v / maxVal) * (GRAPH_HEIGHT - PAD * 2);
+  const toX = (v: number) => PAD + (v / maxVal) * (GRAPH_SIZE - PAD * 2);
+  const toY = (v: number) => GRAPH_SIZE - PAD - (v / maxVal) * (GRAPH_SIZE - PAD * 2);
 
   const polylinePoints = points.map(p => `${toX(p.x)},${toY(p.y)}`).join(' ');
   const axisLabels = [0, 5, 10, 15, 20, 25].filter(v => v <= maxVal);
@@ -30,7 +29,7 @@ const SetGraph = ({ timeline, finalMyScore, finalOppScore }: Props) => {
   return (
     <>
       <View style={styles.graphWrapper}>
-        <Svg width={GRAPH_WIDTH} height={GRAPH_HEIGHT}>
+        <Svg width={GRAPH_SIZE} height={GRAPH_SIZE}>
 
           {/* Zone verte (sous la diagonale = on mène) */}
           <Rect
@@ -56,12 +55,12 @@ const SetGraph = ({ timeline, finalMyScore, finalOppScore }: Props) => {
 
           {/* Labels axes */}
           {axisLabels.map(v => (
-            <SvgText key={`xl${v}`} x={toX(v)} y={GRAPH_HEIGHT - 6} textAnchor="middle" fontSize={9} fill={COLORS.textMuted}>{v}</SvgText>
+            <SvgText key={`xl${v}`} x={toX(v)} y={GRAPH_SIZE - 6} textAnchor="middle" fontSize={9} fill={COLORS.textMuted}>{v}</SvgText>
           ))}
           {axisLabels.map(v => (
             <SvgText key={`yl${v}`} x={PAD - 4} y={toY(v) + 3} textAnchor="end" fontSize={9} fill={COLORS.textMuted}>{v}</SvgText>
           ))}
-          <SvgText x={GRAPH_WIDTH / 2} y={GRAPH_HEIGHT} textAnchor="middle" fontSize={9} fill={COLORS.blue}>Mon équipe</SvgText>
+          <SvgText x={GRAPH_SIZE / 2} y={GRAPH_SIZE} textAnchor="middle" fontSize={9} fill={COLORS.blue}>Mon équipe</SvgText>
 
           {/* Trajectoire */}
           {points.length > 1 && (
