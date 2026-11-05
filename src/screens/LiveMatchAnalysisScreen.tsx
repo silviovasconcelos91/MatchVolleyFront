@@ -378,10 +378,13 @@ const PlayersTab = ({ data }: PlayersTabProps) => {
         );
 
         return (
-          <View key={player.playerId} style={styles.setAccordion}>
+          <View
+            key={player.playerId}
+            style={[styles.setAccordion, styles.playerCard, expanded && styles.playerCardExpanded]}
+          >
             {/* Header : badge + nom + chevron */}
             <TouchableOpacity
-              style={styles.playerAccordionHeader}
+              style={[styles.playerAccordionHeader, expanded && styles.playerAccordionHeaderExpanded]}
               onPress={() =>
                 setExpandedPlayer(expanded ? null : player.playerId)
               }
@@ -493,7 +496,9 @@ const PlayersTab = ({ data }: PlayersTabProps) => {
 
                 return (
                   <View key={ss.setNumber} style={styles.setExpandedSection}>
-                    <Text style={styles.setLabel}>SET {ss.setNumber}</Text>
+                    <Text style={[styles.setLabel, styles.playerSetLabel]}>
+                      SET {ss.setNumber} · #{player.jersey} {player.name}
+                    </Text>
                     <StatBar
                       sectionLabel="POINTS MARQUÉS"
                       value={setPts}
@@ -1079,6 +1084,25 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.lg,
     fontWeight: '600',
     color: COLORS.textPrimary,
+  },
+  playerCard: {
+    marginBottom: SPACING.md,
+  },
+  playerCardExpanded: {
+    borderColor: `${COLORS.blue}88`,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.blue,
+    marginBottom: SPACING.xl,
+  },
+  playerAccordionHeaderExpanded: {
+    backgroundColor: `${COLORS.blue}18`,
+  },
+  playerSetLabel: {
+    backgroundColor: COLORS.bgInput,
+    color: COLORS.blue,
+    fontWeight: '600',
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.sm,
   },
   setExpandedSection: {
     borderTopWidth: 1,

@@ -121,9 +121,18 @@ const LiveStatsSummaryScreen = () => {
             const groups = expanded ? playerAttackGroups(p.playerId) : [];
             const services = expanded ? playerServiceZones(p.playerId) : [];
             return (
-              <View key={p.playerId}>
+              <View
+                key={p.playerId}
+                style={expanded && [
+                  styles.playerBlockExpanded,
+                  { borderColor: `${accent}88`, borderLeftColor: accent },
+                ]}
+              >
                 <TouchableOpacity
-                  style={styles.playerRow}
+                  style={[
+                    styles.playerRow,
+                    expanded && [styles.playerRowExpanded, { backgroundColor: `${accent}1a` }],
+                  ]}
                   onPress={() => setExpandedPlayer(expanded ? null : p.playerId)}
                   activeOpacity={0.7}
                 >
@@ -319,6 +328,20 @@ const styles = StyleSheet.create({
     padding: SPACING.sm,
     marginBottom: SPACING.xs,
   },
+  // Joueur déroulé : ligne + détail regroupés dans une carte bordée (couleur équipe)
+  playerBlockExpanded: {
+    borderWidth: 1,
+    borderLeftWidth: 4,
+    borderRadius: RADIUS.md,
+    overflow: 'hidden',
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.lg,
+  },
+  playerRowExpanded: {
+    borderWidth: 0,
+    borderRadius: 0,
+    marginBottom: 0,
+  },
   playerNumBadge: {
     width: 38,
     height: 38,
@@ -357,17 +380,10 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.md,
   },
   playerDetail: {
-    marginTop: -SPACING.xs,
-    marginBottom: SPACING.xs,
     paddingHorizontal: SPACING.sm,
     paddingBottom: SPACING.sm,
     paddingTop: SPACING.sm,
     backgroundColor: COLORS.bgInput,
-    borderWidth: 1,
-    borderTopWidth: 0,
-    borderColor: COLORS.border,
-    borderBottomLeftRadius: RADIUS.md,
-    borderBottomRightRadius: RADIUS.md,
   },
   serviceLabel: { marginTop: SPACING.sm },
   playerDetailLabel: {
