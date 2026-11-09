@@ -35,7 +35,9 @@ export type LiveActionKey =
   | 'bad_recv'
   | 'block_touch'
   | 'serve_in'
-  | 'attack_no_pt';
+  | 'attack_no_pt'
+  // Temps mort (équipe qui le demande, sans joueur)
+  | 'timeout';
 
 export type LiveActionDef = {
   key: LiveActionKey;
@@ -67,8 +69,16 @@ export const LIVE_ACTIONS: LiveActionDef[] = [
   { key: 'attack_no_pt',label: 'Attaque (sans pt)',category: 'neutral', needsZone: true,  needsStartZone: true },
 ];
 
+// Temps mort : hors catalogue joueur (bouton dédié), neutre, sans zone.
+export const TIMEOUT_ACTION: LiveActionDef = {
+  key: 'timeout', label: 'Temps mort', category: 'neutral', needsZone: false,
+};
+export const TIMEOUT_DURATION_MS = 30_000;
+
+export const isTimeout = (e: { actionKey: LiveActionKey }): boolean => e.actionKey === 'timeout';
+
 export const LIVE_ACTION_BY_KEY: Record<LiveActionKey, LiveActionDef> =
-  LIVE_ACTIONS.reduce((acc, def) => {
+  [...LIVE_ACTIONS, TIMEOUT_ACTION].reduce((acc, def) => {
     acc[def.key] = def;
     return acc;
   }, {} as Record<LiveActionKey, LiveActionDef>);

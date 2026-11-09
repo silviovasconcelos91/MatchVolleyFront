@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useLiveStats } from '../context/LiveStatsContext';
-import { LIVE_ACTIONS, LIVE_ACTION_BY_KEY } from '../data/liveStats';
+import { LIVE_ACTIONS, LIVE_ACTION_BY_KEY, isTimeout } from '../data/liveStats';
 import type { LiveTeam, LiveActionKey } from '../data/liveStats';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 
@@ -24,7 +24,8 @@ const LiveStatsSummaryScreen = () => {
   const [expandedPlayer, setExpandedPlayer] = useState<number | null>(null);
 
   const teamEvents = useMemo(
-    () => Object.values(state.sets).flat().filter(e => e.team === activeTeam),
+    // Temps morts exclus : pas d'action joueur.
+    () => Object.values(state.sets).flat().filter(e => e.team === activeTeam && !isTimeout(e)),
     [state.sets, activeTeam],
   );
 

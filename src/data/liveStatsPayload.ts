@@ -1,6 +1,6 @@
 import type { LiveStatEvent, LiveTeam } from './liveStats';
 import type { PlayerRole } from './players';
-import { LIVE_ACTION_BY_KEY, scoredFor } from './liveStats';
+import { LIVE_ACTION_BY_KEY, scoredFor, isTimeout } from './liveStats';
 
 // ─── Types payload backend ────────────────────────────────────────────────────
 
@@ -29,8 +29,8 @@ export type LiveStatEventPayload = {
   id:         string;
   sequence:   number;
   ts:         number;
-  team:       LiveTeam;
-  player:     EventPlayerPayload;
+  team:       LiveTeam;              // pour un temps mort : l'équipe qui l'a demandé
+  player:     EventPlayerPayload | null;  // null uniquement pour un temps mort
   action:     EventActionPayload;
   trajectory: EventTrajectory | null;
   scoredFor:  EventResultScored;
@@ -64,7 +64,7 @@ function serializeEvent(e: LiveStatEvent, sequence: number): LiveStatEventPayloa
     sequence,
     ts:       e.ts,
     team:     e.team,
-    player: {
+    player: isTimeout(e) ? null : {
       id:       e.team === 'mine' ? e.playerId : null,
       jersey:   e.jersey,
       name:     e.playerName,

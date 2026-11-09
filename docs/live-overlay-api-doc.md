@@ -170,6 +170,7 @@ Envoyer **l'état complet** du match (undo compris) : le snapshot est remplacé,
 - `sets` présent (peut être vide), au plus 5, `setNumber` entre 1 et 5 et unique ;
 - `wonBy` ∈ `mine` | `opp` | `null` ;
 - chaque event : `sequence` ≥ 1, `team` ∈ `mine` | `opp`, `player.jersey` présent, `action.key` et `action.category` présents ;
+- temps mort (`action.key == "timeout"`) : `player` peut être `null`, `category` doit être `neutral`, `trajectory` et `scoredFor` doivent être `null` ;
 - `action.category` ∈ `point` | `fault` | `neutral`, et `scoredFor` cohérent : `point` → `team`, `fault` → adversaire, `neutral` → `null` ;
 - `poste` hors liste → `400`.
 
@@ -307,7 +308,9 @@ Cache-Control: no-cache
         { "mine": 0, "opp": 0 },
         { "mine": 1, "opp": 0 },
         { "mine": 1, "opp": 1 }
-      ]
+      ],
+      "timeouts": { "mine": 1, "opp": 0 },
+      "activeTimeout": "mine"
     },
     "sets": [
       { "setNumber": 1, "score": { "mine": 25, "opp": 21 }, "wonBy": "mine" },
@@ -356,6 +359,9 @@ Cache-Control: no-cache
 | `currentSet` | Set au plus grand `setNumber`. `null` si aucun set |
 | `trajectory` | Score cumulé après chaque point, en commençant par `{0,0}` |
 | `serving` | `scoredFor` du dernier point du set (le gagnant du rallye sert). `null` si aucun point |
+| `currentSet.timeouts` | **Compteur** : nombre de temps morts pris par chaque équipe dans le set en cours (`{ mine, opp }`) |
+| `currentSet.activeTimeout` | **Bandeau** : `"mine"` / `"opp"` si le dernier event du set est un temps mort, sinon `null`. Le bandeau disparaît dès que l'app saisit l'event suivant (point, service, etc.). Le nom adverse n'est pas connu du backend : afficher « Adversaire » pour `"opp"` |
+| Temps morts | Ignorés dans le score, `trajectory`, `lastPoints` et `topScorers` |
 | `sets[].wonBy` | Repris du snapshot |
 | `lastPoints` | 5 derniers points tous sets confondus, du plus récent au plus ancien. `team` / `player` = qui a **réalisé l'action** (pour une faute, le fautif) ; `scoredFor` = qui prend le point |
 | `topScorers` | 3 joueurs de **mon équipe** avec le plus d'actions `category == "point"` sur le match. Égalité : numéro de maillot croissant |
@@ -446,8 +452,8 @@ Utilisé par `PUT /live-sessions/{id}/snapshot` et par la soumission finale `POS
 | `id` | `string` | ID unique de l'event |
 | `sequence` | `number` | Ordre dans le set (commence à 1) |
 | `ts` | `number` | Timestamp UNIX ms (horloge locale app) |
-| `team` | `"mine"` \| `"opp"` | Équipe qui réalise l'action |
-| `player` | `PlayerPayload` | Joueur |
+| `team` | `"mine"` \| `"opp"` | Équipe qui réalise l'action (pour un temps mort : l'équipe qui l'a demandé) |
+| `player` | `PlayerPayload` \| `null` | Joueur. `null` uniquement pour un temps mort (`action.key == "timeout"`) |
 | `action` | `ActionPayload` | Action réalisée |
 | `trajectory` | `TrajectoryPayload` \| `null` | `null` si action sans zone |
 | `scoredFor` | `"mine"` \| `"opp"` \| `null` | Règle : `point` → team, `fault` → adversaire, `neutral` → `null` |
@@ -466,7 +472,7 @@ Utilisé par `PUT /live-sessions/{id}/snapshot` et par la soumission finale `POS
 
 | Champ | Type | Valeurs |
 |---|---|---|
-| `key` | `string` | `attack_pt`, `ace`, `block_pt`, `relance_pt`, `attack_fault`, `serve_fault`, `recv_fault`, `fault`, `good_recv`, `bad_recv`, `block_touch`, `serve_in`, `attack_no_pt` |
+| `key` | `string` | `attack_pt`, `ace`, `block_pt`, `relance_pt`, `attack_fault`, `serve_fault`, `recv_fault`, `fault`, `good_recv`, `bad_recv`, `block_touch`, `serve_in`, `attack_no_pt`, `timeout` |
 | `label` | `string` | Label FR lisible |
 | `category` | `"point"` \| `"fault"` \| `"neutral"` | Catégorie |
 
@@ -485,6 +491,7 @@ Utilisé par `PUT /live-sessions/{id}/snapshot` et par la soumission finale `POS
 - `sequence` repart à `1` à chaque nouveau set.
 - `trajectory.from: null` pour ace et service réussi (zone départ non saisie).
 - `player.id: null` pour tous les events adversaires.
+- **Temps mort** : event `action: { key: "timeout", label: "Temps mort", category: "neutral" }`, `team` = équipe qui l'a demandé, `player: null`, `trajectory: null`, `scoredFor: null`. Placé à sa position dans la séquence du set. Ignoré dans le score et les stats d'actions.
 
 ---
 

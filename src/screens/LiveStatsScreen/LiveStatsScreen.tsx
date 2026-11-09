@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Switch } from 'react-native';
 import CourtGestureLayer from './CourtGestureLayer';
+import TimeoutBar, { timeoutTeamLabel } from './TimeoutBar';
 import type { Team } from '../../data/teams';
-import { LIVE_ACTIONS, LIVE_ACTION_BY_KEY, MINE_ROWS, OPP_ROWS, toPoste } from '../../data/liveStats';
+import { LIVE_ACTIONS, LIVE_ACTION_BY_KEY, MINE_ROWS, OPP_ROWS, toPoste, isTimeout } from '../../data/liveStats';
 import type { LiveTeam, LiveActionKey, LiveActionCategory } from '../../data/liveStats';
 import type { ActionKey } from '../../data/players';
 import { useLiveStats } from '../../context/LiveStatsContext';
@@ -176,6 +177,23 @@ const LiveStatsScreen = ({ team }: Props) => {
     setTarget(null);
   }, [actions, matchActions, target]);
 
+  // Temps mort : événement neutre sans joueur (n'affecte ni score ni MatchContext).
+  const handleTimeout = useCallback((side: LiveTeam) => {
+    actions.addEvent({
+      team:       side,
+      playerId:   0,
+      jersey:     0,
+      playerName: timeoutTeamLabel(side, team.name),
+      actionKey:  'timeout',
+      zone:       null,
+      zoneStart:  null,
+      playerPos:  null,
+      poste:      null,
+    });
+    setPendingAction(null);
+    setTarget(null);
+  }, [actions, team.name]);
+
   // L'action live a-t-elle modifié le score (donc dispatché dans MatchContext) ?
   const didScore = (evTeam: LiveTeam, actionKey: LiveActionKey): boolean => {
     if (evTeam === 'mine') return MINE_ACTION_MAP[actionKey] !== undefined;
@@ -309,6 +327,9 @@ const LiveStatsScreen = ({ team }: Props) => {
         </View>
       )}
 
+      {/* ── Temps morts : bouton par équipe + compte à rebours 30 s ── */}
+      <TimeoutBar teamName={team.name} setEvents={curSetEvents} onTimeout={handleTimeout} />
+
       {/* ── Libéros : faire entrer / sortir un des deux libéros ── */}
       {availableLiberoIds.length > 0 && (
         <View style={styles.liberoBar}>
@@ -336,7 +357,9 @@ const LiveStatsScreen = ({ team }: Props) => {
       {/* ── Footer : dernière saisie + rotation + undo ── */}
       <View style={styles.footer}>
         <Text style={styles.footerText} numberOfLines={1}>
-          {last
+          {last && isTimeout(last)
+            ? `Temps mort — ${last.playerName}`
+            : last
             ? `${last.team === 'opp' ? `Adv #${last.jersey}` : last.playerName} — ${LIVE_ACTION_BY_KEY[last.actionKey].label}${
                 last.zoneStart !== null && last.zone !== null
                   ? ` (Z${last.zoneStart}→Z${last.zone})`
