@@ -6,7 +6,6 @@ export const PANEL_WIDTH  = 560;
 export const PANEL_MARGIN = 40;
 const CARD_PADDING = SPACING.xl;
 export const GRAPH_SIZE_ALONE = PANEL_WIDTH - CARD_PADDING * 2;
-export const GRAPH_SIZE_FULL  = 360;
 
 export const styles = StyleSheet.create({
   root: {
@@ -35,91 +34,77 @@ export const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
 
-  // ── Bandeau score ──
-  boardHeader: {
+  // ── Bandeau score (face à face) ──
+  setHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: SPACING.md,
-    marginBottom: SPACING.xs,
+    justifyContent: 'center',
+    gap: SPACING.sm,
   },
-  boardTitle: {
-    flex: 1,
+  liveDot: {
+    width: 10,
+    height: 10,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.red,
+  },
+  setHeaderText: {
+    fontSize: OVERLAY_FONT_SIZE.sm,
+    fontWeight: '700',
+    color: COLORS.green,
+    letterSpacing: 2,
+  },
+  setHeaderTimeout: {
+    color: COLORS.yellow,
+  },
+  timeoutCount: {
     fontSize: OVERLAY_FONT_SIZE.sm,
     color: COLORS.textMuted,
     letterSpacing: 1,
   },
-  statusBadge: {
-    borderRadius: RADIUS.sm,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
-  },
-  statusLive: {
-    backgroundColor: COLORS.red,
-  },
-  statusEnded: {
-    backgroundColor: COLORS.border,
-  },
-  statusText: {
-    fontSize: OVERLAY_FONT_SIZE.sm,
-    fontWeight: '700',
-    color: COLORS.scoreHome,
-    letterSpacing: 1,
-  },
-  teamRow: {
+  faceOff: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.md,
+    justifyContent: 'center',
+    gap: SPACING.lg,
   },
-  serveDot: {
-    width: 12,
-    height: 12,
-    borderRadius: RADIUS.full,
-    backgroundColor: 'transparent',
-  },
-  serveDotActive: {
-    backgroundColor: COLORS.yellow,
+  teamCol: {
+    flex: 1,
+    alignItems: 'center',
+    gap: SPACING.xs,
   },
   teamName: {
-    flex: 1,
     fontSize: OVERLAY_FONT_SIZE.lg,
     fontWeight: '600',
     color: COLORS.textPrimary,
   },
-  pastSet: {
-    width: 32,
-    textAlign: 'center',
-    fontSize: OVERLAY_FONT_SIZE.md,
-    color: COLORS.textMuted,
+  dots: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
   },
-  pastSetWon: {
-    color: COLORS.textPrimary,
-    fontWeight: '700',
+  dot: {
+    width: 14,
+    height: 14,
+    borderRadius: RADIUS.full,
+    borderWidth: 2,
+    borderColor: COLORS.textMuted,
   },
-  setsWonBox: {
-    width: 40,
-    alignItems: 'center',
-    backgroundColor: COLORS.bgApp,
-    borderRadius: RADIUS.sm,
-    paddingVertical: 2,
-  },
-  setsWon: {
-    fontSize: OVERLAY_FONT_SIZE.lg,
-    fontWeight: '700',
-    color: COLORS.yellow,
-  },
-  currentScore: {
-    width: 80,
-    textAlign: 'right',
+  bigScore: {
+    minWidth: 56,
     fontSize: OVERLAY_FONT_SIZE.score,
-    fontWeight: '700',
+    fontWeight: '800',
     lineHeight: OVERLAY_FONT_SIZE.score * 1.1,
   },
-  boardFooter: {
-    fontSize: OVERLAY_FONT_SIZE.sm,
-    color: COLORS.textMuted,
-    letterSpacing: 1,
+  bigScoreMine: {
     textAlign: 'right',
+    color: COLORS.scoreHome,
+  },
+  bigScoreOpp: {
+    textAlign: 'left',
+    color: COLORS.textSecondary,
+  },
+  scoreDash: {
+    fontSize: OVERLAY_FONT_SIZE.lg,
+    color: COLORS.textMuted,
   },
 
   // ── Sections ──
@@ -155,11 +140,6 @@ export const styles = StyleSheet.create({
     color: COLORS.textSecondary,
   },
   pointAction: {
-    color: COLORS.textPrimary,
-  },
-  scorers: {
-    marginTop: SPACING.xs,
-    fontSize: OVERLAY_FONT_SIZE.md,
     color: COLORS.textPrimary,
   },
 

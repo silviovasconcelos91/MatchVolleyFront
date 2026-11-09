@@ -2,6 +2,7 @@
 //  ÉCRAN : OVERLAY LIVE PUBLIC (web, sans authentification)
 //
 //  URL : /live/{code}?view=score|graph|full&bg=transparent
+//  full (défaut) : bandeau face à face + 3 dernières actions du set en cours
 //  Pensé pour une source navigateur OBS 1920×1080 ; mis à l'échelle
 //  pour rester lisible sur un téléphone ou un écran plus petit.
 //  Toutes les valeurs affichées sont calculées par le backend.
@@ -14,7 +15,7 @@ import { usePublicLiveView } from '../../hooks/usePublicLiveView';
 import PointsCurve from '../../components/PointsCurve';
 import { COLORS } from '../../constants/theme';
 import type { Props } from './LiveOverlayScreen.types';
-import { styles, PANEL_WIDTH, PANEL_MARGIN, GRAPH_SIZE_FULL, GRAPH_SIZE_ALONE } from './LiveOverlayScreen.styles';
+import { styles, PANEL_WIDTH, PANEL_MARGIN, GRAPH_SIZE_ALONE } from './LiveOverlayScreen.styles';
 
 // "Lynx vs Grenoble" → "Grenoble" (la partie qui ne correspond pas à notre équipe).
 function guessOpponentName(title: string, teamName: string): string {
@@ -39,57 +40,61 @@ const playerLabel = (p: PublicLivePoint): string => {
 
 // ── Bandeau score ─────────────────────────────────────────────────────────────
 
+// Match en 3 sets gagnants : une puce par set à gagner.
+const SETS_TO_WIN = 3;
+
+const SetDots = React.memo(({ side, won }: { side: LiveSide; won: number }) => (
+  <View style={styles.dots}>
+    {Array.from({ length: SETS_TO_WIN }, (_, i) => (
+      <View
+        key={i}
+        style={[styles.dot, i < won && { backgroundColor: sideColor(side), borderColor: sideColor(side) }]}
+      />
+    ))}
+  </View>
+));
+
+// Face à face : nom + puces des sets gagnés de chaque côté, score du set en cours au centre.
 const ScoreBoard = ({ view }: { view: PublicLiveView }) => {
   const opponent = guessOpponentName(view.title, view.teamName);
   const current = view.currentSet;
-  const finishedSets = view.sets.filter(s => s.wonBy !== null);
   const isLive = view.status === 'LIVE';
 
-  const rows: { side: LiveSide; name: string }[] = [
-    { side: 'mine', name: view.teamName },
-    { side: 'opp',  name: opponent },
-  ];
+  // Terminé : on affiche les sets gagnés au centre (score final du match).
+  const score = isLive ? current?.score ?? { mine: 0, opp: 0 } : view.setsWon;
+  // Temps mort en cours : remplace « SET n ». Nom adverse inconnu du backend → « Adversaire ».
+  const activeTimeout = isLive ? current?.activeTimeout ?? null : null;
+  const header = !isLive
+    ? 'TERMINÉ'
+    : activeTimeout
+    ? `TEMPS MORT · ${activeTimeout === 'mine' ? view.teamName : 'Adversaire'}`
+    : current ? `SET ${current.setNumber}` : 'EN ATTENTE';
+  const timeouts = isLive ? current?.timeouts ?? null : null;
 
   return (
     <View style={styles.card}>
-      <View style={styles.boardHeader}>
-        <Text style={styles.boardTitle} numberOfLines={1}>{view.title}</Text>
-        <View style={[styles.statusBadge, isLive ? styles.statusLive : styles.statusEnded]}>
-          <Text style={styles.statusText}>{isLive ? '● EN DIRECT' : 'TERMINÉ'}</Text>
-        </View>
+      <View style={styles.setHeader}>
+        {isLive && <View style={styles.liveDot} />}
+        <Text style={[styles.setHeaderText, activeTimeout !== null && styles.setHeaderTimeout]}>
+          {header}
+        </Text>
       </View>
 
-      {rows.map(({ side, name }) => {
-        const serving = isLive && current?.serving === side;
-        return (
-          <View key={side} style={styles.teamRow}>
-            <View style={[styles.serveDot, serving && styles.serveDotActive]} />
-            <Text style={styles.teamName} numberOfLines={1}>{name}</Text>
-            {finishedSets.map(s => (
-              <Text
-                key={s.setNumber}
-                style={[styles.pastSet, s.wonBy === side && styles.pastSetWon]}
-              >
-                {s.score[side]}
-              </Text>
-            ))}
-            <View style={styles.setsWonBox}>
-              <Text style={styles.setsWon}>{view.setsWon[side]}</Text>
-            </View>
-            {isLive && (
-              <Text style={[styles.currentScore, { color: side === 'mine' ? COLORS.scoreHome : COLORS.textSecondary }]}>
-                {current?.score[side] ?? 0}
-              </Text>
-            )}
-          </View>
-        );
-      })}
-
-      <Text style={styles.boardFooter}>
-        {!current
-          ? 'En attente du début du match'
-          : isLive ? `SET ${current.setNumber}` : `Score final · ${view.setsWon.mine} – ${view.setsWon.opp}`}
-      </Text>
+      <View style={styles.faceOff}>
+        <View style={styles.teamCol}>
+          <Text style={styles.teamName} numberOfLines={1}>{view.teamName}</Text>
+          <SetDots side="mine" won={view.setsWon.mine} />
+          {timeouts !== null && <Text style={styles.timeoutCount}>TM {timeouts.mine}</Text>}
+        </View>
+        <Text style={[styles.bigScore, styles.bigScoreMine]}>{score.mine}</Text>
+        <Text style={styles.scoreDash}>–</Text>
+        <Text style={[styles.bigScore, styles.bigScoreOpp]}>{score.opp}</Text>
+        <View style={styles.teamCol}>
+          <Text style={styles.teamName} numberOfLines={1}>{opponent}</Text>
+          <SetDots side="opp" won={view.setsWon.opp} />
+          {timeouts !== null && <Text style={styles.timeoutCount}>TM {timeouts.opp}</Text>}
+        </View>
+      </View>
     </View>
   );
 };
@@ -122,7 +127,9 @@ const SetCurve = ({ view, size }: { view: PublicLiveView; size: number }) => {
   );
 };
 
-// ── Derniers points + meilleurs marqueurs ─────────────────────────────────────
+// ── 3 dernières actions du set en cours ───────────────────────────────────────
+
+const LAST_ACTIONS_COUNT = 3;
 
 const PointRow = React.memo(({ point }: { point: PublicLivePoint }) => (
   <View style={styles.pointRow}>
@@ -136,25 +143,19 @@ const PointRow = React.memo(({ point }: { point: PublicLivePoint }) => (
 ));
 
 const LastPoints = ({ view }: { view: PublicLiveView }) => {
-  if (view.lastPoints.length === 0 && view.topScorers.length === 0) return null;
+  const current = view.currentSet;
+  if (view.status !== 'LIVE' || !current) return null;
+  // lastPoints arrive du plus récent au plus ancien, tous sets confondus.
+  const setPoints = view.lastPoints
+    .filter(p => p.setNumber === current.setNumber)
+    .slice(0, LAST_ACTIONS_COUNT);
+  if (setPoints.length === 0) return null;
   return (
     <View style={styles.card}>
-      {view.lastPoints.length > 0 && (
-        <>
-          <Text style={styles.sectionLabel}>DERNIERS POINTS</Text>
-          {view.lastPoints.map(p => (
-            <PointRow key={`${p.setNumber}-${p.sequence}`} point={p} />
-          ))}
-        </>
-      )}
-      {view.topScorers.length > 0 && (
-        <Text style={styles.scorers} numberOfLines={1}>
-          <Text style={styles.sectionLabel}>TOP  </Text>
-          {view.topScorers
-            .map(s => `#${s.jersey}${s.name ? ` ${s.name}` : ''} ${s.points}`)
-            .join('  ·  ')}
-        </Text>
-      )}
+      <Text style={styles.sectionLabel}>ACTIONS · SET {current.setNumber}</Text>
+      {setPoints.map(p => (
+        <PointRow key={`${p.setNumber}-${p.sequence}`} point={p} />
+      ))}
     </View>
   );
 };
@@ -210,9 +211,7 @@ const LiveOverlayScreen = ({ code, view: layout, transparent }: Props) => {
     content = (
       <>
         {layout !== 'graph' && <ScoreBoard view={view} />}
-        {layout !== 'score' && (
-          <SetCurve view={view} size={layout === 'graph' ? GRAPH_SIZE_ALONE : GRAPH_SIZE_FULL} />
-        )}
+        {layout === 'graph' && <SetCurve view={view} size={GRAPH_SIZE_ALONE} />}
         {layout === 'full' && <LastPoints view={view} />}
         {error !== null && <Text style={styles.staleText}>{error}</Text>}
       </>

@@ -66,6 +66,8 @@ export type PublicLiveView = {
     score:      SidesScore;
     serving:    LiveSide | null;
     trajectory: SidesScore[];
+    timeouts:      SidesScore;        // temps morts pris par chaque équipe dans le set en cours
+    activeTimeout: LiveSide | null;   // dernier event du set = temps mort de cette équipe
   } | null;
   sets:       { setNumber: number; score: SidesScore; wonBy: LiveSide | null }[];
   lastPoints: PublicLivePoint[];

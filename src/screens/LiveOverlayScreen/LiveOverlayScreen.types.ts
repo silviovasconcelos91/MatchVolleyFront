@@ -1,4 +1,4 @@
-// view=score : bandeau score seul · view=graph : courbe seule · view=full : tout (défaut)
+// view=score : bandeau score seul · view=graph : courbe seule · view=full : score + derniers points (défaut, sans courbe)
 export type OverlayView = 'score' | 'graph' | 'full';
 
 export type LiveOverlayRoute = {
