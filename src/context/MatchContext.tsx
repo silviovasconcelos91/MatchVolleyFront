@@ -313,7 +313,8 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
 
       // newLiberoId fourni → remplace le libero désigné (désignation initiale ou entre sets)
       const resolvedOriginalLiberoId = newLiberoId !== undefined ? newLiberoId : state.originalLiberoId;
-      const effectiveLiberoId = liberoActive ? resolvedOriginalLiberoId : null;
+      const liberoAllowed = FORMAT_CONFIG[state.format].libero;
+      const effectiveLiberoId = liberoActive && liberoAllowed ? resolvedOriginalLiberoId : null;
 
       const updatedPlayers = state.matchPlayers.map(p => {
         if (p.id === effectiveLiberoId) {
@@ -365,7 +366,7 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       let newOpponentServing = state.opponentServing;
 
       if (mine && state.opponentServing) {
-        if (state.autoRotateEnabled) {
+        if (state.autoRotateEnabled && FORMAT_CONFIG[state.format].rotation) {
           const rotatedPlayers = applyRotation(state.matchPlayers);
           const result = applyAutoLiberoSwap(state.liberoReplacements, rotatedPlayers);
           finalPlayers = result.players;
@@ -444,7 +445,7 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
       let newOpponentServing = state.opponentServing;
 
       if (state.opponentServing) {
-        if (state.autoRotateEnabled) {
+        if (state.autoRotateEnabled && FORMAT_CONFIG[state.format].rotation) {
           const rotatedPlayers = applyRotation(state.matchPlayers);
           const result = applyAutoLiberoSwap(state.liberoReplacements, rotatedPlayers);
           finalPlayers = result.players;
@@ -543,6 +544,7 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
     case ACTION_TYPES.ROTATE: {
       // Règle officielle : chaque poste -1, poste 1 revient à 6.
       // On applique aussi le swap libéro auto pour la parité avec la rotation auto.
+      if (!FORMAT_CONFIG[state.format].rotation) return state; // 4x4 : placement fixe
       const rotatedPlayers = applyRotation(state.matchPlayers);
       const result = applyAutoLiberoSwap(state.liberoReplacements, rotatedPlayers);
       return {
@@ -553,9 +555,11 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
     }
 
     case ACTION_TYPES.TOGGLE_AUTO_ROTATE:
+      if (!FORMAT_CONFIG[state.format].rotation) return state;
       return { ...state, autoRotateEnabled: !state.autoRotateEnabled };
 
     case ACTION_TYPES.LIBERO_SWAP: {
+      if (!FORMAT_CONFIG[state.format].libero) return state;
       const { liberoId } = action.payload;
       const libero = state.matchPlayers.find(p => p.id === liberoId);
       if (!libero) return state;
