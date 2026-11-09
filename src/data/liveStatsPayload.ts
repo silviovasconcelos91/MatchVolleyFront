@@ -86,15 +86,23 @@ function serializeEvent(e: LiveStatEvent, sequence: number): LiveStatEventPayloa
 // Métadonnées du match fournies par l'appelant (le reste est dérivé des événements).
 export type LiveStatsMatchMeta = Pick<MatchLiveStatsPayload, 'matchId' | 'teamId' | 'teamName' | 'title' | 'venue'>;
 
+type BuildOptions = {
+  // Set encore en cours (diffusion live) : toujours inclus, même vide, avec wonBy = null
+  // pour que le backend ne le compte pas dans setsWon.
+  ongoingSet?: number | null;
+};
+
 export function buildLiveStatsPayload(
   meta: LiveStatsMatchMeta,
   sets: Record<number, LiveStatEvent[]>,
+  options: BuildOptions = {},
 ): MatchLiveStatsPayload {
+  const ongoingSet = options.ongoingSet ?? null;
   let setsWonMine = 0, setsWonOpp = 0;
 
   const setsPayload: SetPayload[] = Object.entries(sets)
     .map(([key, events]) => [Number(key), events] as [number, LiveStatEvent[]])
-    .filter(([, events]) => events.length > 0)
+    .filter(([setNumber, events]) => events.length > 0 || setNumber === ongoingSet)
     .sort(([a], [b]) => a - b)
     .map(([setNumber, events]) => {
       let mine = 0, opp = 0;
@@ -105,7 +113,8 @@ export function buildLiveStatsPayload(
         return s;
       });
       const wonBy: 'mine' | 'opp' | null =
-        mine > opp ? 'mine' : opp > mine ? 'opp' : null;
+        setNumber === ongoingSet ? null
+        : mine > opp ? 'mine' : opp > mine ? 'opp' : null;
       if (wonBy === 'mine') setsWonMine++;
       else if (wonBy === 'opp') setsWonOpp++;
       return { setNumber, scoreTeam: mine, scoreOpp: opp, wonBy, events: serialized };

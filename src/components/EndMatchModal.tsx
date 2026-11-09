@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'rea
 import { useMatch } from '../context/MatchContext';
 import { useTeam } from '../context/TeamContext';
 import { useLiveStats } from '../context/LiveStatsContext';
+import { useLiveBroadcast } from '../context/LiveBroadcastContext';
 import { submitMatch } from '../data/matchApi';
 import { flattenSets } from '../data/liveStats';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
@@ -17,6 +18,7 @@ const EndMatchModal = ({ visible, onClose }: Props) => {
   const { state: matchState, actions: matchActions } = useMatch();
   const { state: teamState, actions: teamActions }   = useTeam();
   const liveSets = useLiveStats().state.sets;
+  const broadcast = useLiveBroadcast();
 
   const [sending, setSending] = useState(false);
   const [error, setError]     = useState<string | null>(null);
@@ -36,8 +38,15 @@ const EndMatchModal = ({ visible, onClose }: Props) => {
     setSending(true);
     setError(null);
 
-    submitMatch(matchState, selectedTeam, liveSets)
+    const liveSessionId = broadcast.session?.sessionId;
+
+    // Dernier snapshot pour l'overlay (sets terminés), puis soumission finale
+    // qui lie la session au match et la passe en ENDED côté backend.
+    broadcast.actions.flush()
+      .catch(() => {})
+      .then(() => submitMatch(matchState, selectedTeam, liveSets, liveSessionId))
       .then(() => {
+        broadcast.actions.detach();
         matchActions.resetMatch();
         teamActions.clearTeam();
       })
@@ -45,7 +54,7 @@ const EndMatchModal = ({ visible, onClose }: Props) => {
         setSending(false);
         setError('Échec de l\'envoi. Vérifier la connexion et réessayer.');
       });
-  }, [liveSets, selectedTeam, matchState, matchActions, teamActions]);
+  }, [liveSets, selectedTeam, matchState, matchActions, teamActions, broadcast]);
 
   const handleClose = useCallback(() => {
     if (sending) return;

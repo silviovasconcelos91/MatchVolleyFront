@@ -19,6 +19,10 @@
       "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
     },
     {
+      "source": "/live/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+    },
+    {
       "source": "/manifest.json",
       "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
     }

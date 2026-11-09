@@ -15,6 +15,8 @@ import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 import EndMatchModal from './EndMatchModal';
 import ResetConfirmModal from './ResetConfirmModal';
 import ForceEndSetModal from './ForceEndSetModal';
+import LiveBroadcastModal, { SYNC_STATUS_COLOR } from './LiveBroadcastModal';
+import { useLiveBroadcast } from '../context/LiveBroadcastContext';
 
 type Props = { onRosterPress?: () => void };
 
@@ -27,6 +29,9 @@ const ScoreHeader = ({ onRosterPress }: Props) => {
   const [resetModalVisible, setResetModalVisible] = useState(false);
   const [malusTarget, setMalusTarget] = useState<'me' | 'opp' | null>(null);
   const [forceEndVisible, setForceEndVisible] = useState(false);
+  const [liveModalVisible, setLiveModalVisible] = useState(false);
+  const { session: liveSession, syncStatus } = useLiveBroadcast();
+  const liveDotColor = liveSession ? SYNC_STATUS_COLOR[syncStatus] : COLORS.textDark;
   const malusEnabled = rosterValidated && !setBannerVisible;
   const forceEndEnabled = rosterValidated && !setBannerVisible;
   const malusMaxAmount: 1 | 2 = (mySets === 2 && oppSets === 2) ? 1 : 2;
@@ -69,6 +74,16 @@ const ScoreHeader = ({ onRosterPress }: Props) => {
 
         {rosterValidated && (
           <TouchableOpacity
+            style={[styles.liveBtn, liveSession && styles.liveBtnActive]}
+            onPress={() => setLiveModalVisible(true)}
+          >
+            <View style={[styles.liveDot, { backgroundColor: liveDotColor }]} />
+            <Text style={[styles.liveBtnText, liveSession && styles.liveBtnTextActive]}>LIVE</Text>
+          </TouchableOpacity>
+        )}
+
+        {rosterValidated && (
+          <TouchableOpacity
             style={styles.endBtn}
             onPress={() => setEndModalVisible(true)}
           >
@@ -80,6 +95,10 @@ const ScoreHeader = ({ onRosterPress }: Props) => {
       <EndMatchModal
         visible={endModalVisible}
         onClose={() => setEndModalVisible(false)}
+      />
+      <LiveBroadcastModal
+        visible={liveModalVisible}
+        onClose={() => setLiveModalVisible(false)}
       />
       <ResetConfirmModal
         visible={resetModalVisible}
@@ -187,6 +206,35 @@ const styles = StyleSheet.create({
   rosterBtnText: {
     fontSize: FONT_SIZE.sm,
     color: COLORS.textMuted,
+  },
+
+  liveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 3,
+  },
+  liveBtnActive: {
+    borderColor: `${COLORS.green}55`,
+    backgroundColor: `${COLORS.green}18`,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: RADIUS.full,
+  },
+  liveBtnText: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.textMuted,
+    letterSpacing: 0.5,
+  },
+  liveBtnTextActive: {
+    color: COLORS.greenLight,
+    fontWeight: '600',
   },
 
   endBtn: {

@@ -55,6 +55,8 @@ import LiveStatsSummaryScreen from './src/screens/LiveStatsSummaryScreen';
 import LiveMatchAnalysisScreen from './src/screens/LiveMatchAnalysisScreen';
 import LivePositionSetupTab from './src/screens/LivePositionSetupTab';
 import { LiveStatsProvider } from './src/context/LiveStatsContext';
+import { LiveBroadcastProvider } from './src/context/LiveBroadcastContext';
+import LiveOverlayScreen, { getLiveOverlayRoute } from './src/screens/LiveOverlayScreen';
 
 // Thème
 import { COLORS, SPACING, FONT_SIZE } from './src/constants/theme';
@@ -287,47 +289,49 @@ const AppContent = () => {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bgCard} />
       <LiveStatsProvider>
-        {setSetupPending ? (
-          <SetSetupScreen />
-        ) : (
-          <>
-            <ScoreHeader onRosterPress={() => setRosterOverlayVisible(true)} />
-            <SetBanner />
-            {rosterOverlayVisible ? (
-              <View style={styles.screenContainer}>
-                <RosterScreen onClose={() => setRosterOverlayVisible(false)} />
-              </View>
-            ) : (
-              <>
-                <View style={styles.tabBar}>
-                  {LIVE_TABS.map(t => {
-                    const isActive = t.id === liveTab;
-                    return (
-                      <TouchableOpacity
-                        key={t.id}
-                        style={styles.tabItem}
-                        onPress={() => setLiveTab(t.id)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.tabLabel, isActive && { color: t.activeColor, fontWeight: '500' }]}>
-                          {t.label}
-                        </Text>
-                        <View style={[styles.tabIndicator, isActive && { backgroundColor: t.activeColor }]} />
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
+        <LiveBroadcastProvider>
+          {setSetupPending ? (
+            <SetSetupScreen />
+          ) : (
+            <>
+              <ScoreHeader onRosterPress={() => setRosterOverlayVisible(true)} />
+              <SetBanner />
+              {rosterOverlayVisible ? (
                 <View style={styles.screenContainer}>
-                  {liveTab === 'live'     && <LiveStatsScreen team={selectedTeam} />}
-                  {liveTab === 'position' && <PositionScreen />}
-                  {liveTab === 'setup'    && <LivePositionSetupTab />}
-                  {liveTab === 'graph'    && <GraphScreen />}
-                  {liveTab === 'stats'    && <LiveStatsSummaryScreen />}
+                  <RosterScreen onClose={() => setRosterOverlayVisible(false)} />
                 </View>
-              </>
-            )}
-          </>
-        )}
+              ) : (
+                <>
+                  <View style={styles.tabBar}>
+                    {LIVE_TABS.map(t => {
+                      const isActive = t.id === liveTab;
+                      return (
+                        <TouchableOpacity
+                          key={t.id}
+                          style={styles.tabItem}
+                          onPress={() => setLiveTab(t.id)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={[styles.tabLabel, isActive && { color: t.activeColor, fontWeight: '500' }]}>
+                            {t.label}
+                          </Text>
+                          <View style={[styles.tabIndicator, isActive && { backgroundColor: t.activeColor }]} />
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  <View style={styles.screenContainer}>
+                    {liveTab === 'live'     && <LiveStatsScreen team={selectedTeam} />}
+                    {liveTab === 'position' && <PositionScreen />}
+                    {liveTab === 'setup'    && <LivePositionSetupTab />}
+                    {liveTab === 'graph'    && <GraphScreen />}
+                    {liveTab === 'stats'    && <LiveStatsSummaryScreen />}
+                  </View>
+                </>
+              )}
+            </>
+          )}
+        </LiveBroadcastProvider>
       </LiveStatsProvider>
     </SafeAreaView>
   );
@@ -336,7 +340,15 @@ const AppContent = () => {
 // ── Point d'entrée avec les Providers ──
 // TeamProvider  : charge les équipes et gère la sélection
 // MatchProvider : gère l'état du match en cours
+// Route web publique `/live/{code}` (overlay OBS) : lue une fois au chargement.
+const liveOverlayRoute = getLiveOverlayRoute();
+
 export default function App() {
+  // Overlay public : aucune auth, aucun provider de match.
+  if (liveOverlayRoute) {
+    return <LiveOverlayScreen {...liveOverlayRoute} />;
+  }
+
   return (
     <SafeAreaProvider>
       <AuthProvider>

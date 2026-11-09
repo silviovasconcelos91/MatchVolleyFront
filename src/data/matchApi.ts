@@ -52,9 +52,12 @@ export const getPlayerSeasonStats = async (
 };
 
 
+// liveSessionId (optionnel) : le backend lie la session de diffusion au match et la passe en ENDED.
+type LiveStatsSubmission = MatchLiveStatsPayload & { liveSessionId?: string };
+
 export const sendLiveStats = async (
   matchId: string,
-  payload: MatchLiveStatsPayload,
+  payload: LiveStatsSubmission,
 ): Promise<void> => {
   const { error } = await client.post({
     url: '/api/v1/matches/{matchId}/live-stats',
@@ -92,6 +95,7 @@ export const submitMatch = (
   matchState: MatchState,
   team: Team,
   liveSets: Record<number, LiveStatEvent[]>,
+  liveSessionId?: string,
 ): Promise<void> => {
   const matchId = String(Date.now());
   const payload = buildLiveStatsPayload({
@@ -102,5 +106,5 @@ export const submitMatch = (
     title:    matchState.matchName ?? '',
     venue:    matchState.isHome ? 'home' : 'away',
   }, liveSets);
-  return sendLiveStats(matchId, payload);
+  return sendLiveStats(matchId, liveSessionId ? { ...payload, liveSessionId } : payload);
 };

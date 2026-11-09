@@ -111,3 +111,12 @@ export const FONT_SIZE = {
   xxl:  18,
   score:50,  // taille du score affiché
 };
+
+// ── Overlay live public (conçu pour 1920×1080, mis à l'échelle à l'affichage) ──
+export const OVERLAY_FONT_SIZE = {
+  sm:    16,
+  md:    20,
+  lg:    26,
+  xl:    34,
+  score: 56,
+};

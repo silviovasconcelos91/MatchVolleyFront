@@ -5,6 +5,7 @@ import { useMatch } from '../context/MatchContext';
 import type { MatchHistoryEvent } from '../context/MatchContext';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 import { useContentWidth } from '../hooks/useContentWidth';
+import PointsCurve from '../components/PointsCurve';
 
 const PAD = 30;
 
@@ -96,58 +97,12 @@ const GraphScreen = () => {
 
       {/* ── Graphe SVG ── */}
       <View style={styles.graphWrapper}>
-        <Svg width={GRAPH_SIZE} height={GRAPH_SIZE}>
-
-          <Rect
-            x={toX(0)} y={toY(0)}
-            width={toX(maxVal) - toX(0)}
-            height={toY(0) - toY(maxVal)}
-            fill={COLORS.green}
-            fillOpacity={0.04}
-          />
-
-          {axisLabels.map(v => (
-            <React.Fragment key={`grid-${v}`}>
-              <Line x1={toX(v)} y1={toY(0)} x2={toX(v)} y2={toY(maxVal)} stroke={COLORS.border} strokeWidth={0.5} />
-              <Line x1={toX(0)} y1={toY(v)} x2={toX(maxVal)} y2={toY(v)} stroke={COLORS.border} strokeWidth={0.5} />
-            </React.Fragment>
-          ))}
-
-          <Line x1={toX(25)} y1={toY(0)} x2={toX(25)} y2={toY(maxVal)} stroke={COLORS.blue} strokeWidth={1} strokeDasharray="4,4" strokeOpacity={0.3} />
-          <Line x1={toX(0)} y1={toY(25)} x2={toX(maxVal)} y2={toY(25)} stroke={COLORS.blue} strokeWidth={1} strokeDasharray="4,4" strokeOpacity={0.3} />
-          <Line x1={toX(0)} y1={toY(0)} x2={toX(maxVal)} y2={toY(maxVal)} stroke={COLORS.textMuted} strokeWidth={1} strokeDasharray="6,4" strokeOpacity={0.4} />
-
-          {axisLabels.map(v => (
-            <SvgText key={`xlabel-${v}`} x={toX(v)} y={GRAPH_SIZE - 6} textAnchor="middle" fontSize={9} fill={COLORS.textMuted}>{v}</SvgText>
-          ))}
-          {axisLabels.map(v => (
-            <SvgText key={`ylabel-${v}`} x={PAD - 4} y={toY(v) + 3} textAnchor="end" fontSize={9} fill={COLORS.textMuted}>{v}</SvgText>
-          ))}
-
-          <SvgText x={GRAPH_SIZE / 2} y={GRAPH_SIZE} textAnchor="middle" fontSize={9} fill={COLORS.blue}>Mon équipe</SvgText>
-
-          {points.length > 1 && (
-            <Polyline points={polylinePoints} fill="none" stroke={COLORS.blue} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-          )}
-
-          {points.map((pt, i) => {
-            if (i === 0) return null;
-            const prev = points[i - 1];
-            if (pt.y <= prev.y) return null;
-            return <Circle key={`adv-${i}`} cx={toX(pt.x)} cy={toY(pt.y)} r={3} fill={COLORS.pink} />;
-          })}
-
-          {points.length > 0 && (() => {
-            const last = points[points.length - 1];
-            return (
-              <>
-                <Circle cx={toX(last.x)} cy={toY(last.y)} r={5} fill={COLORS.blue} />
-                <Circle cx={toX(last.x)} cy={toY(last.y)} r={2.5} fill={COLORS.bgApp} />
-              </>
-            );
-          })()}
-
-        </Svg>
+        <PointsCurve
+          points={points}
+          size={GRAPH_SIZE}
+          pad={PAD}
+          finalScore={displayScore}
+        />
       </View>
 
       {/* ── Légende ── */}
