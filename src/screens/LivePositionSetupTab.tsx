@@ -71,10 +71,14 @@ const LivePositionSetupTab = () => {
         {MINE_ROWS.map((row, ri) => (
           <View key={ri} style={styles.row}>
             {row.map(pos => {
+              // 4x4 : zones hors format → case vide invisible (comme SetSetupScreen)
+              if (!cfg.slots.includes(pos)) return <View key={pos} style={styles.cellSpacer} />;
               const playerId = positionMap[pos];
               const player   = playerId !== undefined ? playerById[playerId] : undefined;
               const isSelected = selectedPos === pos;
-              const color = player ? getPositionColor(player.tacticalRole) : COLORS.textDark;
+              // 4x4 : le poste suit la case, dès l'aperçu
+              const role  = player ? cfg.slotRoles[pos] ?? player.tacticalRole : '';
+              const color = player ? getPositionColor(role) : COLORS.textDark;
               return (
                 <TouchableOpacity
                   key={pos}
@@ -95,8 +99,8 @@ const LivePositionSetupTab = () => {
                         {player.name.split(' ')[0]}
                       </Text>
                       <Text style={styles.playerNum}>#{player.numero}</Text>
-                      {player.tacticalRole ? (
-                        <Text style={[styles.playerRole, { color }]}>{player.tacticalRole}</Text>
+                      {role ? (
+                        <Text style={[styles.playerRole, { color }]}>{role}</Text>
                       ) : null}
                     </>
                   ) : (
@@ -152,6 +156,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: SPACING.xs,
     gap: 2,
+  },
+  cellSpacer: {
+    flex: 1,
   },
   cellSelected: {
     borderColor: COLORS.yellow,
