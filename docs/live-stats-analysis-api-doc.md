@@ -144,6 +144,9 @@ Chaque combinaison unique de `(playerPosition, from, to, result)` devient une en
       { "myScore": 1,  "oppScore": 0, "playerId": 3,    "action": "attack_pt", "occurredAt": "2026-06-05T14:45:01.000Z" },
       { "myScore": 1,  "oppScore": 1, "playerId": null,  "action": "attack_pt", "occurredAt": "2026-06-05T14:45:09.000Z" },
       { "myScore": 2,  "oppScore": 1, "playerId": 5,    "action": "ace",       "occurredAt": "2026-06-05T14:45:16.000Z" }
+    ],
+    "timeouts": [
+      { "team": "opp", "afterPoint": 3, "myScore": 2, "oppScore": 1, "occurredAt": "2026-06-05T14:45:20.000Z" }
     ]
   }
 ]
@@ -160,6 +163,25 @@ Chaque combinaison unique de `(playerPosition, from, to, result)` devient une en
 | `occurredAt` | `string` ISO 8601 | Timestamp |
 
 > Tracer `myScore` et `oppScore` en fonction de l'index pour la courbe de progression.
+
+#### `timeouts` — repères de temps morts sur le graphe
+
+```json
+"timeouts": [
+  { "team": "opp",  "afterPoint": 14, "myScore": 9,  "oppScore": 5,  "occurredAt": "2026-06-05T14:52:10.000Z" },
+  { "team": "mine", "afterPoint": 22, "myScore": 12, "oppScore": 10, "occurredAt": "2026-06-05T14:58:41.000Z" }
+]
+```
+
+| Champ | Type | Description |
+|---|---|---|
+| `team` | `"mine"` \| `"opp"` | Équipe qui a demandé le temps mort |
+| `afterPoint` | `number` | Nombre de points déjà joués dans le set au moment de l'appel. Le repère se place **après** `timeline[afterPoint - 1]` (`0` = avant le premier point) |
+| `myScore` | `number` | Score équipe au moment de l'appel |
+| `oppScore` | `number` | Score adversaire au moment de l'appel |
+| `occurredAt` | `string` ISO 8601 | Timestamp |
+
+> Liste vide si aucun temps mort. Deux temps morts peuvent avoir le même `afterPoint` (les deux équipes pendant le même arrêt de jeu).
 
 ---
 
@@ -179,6 +201,7 @@ Chaque combinaison unique de `(playerPosition, from, to, result)` devient une en
     "setStats": [
       {
         "setNumber": 1,
+        "poste": "R4",
         "stats": {
           "actions": { ... },
           "acesByZone": [ ... ],
@@ -196,6 +219,7 @@ Chaque combinaison unique de `(playerPosition, from, to, result)` devient une en
 
 - `matchStats` = stats du joueur agrégées sur tout le match
 - `setStats` = breakdown par set (uniquement les sets où le joueur a agi)
+- `setStats[].poste` = poste du joueur dans le set (`R4`, `Central`, `Passeur`, `Pointu`, `Libero`), lu dans `player.poste` des events live du set. `null` si non renseigné
 - Seuls les joueurs `team == "mine"` apparaissent
 
 ---
@@ -257,6 +281,9 @@ Chaque combinaison unique de `(playerPosition, from, to, result)` devient une en
           { "myScore": 4, "oppScore": 0, "playerId": 3,    "action": "relance_pt", "occurredAt": "2026-06-05T14:45:22.000Z" },
           { "myScore": 4, "oppScore": 1, "playerId": null, "action": "attack_pt",  "occurredAt": "2026-06-05T14:45:30.000Z" },
           { "myScore": 4, "oppScore": 2, "playerId": null, "action": "attack_pt",  "occurredAt": "2026-06-05T14:45:38.000Z" }
+        ],
+        "timeouts": [
+          { "team": "opp",  "afterPoint": 4, "myScore": 4, "oppScore": 0, "occurredAt": "2026-06-05T14:45:25.000Z" }
         ]
       }
     ],
@@ -387,6 +414,14 @@ interface TimelineEntry {
   occurredAt: string;  // ISO 8601
 }
 
+interface Timeout {
+  team: 'mine' | 'opp';
+  afterPoint: number;  // repère après timeline[afterPoint - 1]
+  myScore: number;
+  oppScore: number;
+  occurredAt: string;  // ISO 8601
+}
+
 interface SetAnalysis {
   setNumber: number;
   myScore: number;
@@ -394,10 +429,12 @@ interface SetAnalysis {
   wonBy: 'mine' | 'opp' | null;
   stats: ScopeStats;
   timeline: TimelineEntry[];
+  timeouts: Timeout[];
 }
 
 interface PlayerSetStats {
   setNumber: number;
+  poste: "R4" | "Central" | "Passeur" | "Pointu" | "Libero" | null;
   stats: ScopeStats;
 }
 
@@ -422,6 +459,7 @@ interface LiveMatchAnalysis {
 ## Notes frontend
 
 - **Graphe progression set** : `sets[n].timeline` — tracer `myScore` / `oppScore` par index
+- **Temps morts** : `sets[n].timeouts` — tracer un repère vertical entre `timeline[afterPoint - 1]` et `timeline[afterPoint]`, couleur selon `team`. Les temps morts n'apparaissent ni dans `timeline` ni dans les stats d'actions
 - **`playerId: null` dans timeline** = point adverse (faute ou attaque adverse)
 - **Actions manquantes** : si un type d'action n'a pas été réalisé, il n'apparaît pas dans la liste (pas d'entrée count=0)
 - **`attacks`** : regroupées par combinaison unique `(playerPosition, from, to, result)`. Utiliser pour une heatmap de trajectoires ou un tableau position × zone

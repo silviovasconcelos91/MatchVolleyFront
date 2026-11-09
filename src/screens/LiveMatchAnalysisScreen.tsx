@@ -5,9 +5,24 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getLiveMatchAnalysis } from '../data/matchApi';
-import type { LiveMatchAnalysis, ActionCount } from '../data/liveStatsAnalysis';
+import type { LiveMatchAnalysis, ActionCount, SetTimeout } from '../data/liveStatsAnalysis';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 import SetGraph from '../components/SetGraph';
+import { markerColor } from '../components/PointsCurve';
+
+// Ligne « Temps mort » du journal du set (couleur = repère du graphe).
+const TimeoutJournalRow = React.memo(({ timeout }: { timeout: SetTimeout }) => {
+  const color = markerColor(timeout.team);
+  return (
+    <View style={[styles.journalRow, { borderLeftWidth: 3, borderLeftColor: color }]}>
+      <Text style={styles.journalScore}>{timeout.myScore}–{timeout.oppScore}</Text>
+      <Text style={[styles.journalAction, { color }]}>⏱ Temps mort</Text>
+      <Text style={styles.journalPlayer} numberOfLines={1}>
+        {timeout.team === 'mine' ? 'Mon équipe' : 'Adversaire'}
+      </Text>
+    </View>
+  );
+});
 
 type Props = {
   matchId: string;
@@ -273,10 +288,13 @@ const SetsTab = ({ data }: SetsTabProps) => {
                       timeline={set.timeline}
                       finalMyScore={set.myScore}
                       finalOppScore={set.oppScore}
+                      timeouts={set.timeouts}
                     />
 
                     <Text style={[styles.timelineLabel, { marginTop: SPACING.md }]}>JOURNAL DU SET</Text>
                     {set.timeline.map((entry, i) => {
+                      // Temps morts placés avant ce point (après timeline[i - 1]).
+                      const timeoutsBefore = (set.timeouts ?? []).filter(t => t.afterPoint === i);
                       const isMine      = entry.playerId !== null;
                       const scored      = i === 0
                         ? entry.myScore > 0
@@ -290,8 +308,11 @@ const SetsTab = ({ data }: SetsTabProps) => {
                       const actionLabel = LIVE_ACTION_LABELS[entry.action] ?? entry.action;
                       const borderColor = scored ? COLORS.green : COLORS.red;
                       return (
+                        <React.Fragment key={i}>
+                        {timeoutsBefore.map((t, ti) => (
+                          <TimeoutJournalRow key={`tm${ti}`} timeout={t} />
+                        ))}
                         <View
-                          key={i}
                           style={[
                             styles.journalRow,
                             isMine ? styles.journalRowMine : styles.journalRowOpp,
@@ -313,8 +334,13 @@ const SetsTab = ({ data }: SetsTabProps) => {
                           </Text>
                           <Text style={styles.journalPlayer} numberOfLines={1}>{playerName}</Text>
                         </View>
+                        </React.Fragment>
                       );
                     })}
+                    {/* Temps morts après le dernier point */}
+                    {(set.timeouts ?? [])
+                      .filter(t => t.afterPoint >= set.timeline.length)
+                      .map((t, ti) => <TimeoutJournalRow key={`tm-end${ti}`} timeout={t} />)}
                   </View>
                 )}
               </View>

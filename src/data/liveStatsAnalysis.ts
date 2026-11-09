@@ -39,6 +39,15 @@ export type TimelineEntry = {
   occurredAt: string;
 };
 
+// Temps mort : repère placé après timeline[afterPoint - 1] (0 = avant le premier point).
+export type SetTimeout = {
+  team: 'mine' | 'opp';
+  afterPoint: number;
+  myScore: number;
+  oppScore: number;
+  occurredAt: string;
+};
+
 export type SetAnalysis = {
   setNumber: number;
   myScore: number;
@@ -46,6 +55,7 @@ export type SetAnalysis = {
   wonBy: 'mine' | 'opp' | null;
   stats: ScopeStats;
   timeline: TimelineEntry[];
+  timeouts?: SetTimeout[]; // optionnel : absent sur un backend antérieur aux temps morts
 };
 
 export type PlayerSetStats = {

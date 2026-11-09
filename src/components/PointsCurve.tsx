@@ -12,6 +12,12 @@ import { COLORS } from '../constants/theme';
 
 export type CurvePoint = { x: number; y: number };
 
+// Repère ponctuel sur la courbe (ex. temps mort) au score (x, y).
+export type CurveMarker = CurvePoint & { team: 'mine' | 'opp' };
+
+export const markerColor = (team: CurveMarker['team']): string =>
+  team === 'mine' ? COLORS.yellow : COLORS.pink;
+
 type Props = {
   points:     CurvePoint[];   // commence par { x: 0, y: 0 }
   size:       number;         // côté du carré SVG
@@ -21,11 +27,12 @@ type Props = {
   dotRadius?: number;
   lineWidth?: number;
   bgColor?:   string;         // fond du point courant (trou du "donut")
+  markers?:   CurveMarker[];  // temps morts : carré coloré selon l'équipe qui l'a demandé
 };
 
 const PointsCurve = ({
   points, size, pad, finalScore,
-  fontSize = 9, dotRadius = 3, lineWidth = 2, bgColor = COLORS.bgApp,
+  fontSize = 9, dotRadius = 3, lineWidth = 2, bgColor = COLORS.bgApp, markers = [],
 }: Props) => {
   const maxVal = Math.max(25, finalScore.my + 3, finalScore.opp + 3);
   const toX = (v: number) => pad + (v / maxVal) * (size - pad * 2);
@@ -80,6 +87,25 @@ const PointsCurve = ({
         const prev = points[i - 1];
         if (pt.y <= prev.y) return null;
         return <Circle key={`a${i}`} cx={toX(pt.x)} cy={toY(pt.y)} r={dotRadius} fill={COLORS.pink} />;
+      })}
+
+      {/* Temps morts : carré cerclé au score de l'appel (décalé si les deux équipes au même score) */}
+      {markers.map((m, i) => {
+        const half = dotRadius * 1.6;
+        const sameSpot = markers.findIndex(o => o.x === m.x && o.y === m.y);
+        const offset = sameSpot === i ? 0 : half * 1.4;
+        const cx = toX(m.x) + offset;
+        const cy = toY(m.y) - offset;
+        return (
+          <Rect
+            key={`tm${i}`}
+            x={cx - half} y={cy - half}
+            width={half * 2} height={half * 2}
+            fill={bgColor}
+            stroke={markerColor(m.team)}
+            strokeWidth={lineWidth}
+          />
+        );
       })}
 
       {/* Dernier point */}
