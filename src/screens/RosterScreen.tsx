@@ -6,6 +6,7 @@ import {
 import { useMatch } from '../context/MatchContext';
 import { useTeam } from '../context/TeamContext';
 import type { Player } from '../data/players';
+import { FORMAT_CONFIG } from '../data/matchFormat';
 import { getPlayerColor } from '../constants/theme';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 import PlayerAvatar from '../components/PlayerAvatar';
@@ -18,10 +19,11 @@ type PlayerRowProps = {
   canAddTerrain: boolean;
   canAddLibero: boolean;
   liberoLocked: boolean;
+  showLibero: boolean;
   onSelect: (id: number, next: PlayerState) => void;
 };
 
-const PlayerRow = memo(({ player, state, canAddTerrain, canAddLibero, liberoLocked, onSelect }: PlayerRowProps) => {
+const PlayerRow = memo(({ player, state, canAddTerrain, canAddLibero, liberoLocked, showLibero, onSelect }: PlayerRowProps) => {
   const color     = getPlayerColor(player.id);
   const isTerrain = state === 'terrain';
   const isBanc    = state === 'banc';
@@ -72,14 +74,16 @@ const PlayerRow = memo(({ player, state, canAddTerrain, canAddLibero, liberoLock
           <Text style={[styles.stateBtnText, isBanc && styles.stateBtnTextBanc]}>Banc</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.stateBtn, isLibero && styles.stateBtnLibero, liberoDisabled && styles.stateBtnLocked]}
-          onPress={() => onSelect(player.id, isLibero ? 'none' : 'libero')}
-          disabled={liberoDisabled || (!isLibero && !canAddLibero)}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.stateBtnText, isLibero && styles.stateBtnTextLibero]}>Libero</Text>
-        </TouchableOpacity>
+        {showLibero && (
+          <TouchableOpacity
+            style={[styles.stateBtn, isLibero && styles.stateBtnLibero, liberoDisabled && styles.stateBtnLocked]}
+            onPress={() => onSelect(player.id, isLibero ? 'none' : 'libero')}
+            disabled={liberoDisabled || (!isLibero && !canAddLibero)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.stateBtnText, isLibero && styles.stateBtnTextLibero]}>Libero</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -117,8 +121,9 @@ const RosterScreen = ({ onClose }: Props) => {
   const liberoCount  = liberoIds.length;
   // Locked once roster confirmed — free changes before that
   const liberoLocked  = rosterValidated;
-  const canAddLibero  = !rosterValidated && liberoCount < 2;
-  const canValidate   = terrainCount === 6 && !rosterValidated;
+  const cfg           = FORMAT_CONFIG[matchState.format];
+  const canAddLibero  = cfg.libero && !rosterValidated && liberoCount < 2;
+  const canValidate   = terrainCount === cfg.courtSize && !rosterValidated;
 
   const handleSelect = useCallback((id: number, next: PlayerState) => {
     if (rosterValidated) return;
@@ -143,12 +148,13 @@ const RosterScreen = ({ onClose }: Props) => {
     <PlayerRow
       player={item}
       state={playerStates[item.id] ?? 'none'}
-      canAddTerrain={!rosterValidated && terrainCount < 6}
+      canAddTerrain={!rosterValidated && terrainCount < cfg.courtSize}
       canAddLibero={canAddLibero}
       liberoLocked={liberoLocked}
+      showLibero={cfg.libero}
       onSelect={handleSelect}
     />
-  ), [playerStates, terrainCount, canAddLibero, liberoLocked, rosterValidated, handleSelect]);
+  ), [playerStates, terrainCount, canAddLibero, liberoLocked, rosterValidated, handleSelect, cfg]);
 
   const header = (
     <>
@@ -160,15 +166,19 @@ const RosterScreen = ({ onClose }: Props) => {
 
       <View style={styles.counter}>
         <Text style={styles.counterText}>
-          <Text style={terrainCount === 6 ? styles.counterOk : styles.counterWarn}>
-            Terrain {terrainCount}/6
+          <Text style={terrainCount === cfg.courtSize ? styles.counterOk : styles.counterWarn}>
+            Terrain {terrainCount}/{cfg.courtSize}
           </Text>
           {'  ·  '}
           <Text style={styles.counterNeutral}>Banc {benchIds.length}</Text>
-          {'  ·  '}
-          <Text style={liberoCount > 0 ? styles.counterLibero : styles.counterNeutral}>
-            Libero {liberoCount}/2{liberoLocked ? ' 🔒' : ''}
-          </Text>
+          {cfg.libero && (
+            <>
+              {'  ·  '}
+              <Text style={liberoCount > 0 ? styles.counterLibero : styles.counterNeutral}>
+                Libero {liberoCount}/2{liberoLocked ? ' 🔒' : ''}
+              </Text>
+            </>
+          )}
         </Text>
       </View>
 

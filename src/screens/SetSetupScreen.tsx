@@ -19,7 +19,7 @@ import {
   StyleSheet, ScrollView,
 } from 'react-native';
 import { useMatch } from '../context/MatchContext';
-import { INITIAL_POSITIONS, COURT_DISPLAY_ORDER } from '../data/players';
+import { FORMAT_CONFIG } from '../data/matchFormat';
 import { getPositionColor, COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 import PlayerAvatar from '../components/PlayerAvatar';
 
@@ -31,13 +31,18 @@ const SetSetupScreen = () => {
   const { state, actions } = useMatch();
   const { originalStarterIds, originalLiberoId, availableLiberoIds, matchPlayers, setNum, lastSetStartPositionMap, setResults } = state;
 
+  // Format du match : taille du terrain, grille, postes fixés par case (4x4)
+  const cfg = FORMAT_CONFIG[state.format];
+  const fixedRoles = Object.keys(cfg.slotRoles).length > 0;
+  const gridCells = useMemo(() => cfg.gridRows.flat(), [cfg]);
+
   // ── positionMap : pos (1-6) → playerId ──
   const [positionMap, setPositionMap] = useState<Record<number, number>>(() => {
-    if (Object.keys(lastSetStartPositionMap).length === 6) return lastSetStartPositionMap;
+    if (Object.keys(lastSetStartPositionMap).length === cfg.courtSize) return lastSetStartPositionMap;
 
     const map: Record<number, number> = {};
     originalStarterIds.forEach((id, index) => {
-      if (index < INITIAL_POSITIONS.length) map[INITIAL_POSITIONS[index]] = id;
+      if (index < cfg.slots.length) map[cfg.slots[index]] = id;
     });
     return map;
   });
@@ -77,8 +82,10 @@ const SetSetupScreen = () => {
 
   // ── Joueurs effectivement sur le terrain (dans l'ordre d'affichage) ──
   const courtPlayerIds = useMemo(
-    () => COURT_DISPLAY_ORDER.map(pos => positionMap[pos]).filter((id): id is number => id !== undefined),
-    [positionMap],
+    () => gridCells
+      .map(pos => (pos === null ? undefined : positionMap[pos]))
+      .filter((id): id is number => id !== undefined),
+    [gridCells, positionMap],
   );
 
   // ── Tap sur une case du terrain ──
@@ -132,8 +139,23 @@ const SetSetupScreen = () => {
 
   // ── Confirmer et démarrer le set ──
   const handleConfirm = useCallback(() => {
-    actions.assignSetRoles({ positionMap, tacticalRoles, liberoActive, opponentServesFirst });
-  }, [actions, positionMap, tacticalRoles, liberoActive, opponentServesFirst]);
+    if (!fixedRoles) {
+      actions.assignSetRoles({ positionMap, tacticalRoles, liberoActive, opponentServesFirst });
+      return;
+    }
+    // 4x4 : le poste découle de la case
+    const slotTacticalRoles: Record<number, string> = {};
+    Object.entries(positionMap).forEach(([zone, playerId]) => {
+      const role = cfg.slotRoles[Number(zone)];
+      if (role) slotTacticalRoles[playerId] = role;
+    });
+    actions.assignSetRoles({
+      positionMap,
+      tacticalRoles: slotTacticalRoles,
+      liberoActive: false,
+      opponentServesFirst,
+    });
+  }, [actions, positionMap, tacticalRoles, liberoActive, opponentServesFirst, fixedRoles, cfg]);
 
   // ── Libero (infos pour affichage) ──
   const liberoPlayer = originalLiberoId !== null
@@ -170,7 +192,7 @@ const SetSetupScreen = () => {
     return { counts, missing, valid: missing.length === 0 };
   }, [courtPlayerIds, tacticalRoles]);
 
-  const canStart = courtCount === 6 && roleValidation.valid;
+  const canStart = courtCount === cfg.courtSize && (fixedRoles || roleValidation.valid);
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -185,7 +207,9 @@ const SetSetupScreen = () => {
         <Text style={styles.headerSet}>SET {setNum}</Text>
         <Text style={styles.headerTitle}>Configuration de l'équipe</Text>
         <Text style={styles.headerHint}>
-          Place 6 joueurs sur le terrain et assigne les rôles
+          {fixedRoles
+            ? `Place ${cfg.courtSize} joueurs sur le terrain`
+            : `Place ${cfg.courtSize} joueurs sur le terrain et assigne les rôles`}
         </Text>
 
         <View style={styles.serveToggle}>
@@ -220,7 +244,7 @@ const SetSetupScreen = () => {
           <Text style={{ color: gridHintColor }}>{gridHint}</Text>
           {'  ·  '}
           <Text style={{ color: canStart ? COLORS.green : COLORS.yellow }}>
-            {courtCount}/6
+            {courtCount}/{cfg.courtSize}
           </Text>
         </Text>
 
@@ -230,14 +254,17 @@ const SetSetupScreen = () => {
           <Text style={styles.netLabel}>FILET</Text>
         </View>
 
-        {/* Grille 3×2 : positions 4,3,2 (avant) puis 5,6,1 (arrière) */}
+        {/* Grille 3×2 : avant 4,3,2 puis arrière (6x6 : 5,6,1 · 4x4 : passeur seul en 6) */}
         <View style={styles.grid}>
-          {COURT_DISPLAY_ORDER.map(pos => {
+          {gridCells.map((pos, cellIndex) => {
+            if (pos === null) return <View key={`spacer-${cellIndex}`} style={styles.cell} />;
+            const slotRole  = cfg.slotRoles[pos];
             const playerId  = positionMap[pos];
             const player    = playerId !== undefined
               ? matchPlayers.find(p => p.id === playerId)
               : null;
-            const color = player ? getPositionColor(tacticalRoles[player.id] ?? '') : COLORS.border;
+            const cellRole  = slotRole ?? (player ? tacticalRoles[player.id] ?? '' : '');
+            const color = player || slotRole ? getPositionColor(cellRole) : COLORS.border;
             const isSelected = swapFromPos === pos;
             const isTarget   = selectedBenchId !== null; // toutes les cases sont des cibles
 
@@ -272,10 +299,10 @@ const SetSetupScreen = () => {
                     <Text style={styles.cellName} numberOfLines={1}>
                       {player.name.split(' ')[0]}
                     </Text>
-                    {tacticalRoles[player.id] ? (
+                    {cellRole ? (
                       <View style={[styles.roleBadge, { borderColor: `${color}55`, backgroundColor: `${color}18` }]}>
                         <Text style={[styles.roleBadgeText, { color }]}>
-                          {tacticalRoles[player.id]}
+                          {cellRole}
                         </Text>
                       </View>
                     ) : null}
@@ -286,7 +313,7 @@ const SetSetupScreen = () => {
                     styles.cellEmpty,
                     isTarget && { color: COLORS.green },
                   ]}>
-                    P{pos}
+                    {slotRole ? `${slotRole} · Z${pos}` : `P${pos}`}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -298,7 +325,8 @@ const SetSetupScreen = () => {
         <Text style={styles.longPressHint}>Appui long sur un joueur → le retirer du terrain</Text>
       </View>
 
-      {/* ── Postes tactiques ── */}
+      {/* ── Postes tactiques (6x6 uniquement — en 4x4 le poste découle de la case) ── */}
+      {!fixedRoles && (
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>
           POSTES TACTIQUES{'  ·  '}
@@ -374,6 +402,7 @@ const SetSetupScreen = () => {
           );
         })}
       </View>
+      )}
 
       {/* ── Banc disponible ── */}
       {benchPlayers.length > 0 && (
@@ -441,8 +470,8 @@ const SetSetupScreen = () => {
         <Text style={styles.confirmBtnText}>
           {canStart
             ? `Démarrer le Set ${setNum} →`
-            : courtCount < 6
-            ? `${courtCount}/6 joueurs placés`
+            : courtCount < cfg.courtSize
+            ? `${courtCount}/${cfg.courtSize} joueurs placés`
             : `Postes incomplets`}
         </Text>
       </TouchableOpacity>
