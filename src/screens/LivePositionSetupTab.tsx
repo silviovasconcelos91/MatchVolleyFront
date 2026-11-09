@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useMatch } from '../context/MatchContext';
 import type { MatchPlayer } from '../context/MatchContext';
 import { MINE_ROWS } from '../data/liveStats';
+import { FORMAT_CONFIG } from '../data/matchFormat';
 import { getPositionColor, COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 
 // Position map (zone → player id) from current on-court players, libero excluded.
@@ -17,6 +18,7 @@ const buildPositionMap = (players: MatchPlayer[], liberoId: number | null): Reco
 const LivePositionSetupTab = () => {
   const { state, actions } = useMatch();
   const { matchPlayers, liberoId, opponentServing } = state;
+  const cfg = FORMAT_CONFIG[state.format];
 
   // Seeded once from the court; edited locally until confirm.
   const [positionMap, setPositionMap] = useState(() => buildPositionMap(matchPlayers, liberoId));
@@ -29,6 +31,7 @@ const LivePositionSetupTab = () => {
   }, [matchPlayers]);
 
   const handleTap = useCallback((pos: number) => {
+    if (!cfg.slots.includes(pos)) return; // 4x4 : zones 1 et 5 inutilisées
     if (selectedPos === null) { setSelectedPos(pos); return; }
     setSelectedPos(null);
     if (selectedPos === pos) return;
@@ -41,18 +44,23 @@ const LivePositionSetupTab = () => {
       if (b !== undefined) next[selectedPos] = b; else delete next[selectedPos];
       return next;
     });
-  }, [selectedPos]);
+  }, [selectedPos, cfg]);
 
   const handleConfirm = useCallback(() => {
     const tacticalRoles: Record<number, string> = {};
     for (const p of matchPlayers) tacticalRoles[p.id] = p.tacticalRole;
+    // 4x4 : le poste suit la case
+    for (const [zone, playerId] of Object.entries(positionMap)) {
+      const slotRole = cfg.slotRoles[Number(zone)];
+      if (slotRole) tacticalRoles[playerId] = slotRole;
+    }
     actions.assignSetRoles({
       positionMap,
       tacticalRoles,
-      liberoActive: liberoId !== null,
+      liberoActive: liberoId !== null && cfg.libero,
       opponentServesFirst: opponentServing,
     });
-  }, [actions, positionMap, matchPlayers, liberoId, opponentServing]);
+  }, [actions, positionMap, matchPlayers, liberoId, opponentServing, cfg]);
 
   return (
     <View style={styles.root}>

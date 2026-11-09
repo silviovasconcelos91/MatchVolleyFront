@@ -28,6 +28,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 // Contextes globaux
 import { MatchProvider, useMatch } from './src/context/MatchContext';
+import { FORMAT_CONFIG } from './src/data/matchFormat';
 import { TeamProvider, useTeam } from './src/context/TeamContext';
 
 // Composants permanents (toujours visibles pendant le match)
@@ -114,7 +115,12 @@ const AppContent = () => {
   const [homeVisible, setHomeVisible] = useState(true);
   const [rosterOverlayVisible, setRosterOverlayVisible] = useState(false);
   const [playerMgmtVisible, setPlayerMgmtVisible] = useState(false);
-  const [liveTab, setLiveTab] = useState<LiveTabId>('live');
+  const [selectedLiveTab, setLiveTab] = useState<LiveTabId>('live');
+
+  // 4x4 : pas de rotation → pas d'onglet 5-1 (repli sur Saisie si resté sélectionné d'un match 6x6)
+  const rotationEnabled = FORMAT_CONFIG[matchState.format].rotation;
+  const visibleLiveTabs = rotationEnabled ? LIVE_TABS : LIVE_TABS.filter(t => t.id !== 'position');
+  const liveTab: LiveTabId = !rotationEnabled && selectedLiveTab === 'position' ? 'live' : selectedLiveTab;
 
   type StatsStep = 'teamSelection' | 'hub' | 'matchList' | 'matchDetail' | 'playerList' | 'playerDetail';
   const [statsStep, setStatsStep] = useState<StatsStep | null>(null);
@@ -303,7 +309,7 @@ const AppContent = () => {
               ) : (
                 <>
                   <View style={styles.tabBar}>
-                    {LIVE_TABS.map(t => {
+                    {visibleLiveTabs.map(t => {
                       const isActive = t.id === liveTab;
                       return (
                         <TouchableOpacity
