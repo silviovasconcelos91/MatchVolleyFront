@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useReducer } from 'react';
 import { BACK_ROW_POSITIONS } from '../data/players';
 import type { Player, ActionKey, PlayerRole } from '../data/players';
+import { FORMAT_CONFIG } from '../data/matchFormat';
+import type { MatchFormat } from '../data/matchFormat';
 
 const ACTION_TYPES = {
   // Configuration du match
@@ -88,6 +90,7 @@ type SetResult = {
 export type MatchState = {
   matchName: string | null;   // nom du match (ex: "VSL vs Grenoble")
   isHome: boolean | null;     // true = domicile, false = extérieur
+  format: MatchFormat;        // 6x6 ou 4x4 (4x4 = placement fixe, sans rotation ni libéro)
   rosterValidated: boolean;   // true quand l'équipe a été sélectionnée
   setSetupPending: boolean;   // true quand rôles/positions doivent être configurés avant le set
   matchPlayers: MatchPlayer[];
@@ -131,7 +134,7 @@ type AssignSetRolesPayload = {
 };
 
 type MatchAction =
-  | { type: typeof ACTION_TYPES.SETUP_MATCH;       payload: { matchName: string; isHome: boolean } }
+  | { type: typeof ACTION_TYPES.SETUP_MATCH;       payload: { matchName: string; isHome: boolean; format: MatchFormat } }
   | { type: typeof ACTION_TYPES.CLEAR_MATCH_SETUP }
   | { type: typeof ACTION_TYPES.VALIDATE_ROSTER; payload: ValidateRosterPayload }
   | { type: typeof ACTION_TYPES.ASSIGN_SET_ROLES; payload: AssignSetRolesPayload }
@@ -152,7 +155,7 @@ type MatchAction =
 type MatchContextValue = {
   state: MatchState;
   actions: {
-    setupMatch:      (payload: { matchName: string; isHome: boolean }) => void;
+    setupMatch:      (payload: { matchName: string; isHome: boolean; format: MatchFormat }) => void;
     clearMatchSetup: () => void;
     validateRoster:  (payload: ValidateRosterPayload) => void;
     assignSetRoles:  (payload: AssignSetRolesPayload) => void;
@@ -175,6 +178,7 @@ type MatchContextValue = {
 const initialState: MatchState = {
   matchName:           null,
   isHome:              null,
+  format:              '6x6',
   rosterValidated:     false,
   setSetupPending:     false,
   matchPlayers:        [],
@@ -270,6 +274,7 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         ...state,
         matchName: action.payload.matchName,
         isHome:    action.payload.isHome,
+        format:    action.payload.format,
       };
 
     case ACTION_TYPES.CLEAR_MATCH_SETUP:
@@ -277,6 +282,7 @@ function matchReducer(state: MatchState, action: MatchAction): MatchState {
         ...state,
         matchName: null,
         isHome:    null,
+        format:    '6x6',
       };
 
     case ACTION_TYPES.VALIDATE_ROSTER: {

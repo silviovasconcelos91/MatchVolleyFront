@@ -21,7 +21,7 @@ const MatchSetupScreen = ({ onBack }: Props) => {
 
   const handleContinue = () => {
     if (!canContinue) return;
-    actions.setupMatch({ matchName: matchName.trim(), isHome: isHome as boolean });
+    actions.setupMatch({ matchName: matchName.trim(), isHome: isHome as boolean, format: '6x6' });
   };
 
   return (
