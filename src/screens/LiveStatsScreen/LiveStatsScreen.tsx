@@ -7,6 +7,7 @@ import type { LiveTeam, LiveActionKey, LiveActionCategory } from '../../data/liv
 import type { ActionKey } from '../../data/players';
 import { useLiveStats } from '../../context/LiveStatsContext';
 import { useMatch } from '../../context/MatchContext';
+import { FORMAT_CONFIG } from '../../data/matchFormat';
 import { getPositionColor, COLORS } from '../../constants/theme';
 import { styles } from './LiveStatsScreen.styles';
 
@@ -43,16 +44,13 @@ const CATEGORY_COLOR: Record<LiveActionCategory, string> = {
   neutral: COLORS.textMuted,
 };
 
-// Placement adversaire (pas de vraies positions) : jerseys 1-6 répartis sur les zones.
-const ZONE_FILL_ORDER = [4, 3, 2, 5, 6, 1];
-
 // Lignes affichées (haut → bas). Filet au centre du terrain.
 // MINE_ROWS / OPP_ROWS : voir data/liveStats.ts (OPP = miroir horizontal).
 
-
-const buildCourt = (players: CourtPlayer[]): Record<number, CourtPlayer> => {
+// Placement adversaire (pas de vraies positions) : jerseys 1..n répartis selon l'ordre du format.
+const buildCourt = (players: CourtPlayer[], fillOrder: number[]): Record<number, CourtPlayer> => {
   const map: Record<number, CourtPlayer> = {};
-  ZONE_FILL_ORDER.forEach((zone, i) => {
+  fillOrder.forEach((zone, i) => {
     const p = players[i];
     if (p) map[zone] = p;
   });
@@ -63,6 +61,7 @@ const LiveStatsScreen = ({ team }: Props) => {
   const { state, actions } = useLiveStats();
   const { state: matchState, actions: matchActions } = useMatch();
   const { matchPlayers, availableLiberoIds, liberoReplacements, substitutionPairs, subHistory } = matchState;
+  const cfg = FORMAT_CONFIG[matchState.format];
 
   const [target, setTarget] = useState<Target | null>(null);
   const [pendingAction, setPendingAction] = useState<LiveActionKey | null>(null);
@@ -85,15 +84,15 @@ const LiveStatsScreen = ({ team }: Props) => {
   }, [matchPlayers]);
 
   const oppCourt = useMemo(() => {
-    const players: CourtPlayer[] = [1, 2, 3, 4, 5, 6].map(j => ({
-      id: j,
-      jersey: j,
-      name: `Adv #${j}`,
+    const players: CourtPlayer[] = cfg.oppFillOrder.map((_, i) => ({
+      id: i + 1,
+      jersey: i + 1,
+      name: `Adv #${i + 1}`,
       color: COLORS.pink,
       role: '',
     }));
-    return buildCourt(players);
-  }, []);
+    return buildCourt(players, cfg.oppFillOrder);
+  }, [cfg]);
 
   // Joueurs du banc disponibles pour un remplacement (sélectionnés au roster,
   // hors terrain, hors libero).
@@ -347,20 +346,24 @@ const LiveStatsScreen = ({ team }: Props) => {
               }`
             : 'Tape un joueur pour saisir une action'}
         </Text>
-        <View style={styles.autoRotateToggle}>
-          <Text style={styles.autoRotateLabel}>Rotation auto</Text>
-          <Switch
-            value={matchState.autoRotateEnabled}
-            onValueChange={matchActions.toggleAutoRotate}
-          />
-        </View>
-        <TouchableOpacity
-          style={styles.rotateBtn}
-          onPress={() => matchActions.rotate()}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.rotateBtnText}>↻</Text>
-        </TouchableOpacity>
+        {cfg.rotation && (
+          <>
+            <View style={styles.autoRotateToggle}>
+              <Text style={styles.autoRotateLabel}>Rotation auto</Text>
+              <Switch
+                value={matchState.autoRotateEnabled}
+                onValueChange={matchActions.toggleAutoRotate}
+              />
+            </View>
+            <TouchableOpacity
+              style={styles.rotateBtn}
+              onPress={() => matchActions.rotate()}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.rotateBtnText}>↻</Text>
+            </TouchableOpacity>
+          </>
+        )}
         <TouchableOpacity
           style={[styles.undoBtn, curSetEvents.length === 0 && styles.undoBtnDisabled]}
           onPress={handleUndo}
