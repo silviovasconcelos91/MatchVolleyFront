@@ -6,6 +6,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMatch } from '../context/MatchContext';
+import { FORMAT_CONFIG, MATCH_FORMATS } from '../data/matchFormat';
+import type { MatchFormat } from '../data/matchFormat';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../constants/theme';
 
 type Props = {
@@ -16,12 +18,13 @@ const MatchSetupScreen = ({ onBack }: Props) => {
   const { actions } = useMatch();
   const [matchName, setMatchName] = useState('');
   const [isHome, setIsHome]       = useState<boolean | null>(null);
+  const [format, setFormat]       = useState<MatchFormat>('6x6');
 
   const canContinue = matchName.trim().length > 0 && isHome !== null;
 
   const handleContinue = () => {
     if (!canContinue) return;
-    actions.setupMatch({ matchName: matchName.trim(), isHome: isHome as boolean, format: '6x6' });
+    actions.setupMatch({ matchName: matchName.trim(), isHome: isHome as boolean, format });
   };
 
   return (
@@ -82,6 +85,23 @@ const MatchSetupScreen = ({ onBack }: Props) => {
                 Extérieur
               </Text>
             </TouchableOpacity>
+          </View>
+
+          {/* ── Format 6x6 / 4x4 ── */}
+          <Text style={[styles.label, { marginTop: SPACING.xl }]}>FORMAT</Text>
+          <View style={styles.toggleRow}>
+            {MATCH_FORMATS.map(f => (
+              <TouchableOpacity
+                key={f}
+                style={[styles.toggleBtn, format === f && styles.toggleBtnActive]}
+                onPress={() => setFormat(f)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.toggleText, format === f && styles.toggleTextActive]}>
+                  {FORMAT_CONFIG[f].label}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
           {/* ── Bouton continuer ── */}
