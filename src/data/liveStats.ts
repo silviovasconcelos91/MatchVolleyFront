@@ -93,7 +93,7 @@ export type LiveStatEvent = {
   team: LiveTeam;
   playerId: number;       // id joueur (mine) ou numéro maillot (opp)
   jersey: number;         // numéro affiché
-  playerName: string;     // nom (mine) ou "Adv #N" (opp)
+  playerName: string;     // nom (mine) ou "Adversaire" (opp, joueur unique)
   actionKey: LiveActionKey;
   zone: number | null;       // zone d'arrivée 1-6 ou null
   zoneStart: number | null;  // zone de départ 1-6 ou null (attaques)

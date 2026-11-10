@@ -34,7 +34,7 @@ function guessOpponentName(title: string, teamName: string): string {
 const sideColor = (side: LiveSide): string => (side === 'mine' ? COLORS.green : COLORS.pink);
 
 const playerLabel = (p: PublicLivePoint): string => {
-  if (p.team === 'opp') return `Adv #${p.player.jersey}`;
+  if (p.team === 'opp') return 'Adversaire';
   return p.player.name ? `#${p.player.jersey} ${p.player.name}` : `#${p.player.jersey}`;
 };
 

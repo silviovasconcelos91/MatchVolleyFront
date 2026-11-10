@@ -138,12 +138,12 @@ const LiveStatsSummaryScreen = () => {
                   activeOpacity={0.7}
                 >
                   <View style={[styles.playerNumBadge, { borderColor: `${accent}66`, backgroundColor: `${accent}1a` }]}>
-                    <Text style={[styles.playerNum, { color: accent }]}>{p.jersey}</Text>
+                    <Text style={[styles.playerNum, { color: accent }]}>{activeTeam === 'opp' ? 'ADV' : p.jersey}</Text>
                   </View>
                   <View style={styles.playerBody}>
                     <View style={styles.playerHeader}>
                       <Text style={styles.playerName} numberOfLines={1}>
-                        {activeTeam === 'opp' ? `Adversaire #${p.jersey}` : p.name}
+                        {activeTeam === 'opp' ? 'Adversaire' : p.name}
                       </Text>
                       <Text style={styles.playerScore}>
                         <Text style={{ color: COLORS.green }}>{p.points} pt</Text>

@@ -31,7 +31,8 @@ const MINE_ACTION_MAP: Partial<Record<LiveActionKey, ActionKey>> = {
 
 type CourtPlayer = { id: number; jersey: number; name: string; color: string; role: string };
 
-type Target = { team: LiveTeam; player: CourtPlayer; pos: number };
+// pos : zone du joueur (null pour l'adversaire, qui n'a pas de position).
+type Target = { team: LiveTeam; player: CourtPlayer; pos: number | null };
 
 const CATEGORY_ORDER: LiveActionCategory[] = ['point', 'fault', 'neutral'];
 
@@ -50,15 +51,11 @@ const CATEGORY_COLOR: Record<LiveActionCategory, string> = {
 // Lignes affichées (haut → bas). Filet au centre du terrain.
 // MINE_ROWS / OPP_ROWS : voir data/liveStats.ts (OPP = miroir horizontal).
 
-// Placement adversaire (pas de vraies positions) : jerseys 1..n répartis selon l'ordre du format.
-const buildCourt = (players: CourtPlayer[], fillOrder: number[]): Record<number, CourtPlayer> => {
-  const map: Record<number, CourtPlayer> = {};
-  fillOrder.forEach((zone, i) => {
-    const p = players[i];
-    if (p) map[zone] = p;
-  });
-  return map;
-};
+// L'équipe adverse est saisie comme un joueur unique (pas de détail par joueur).
+const OPPONENT: CourtPlayer = { id: 1, jersey: 1, name: 'Adversaire', color: COLORS.pink, role: '' };
+
+// Demi-terrain adverse affiché uniquement pendant le choix de zone (cases sans joueur).
+const NO_PLAYERS: Record<number, CourtPlayer> = {};
 
 const LiveStatsScreen = ({ team }: Props) => {
   const { state, actions } = useLiveStats();
@@ -86,17 +83,6 @@ const LiveStatsScreen = ({ team }: Props) => {
     });
     return map;
   }, [matchPlayers]);
-
-  const oppCourt = useMemo(() => {
-    const players: CourtPlayer[] = cfg.oppFillOrder.map((_, i) => ({
-      id: i + 1,
-      jersey: i + 1,
-      name: `Adv #${i + 1}`,
-      color: COLORS.pink,
-      role: '',
-    }));
-    return buildCourt(players, cfg.oppFillOrder);
-  }, [cfg]);
 
   // Joueurs du banc disponibles pour un remplacement (sélectionnés au roster,
   // hors terrain, hors libero).
@@ -268,7 +254,7 @@ const LiveStatsScreen = ({ team }: Props) => {
         activeOpacity={0.7}
       >
         <Text style={[styles.courtName, { color: player.color }]} numberOfLines={1} adjustsFontSizeToFit>
-          {courtTeam === 'opp' ? `Adv.` : player.name.split(' ')[0]}
+          {player.name.split(' ')[0]}
         </Text>
         <Text style={styles.courtNum}>#{player.jersey}</Text>
         {courtTeam === 'mine' && player.role ? (
@@ -289,20 +275,35 @@ const LiveStatsScreen = ({ team }: Props) => {
           if (pendingAction) record(pendingAction, zone, zoneStart);
         }}
       >
-        {/* Demi-terrain adverse (haut) */}
-        <View style={[styles.half, styles.halfTop]}>
-          <Text style={[styles.halfLabel, { color: COLORS.pink }]}>ADVERSAIRE</Text>
-          {OPP_ROWS.map((row, i) => (
-            <View key={`opp-${i}`} style={styles.courtRow}>
-              {row.map(zone => renderCell('opp', oppCourt, zone))}
+        {pendingAction !== null ? (
+          <>
+            {/* Choix de zone : demi-terrain adverse (haut), même géométrie que CourtGestureLayer */}
+            <View style={[styles.half, styles.halfTop]}>
+              <Text style={[styles.halfLabel, { color: COLORS.pink }]}>ADVERSAIRE</Text>
+              {OPP_ROWS.map((row, i) => (
+                <View key={`opp-${i}`} style={styles.courtRow}>
+                  {row.map(zone => renderCell('opp', NO_PLAYERS, zone))}
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
-
-        <View style={styles.net} />
+            <View style={styles.net} />
+          </>
+        ) : (
+          <>
+            {/* Adversaire = un seul joueur : ouvre la même fenêtre d'actions */}
+            <TouchableOpacity
+              style={styles.oppBtn}
+              onPress={() => setTarget({ team: 'opp', player: OPPONENT, pos: null })}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.oppBtnText}>Adversaire</Text>
+            </TouchableOpacity>
+            <View style={styles.net} />
+          </>
+        )}
 
         {/* Demi-terrain mon équipe (bas) */}
-        <View style={[styles.half, styles.halfBottom]}>
+        <View style={[styles.half, pendingAction !== null ? styles.halfBottom : styles.halfFull]}>
           {MINE_ROWS.map((row, i) => (
             <View key={`mine-${i}`} style={styles.courtRow}>
               {row.map(zone => renderCell('mine', myCourt, zone))}
@@ -387,7 +388,7 @@ const LiveStatsScreen = ({ team }: Props) => {
           {last && isTimeout(last)
             ? `Temps mort — ${last.playerName}`
             : last
-            ? `${last.team === 'opp' ? `Adv #${last.jersey}` : last.playerName} — ${LIVE_ACTION_BY_KEY[last.actionKey].label}${
+            ? `${last.playerName} — ${LIVE_ACTION_BY_KEY[last.actionKey].label}${
                 last.zoneStart !== null && last.zone !== null
                   ? ` (Z${last.zoneStart}→Z${last.zone})`
                   : last.zone !== null
@@ -428,7 +429,7 @@ const LiveStatsScreen = ({ team }: Props) => {
       {target !== null && pendingAction === null && (
         <View style={styles.actionOverlay}>
           <Text style={styles.modalTitle}>
-            {target.team === 'opp' ? `Adversaire #${target.player.jersey}` : target.player.name}
+            {target.player.name}
           </Text>
           <View style={styles.actionGroups}>
             {CATEGORY_ORDER.map(cat => {

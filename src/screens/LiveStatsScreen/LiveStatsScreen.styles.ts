@@ -57,6 +57,26 @@ export const styles = StyleSheet.create({
     borderBottomLeftRadius: RADIUS.lg,
     borderBottomRightRadius: RADIUS.lg,
   },
+  // Hors choix de zone : mon demi-terrain occupe tout le terrain
+  halfFull: {
+    borderRadius: RADIUS.lg,
+  },
+  // Bouton unique « Adversaire » (remplace le demi-terrain adverse)
+  oppBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: `${COLORS.pink}88`,
+    backgroundColor: `${COLORS.pink}1a`,
+  },
+  oppBtnText: {
+    fontSize: FONT_SIZE.xl,
+    fontWeight: '700',
+    letterSpacing: 1,
+    color: COLORS.pink,
+  },
   halfLabel: {
     fontSize: FONT_SIZE.xs,
     letterSpacing: 1,
