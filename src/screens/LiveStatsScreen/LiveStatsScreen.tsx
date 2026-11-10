@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Switch } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Switch, Modal } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import CoachBoardScreen from '../CoachBoardScreen';
 import CourtGestureLayer from './CourtGestureLayer';
 import TimeoutBar, { timeoutTeamLabel } from './TimeoutBar';
 import type { Team } from '../../data/teams';
@@ -67,6 +69,7 @@ const LiveStatsScreen = ({ team }: Props) => {
   const [target, setTarget] = useState<Target | null>(null);
   const [pendingAction, setPendingAction] = useState<LiveActionKey | null>(null);
   const [subFor, setSubFor] = useState<CourtPlayer | null>(null);
+  const [boardOpen, setBoardOpen] = useState(false);
 
   // Joueurs sur le terrain : positions réelles issues du roster/SetSetup (MatchContext).
   const myCourt = useMemo(() => {
@@ -327,8 +330,32 @@ const LiveStatsScreen = ({ team }: Props) => {
         </View>
       )}
 
-      {/* ── Temps morts : bouton par équipe + compte à rebours 30 s ── */}
-      <TimeoutBar teamName={team.name} setEvents={curSetEvents} onTimeout={handleTimeout} />
+      {/* ── Temps morts (bouton par équipe + compte à rebours 30 s) + board entraîneur ── */}
+      <View style={styles.timeoutRow}>
+        <View style={styles.timeoutBarWrap}>
+          <TimeoutBar teamName={team.name} setEvents={curSetEvents} onTimeout={handleTimeout} />
+        </View>
+        <TouchableOpacity
+          style={styles.boardBtn}
+          onPress={() => setBoardOpen(true)}
+          accessibilityLabel="Ouvrir le board entraîneur"
+          activeOpacity={0.7}
+        >
+          <Text style={styles.boardBtnText}>▦ Board</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* ── Board entraîneur (plein écran, rotation libre) ── */}
+      <Modal
+        visible={boardOpen}
+        animationType="slide"
+        supportedOrientations={['portrait', 'landscape']}
+        onRequestClose={() => setBoardOpen(false)}
+      >
+        <SafeAreaProvider>
+          <CoachBoardScreen onClose={() => setBoardOpen(false)} />
+        </SafeAreaProvider>
+      </Modal>
 
       {/* ── Libéros : faire entrer / sortir un des deux libéros ── */}
       {availableLiberoIds.length > 0 && (

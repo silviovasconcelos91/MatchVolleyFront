@@ -4,7 +4,8 @@ const config: ExpoConfig = {
   name: 'matchvolley',
   slug: 'matchvolley',
   version: '1.0.0',
-  orientation: 'portrait',
+  // 'default' : le board entraîneur peut passer en paysage ; App.tsx verrouille le reste en portrait.
+  orientation: 'default',
   icon: './assets/icon.png',
   userInterfaceStyle: 'light',
   splash: {
@@ -14,6 +15,7 @@ const config: ExpoConfig = {
   },
   ios: {
     supportsTablet: true,
+    requireFullScreen: true, // requis sur iPad pour verrouiller l'orientation à l'exécution
   },
   android: {
     package: 'com.vasconcelos.matchvolley',

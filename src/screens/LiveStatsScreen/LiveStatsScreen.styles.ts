@@ -113,6 +113,31 @@ export const styles = StyleSheet.create({
   },
 
   // ── Barre libéros ──
+  // Temps morts + bouton board entraîneur
+  timeoutRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  timeoutBarWrap: {
+    flex: 1,
+  },
+  boardBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.lg,
+    marginBottom: SPACING.xs,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: `${COLORS.blue}88`,
+    backgroundColor: `${COLORS.blue}1a`,
+  },
+  boardBtnText: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '700',
+    color: COLORS.blue,
+  },
   liberoBar: {
     flexDirection: 'row',
     gap: SPACING.sm,

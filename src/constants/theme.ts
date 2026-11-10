@@ -37,6 +37,13 @@ export const COLORS = {
 
   // ── Blanc pur pour le fond du point actif graphe ──
   dot:          '#0d1b2a',
+
+  // ── Board entraîneur (terrain dessiné) ──
+  courtFreeZone: '#1f4e79',  // zone libre autour du terrain
+  courtFloor:    '#c8743c',  // demi-terrain de mon équipe
+  courtFloorOpp: '#a96234',  // demi-terrain adverse (plus sombre)
+  courtLine:     '#ffffff',  // lignes, filet, trait blanc du crayon
+  scrim:         'rgba(5,12,20,0.72)', // voile sous les feuilles modales
 };
 
 // Palette de couleurs pour distinguer les joueurs

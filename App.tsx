@@ -23,8 +23,10 @@ import {
   StatusBar,
   StyleSheet,
   BackHandler,
+  Platform,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import * as ScreenOrientation from 'expo-screen-orientation';
 
 // Contextes globaux
 import { MatchProvider, useMatch } from './src/context/MatchContext';
@@ -350,6 +352,12 @@ const AppContent = () => {
 const liveOverlayRoute = getLiveOverlayRoute();
 
 export default function App() {
+  // L'app est en portrait ; seul le board entraîneur débloque la rotation (voir CoachBoardScreen).
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => undefined);
+  }, []);
+
   // Overlay public : aucune auth, aucun provider de match.
   if (liveOverlayRoute) {
     return <LiveOverlayScreen {...liveOverlayRoute} />;
