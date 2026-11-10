@@ -53,7 +53,7 @@
     "coords": {
       "S":   { "x": 0.50, "y": 0.07, "pinRole": "setter"   },
       "MB2": { "x": 0.50, "y": 0.75, "pinRole": "receiver"      },
-      "MB1": { "x": 0.15, "y": 0.07, "pinRole": "net"      },
+      "MB1": { "x": 0.55, "y": 0.10, "pinRole": "net"      },
       "OH2": { "x": 0.85, "y": 0.75, "pinRole": "receiver" },
       "OPP": { "x": 0.60, "y": 0.80, "pinRole": "net"      },
       "OH1": { "x": 0.15, "y": 0.70, "pinRole": "receiver" }
