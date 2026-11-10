@@ -1,11 +1,6 @@
 import { Platform, StyleSheet } from 'react-native';
 import { COLORS, SPACING, FONT_SIZE, RADIUS } from '../../constants/theme';
 
-// Dimensions de la scène (px)
-export const BENCH_SIZE = 56;        // hauteur (portrait) / largeur (paysage) du banc
-export const BENCH_LABEL_SIZE = 48;  // place réservée au libellé « BANC »
-export const STAGE_GAP = SPACING.sm;
-
 const liftedShadow = Platform.select({
   android: { elevation: 8 },
   default: {
@@ -48,42 +43,17 @@ export const stageStyles = StyleSheet.create({
   discTextOpp: {
     color: COLORS.textPrimary,
   },
-  role: {
+  // Nom du joueur sous le pion
+  name: {
+    maxWidth: '100%',
     marginTop: 2,
     paddingHorizontal: 5,
     borderRadius: RADIUS.sm,
     overflow: 'hidden',
-    fontSize: FONT_SIZE.xs,
+    fontSize: FONT_SIZE.sm,
     fontWeight: '700',
     color: COLORS.textPrimary,
     backgroundColor: `${COLORS.bgApp}e0`,
-  },
-  bench: {
-    position: 'absolute',
-    backgroundColor: COLORS.bgCard,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.lg,
-  },
-  benchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: SPACING.md,
-  },
-  benchColumn: {
-    alignItems: 'center',
-    paddingTop: SPACING.md,
-  },
-  benchLabel: {
-    fontSize: FONT_SIZE.sm,
-    fontWeight: '700',
-    letterSpacing: 1,
-    color: COLORS.textSecondary,
-  },
-  benchHint: {
-    marginLeft: SPACING.xl,
-    fontSize: FONT_SIZE.md,
-    color: COLORS.textMuted,
   },
 });
 

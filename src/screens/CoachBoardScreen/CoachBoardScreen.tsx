@@ -38,7 +38,7 @@ const TOOLS: { id: BoardTool; label: string; icon: IconName }[] = [
 ];
 
 const TOOL_HINT: Record<BoardTool, string> = {
-  move:   'Glissez un joueur · déposez-le sur le banc pour le sortir',
+  move:   'Glissez un joueur pour le placer',
   pen:    'Crayon : dessinez librement sur le terrain',
   arrow:  'Flèche : glissez du départ vers l’arrivée',
   eraser: 'Gomme : touchez ou frottez un trait pour le supprimer',
@@ -55,10 +55,6 @@ const STROKE_WIDTHS: { width: number; label: string }[] = [
   { width: 3, label: 'Trait fin' },
   { width: 6, label: 'Trait épais' },
 ];
-
-const ROLE_ABBR: Record<string, string> = {
-  Passeur: 'P', R4: 'R4', Central: 'C', Pointu: 'Pt', Libero: 'L',
-};
 
 const CoachBoardScreen = ({ onClose }: Props) => {
   const { state: matchState } = useMatch();
@@ -77,20 +73,23 @@ const CoachBoardScreen = ({ onClose }: Props) => {
     };
   }, []);
 
-  // ── Pions : mon roster + adversaires génériques numérotés comme dans la saisie live ──
+  // ── Pions : mes joueurs sur le terrain (pas de banc) + adversaires génériques
+  //    numérotés comme dans la saisie live ──
   const tokens: BoardToken[] = useMemo(() => {
-    const mine: BoardToken[] = matchPlayers.map(p => ({
-      id: p.id,
-      team: 'mine',
-      label: String(p.numero),
-      role: ROLE_ABBR[p.tacticalRole] ?? '',
-      color: getPositionColor(p.tacticalRole),
-    }));
+    const mine: BoardToken[] = matchPlayers
+      .filter(p => p.onCourt && p.pos !== null)
+      .map(p => ({
+        id: p.id,
+        team: 'mine',
+        label: String(p.numero),
+        name: p.name.split(' ')[0] ?? p.name,
+        color: getPositionColor(p.tacticalRole),
+      }));
     const opp: BoardToken[] = cfg.oppFillOrder.map((_, i) => ({
       id: -(i + 1),
       team: 'opp',
       label: String(i + 1),
-      role: '',
+      name: '',
       color: COLORS.borderLight,
     }));
     return [...mine, ...opp];

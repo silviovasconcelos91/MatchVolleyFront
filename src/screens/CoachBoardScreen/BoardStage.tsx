@@ -1,7 +1,6 @@
-// Board entraîneur : scène interactive (terrain + banc + pions + dessins).
+// Board entraîneur : scène interactive (terrain + pions + dessins).
 // Un seul PanResponder couvre toute la scène ; tous les enfants sont en
-// pointerEvents="none" et les contacts sont résolus par calcul géométrique,
-// ce qui permet de glisser un pion du banc vers le terrain (et inversement).
+// pointerEvents="none" et les contacts sont résolus par calcul géométrique.
 
 import React, { useRef, useState } from 'react';
 import { View, Text, PanResponder, StyleSheet } from 'react-native';
@@ -9,11 +8,11 @@ import type { GestureResponderEvent, LayoutChangeEvent } from 'react-native';
 import Svg, { Rect as SvgRect, Line, Circle, Path, Polygon, G, ClipPath, Defs, Text as SvgText } from 'react-native-svg';
 import { COLORS } from '../../constants/theme';
 import {
-  WINDOW_FULL, WINDOW_HALF, makeViewport, toScreen, toCourt, clampToWindow, inRect, distToSegment,
+  WINDOW_FULL, WINDOW_HALF, makeViewport, toScreen, toCourt, clampToWindow, distToSegment,
 } from './boardGeometry';
 import type { Rect, Viewport } from './boardGeometry';
 import type { BoardContent, BoardToken, BoardTool, CourtPoint, Orientation, Stroke } from './CoachBoardScreen.types';
-import { stageStyles as styles, BENCH_SIZE, BENCH_LABEL_SIZE, STAGE_GAP } from './CoachBoardScreen.styles';
+import { stageStyles as styles } from './CoachBoardScreen.styles';
 
 type Props = {
   content: BoardContent;
@@ -27,13 +26,12 @@ type Props = {
 };
 
 type Gesture =
-  | { kind: 'drag'; tokenId: number; x: number; y: number; fromBench: boolean }
+  | { kind: 'drag'; tokenId: number; x: number; y: number }
   | { kind: 'draw'; stroke: Omit<Stroke, 'id'> }
   | { kind: 'erase'; ids: number[] };
 
 type Placed = { token: BoardToken; x: number; y: number };
 
-const BENCH_TOKEN_R = 16;
 const MIN_PEN_STEP_PX = 3;
 const MIN_ARROW_PX = 12;
 const ERASE_TOLERANCE_PX = 14;
@@ -46,7 +44,7 @@ type TokenProps = { token: BoardToken; x: number; y: number; r: number; lifted?:
 const TokenView = React.memo(({ token, x, y, r, lifted = false, ghost = false }: TokenProps) => {
   const isOpp = token.team === 'opp';
   const size = r * 2;
-  const boxW = Math.max(size, 48); // laisse la place au badge de poste sous le pion
+  const boxW = Math.max(size, 76); // laisse la place au nom sous le pion
   return (
     <View style={[styles.token, { left: x - boxW / 2, top: y - r, width: boxW }, ghost && styles.tokenGhost]}>
       <View
@@ -61,7 +59,7 @@ const TokenView = React.memo(({ token, x, y, r, lifted = false, ghost = false }:
           {token.label}
         </Text>
       </View>
-      {token.role !== '' && r >= 16 && <Text style={styles.role}>{token.role}</Text>}
+      {token.name !== '' && <Text style={styles.name} numberOfLines={1}>{token.name}</Text>}
     </View>
   );
 });
@@ -200,14 +198,8 @@ const BoardStage = ({ content, tokens, showOpp, orientation, tool, color, stroke
   };
 
   // ── Géométrie de la scène ──
-  const isPortrait = orientation === 'portrait';
-  const bench: Rect = isPortrait
-    ? { x: 0, y: size.h - BENCH_SIZE, w: size.w, h: BENCH_SIZE }
-    : { x: size.w - BENCH_SIZE, y: 0, w: BENCH_SIZE, h: size.h };
-  const court: Rect = isPortrait
-    ? { x: 0, y: 0, w: size.w, h: Math.max(0, size.h - BENCH_SIZE - STAGE_GAP) }
-    : { x: 0, y: 0, w: Math.max(0, size.w - BENCH_SIZE - STAGE_GAP), h: size.h };
-  const full = !isPortrait || showOpp;
+  const court: Rect = { x: 0, y: 0, w: size.w, h: size.h };
+  const full = orientation === 'landscape' || showOpp;
   const win = full ? WINDOW_FULL : WINDOW_HALF;
   const vp = makeViewport(court, orientation, win);
   const r = tokenRadius(vp.scale);
@@ -222,15 +214,6 @@ const BoardStage = ({ content, tokens, showOpp, orientation, tool, color, stroke
     onCourt.push({ token, x: s.x, y: s.y });
   });
 
-  const benchTokens = tokens.filter(t => t.team === 'mine' && !content.positions[t.id]);
-  const benchAvail = (isPortrait ? bench.w : bench.h) - BENCH_LABEL_SIZE - 8;
-  const benchStep = benchTokens.length > 0 ? Math.min(42, benchAvail / benchTokens.length) : 0;
-  const benchSlots: Placed[] = benchTokens.map((token, i) => {
-    const along = BENCH_LABEL_SIZE + benchStep * i + benchStep / 2;
-    return isPortrait
-      ? { token, x: bench.x + along, y: bench.y + bench.h / 2 }
-      : { token, x: bench.x + bench.w / 2, y: bench.y + along };
-  });
 
   // ── Gestes (handlers relus via ref : le PanResponder est créé une seule fois) ──
   const local = (e: GestureResponderEvent) => ({
@@ -248,15 +231,12 @@ const BoardStage = ({ content, tokens, showOpp, orientation, tool, color, stroke
       for (let i = onCourt.length - 1; i >= 0; i--) {
         const p = onCourt[i];
         if (p && Math.hypot(x - p.x, y - p.y) <= r + 6) {
-          setGesture({ kind: 'drag', tokenId: p.token.id, x, y, fromBench: false });
+          setGesture({ kind: 'drag', tokenId: p.token.id, x, y });
           return;
         }
       }
-      const b = benchSlots.find(p => Math.hypot(x - p.x, y - p.y) <= BENCH_TOKEN_R + 6);
-      if (b) setGesture({ kind: 'drag', tokenId: b.token.id, x, y, fromBench: true });
       return;
     }
-    if (!inRect(court, x, y)) return;
     if (tool === 'eraser') {
       setGesture({ kind: 'erase', ids: eraseAt(x, y, []) });
       return;
@@ -320,33 +300,9 @@ const BoardStage = ({ content, tokens, showOpp, orientation, tool, color, stroke
       return;
     }
 
-    // Déplacement d'un pion
-    const token = tokens.find(t => t.id === g.tokenId);
-    if (!token) return;
-    const positions = { ...content.positions };
-
-    if (token.team === 'mine' && inRect(bench, g.x, g.y)) {
-      if (g.fromBench) return;
-      delete positions[token.id]; // retour au banc
-      onChange({ ...content, positions });
-      return;
-    }
-    if (!inRect(court, g.x, g.y)) return;
-
+    // Déplacement d'un pion (gardé dans la portion visible du terrain)
     const dropped = clampToWindow(toCourt(vp, g.x, g.y), win, 0.4);
-    if (g.fromBench) {
-      // Lâché sur un joueur : échange (le joueur du terrain part au banc).
-      const target = onCourt.find(p => p.token.team === 'mine' && Math.hypot(g.x - p.x, g.y - p.y) <= r * 1.3);
-      const targetPos = target ? positions[target.token.id] : undefined;
-      if (target && targetPos) {
-        positions[token.id] = targetPos;
-        delete positions[target.token.id];
-        onChange({ ...content, positions });
-        return;
-      }
-    }
-    positions[token.id] = dropped;
-    onChange({ ...content, positions });
+    onChange({ ...content, positions: { ...content.positions, [g.tokenId]: dropped } });
   };
 
   const handlers = { handleGrant, handleMove, handleRelease };
@@ -388,7 +344,7 @@ const BoardStage = ({ content, tokens, showOpp, orientation, tool, color, stroke
   const erasing = gesture?.kind === 'erase' ? gesture.ids : [];
   const draft = gesture?.kind === 'draw' ? gesture.stroke : null;
   const dragToken = drag ? tokens.find(t => t.id === drag.tokenId) : undefined;
-  const dragOrigin = drag ? [...onCourt, ...benchSlots].find(p => p.token.id === drag.tokenId) : undefined;
+  const dragOrigin = drag ? onCourt.find(p => p.token.id === drag.tokenId) : undefined;
   const ready = size.w > 0 && size.h > 0;
 
   return (
@@ -398,24 +354,6 @@ const BoardStage = ({ content, tokens, showOpp, orientation, tool, color, stroke
           <Svg width={size.w} height={size.h} style={StyleSheet.absoluteFill}>
             <CourtDrawing vp={vp} court={court} orientation={orientation} full={full} />
           </Svg>
-
-          {/* Banc */}
-          <View
-            style={[
-              styles.bench,
-              { left: bench.x, top: bench.y, width: bench.w, height: bench.h },
-              isPortrait ? styles.benchRow : styles.benchColumn,
-            ]}
-          >
-            <Text style={styles.benchLabel}>BANC</Text>
-            {benchSlots.length === 0 && isPortrait && <Text style={styles.benchHint}>vide</Text>}
-          </View>
-          {benchSlots.map(p => (
-            <TokenView
-              key={p.token.id} token={p.token} x={p.x} y={p.y} r={BENCH_TOKEN_R}
-              ghost={drag?.tokenId === p.token.id}
-            />
-          ))}
 
           {/* Pions sur le terrain */}
           {onCourt.map(p => (
@@ -440,7 +378,7 @@ const BoardStage = ({ content, tokens, showOpp, orientation, tool, color, stroke
           </Svg>
 
           {drag && dragToken && (
-            <TokenView token={dragToken} x={drag.x} y={drag.y} r={drag.fromBench ? Math.max(r, BENCH_TOKEN_R) * 1.15 : r * 1.15} lifted />
+            <TokenView token={dragToken} x={drag.x} y={drag.y} r={r * 1.15} lifted />
           )}
         </View>
       )}

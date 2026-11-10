@@ -29,7 +29,7 @@ export type BoardToken = {
   id: number;          // id joueur (mon équipe) ; négatif pour les adversaires
   team: 'mine' | 'opp';
   label: string;       // numéro affiché dans le pion
-  role: string;        // abréviation de poste (P, R4, C, Pt, L) ; '' si inconnu
+  name: string;        // prénom affiché sous le pion ; '' pour les adversaires
   color: string;
 };
 

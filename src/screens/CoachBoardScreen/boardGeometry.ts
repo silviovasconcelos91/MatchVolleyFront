@@ -59,9 +59,6 @@ export const clampToWindow = (p: CourtPoint, win: CourtWindow, margin: number): 
   v: Math.min(win.vMax - margin, Math.max(win.vMin + margin, p.v)),
 });
 
-export const inRect = (r: Rect, x: number, y: number): boolean =>
-  x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
-
 // Position type de chaque zone dans mon camp.
 const MINE_ZONE_POINTS: Record<number, CourtPoint> = {
   4: { u: 1.5, v: 2 },
